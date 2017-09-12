@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from lib.crc32 import crc32_hash
-from multiprocessing.queues import JoinableQueue
+# from multiprocessing.queues import JoinableQueue
 
 try:
     import threading as _threading

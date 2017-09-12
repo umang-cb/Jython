@@ -295,8 +295,8 @@ EXTRA_HDR_FMTS = {
     CMD_SET_VBUCKET_STATE: VB_SET_PKT_FMT,
 }
 
-EXTRA_HDR_SIZES = dict(
-    [(k, struct.calcsize(v)) for (k, v) in EXTRA_HDR_FMTS.items()])
+# EXTRA_HDR_SIZES = dict(
+#     [(k, struct.calcsize(v)) for (k, v) in EXTRA_HDR_FMTS.items()])
 
 ERR_NOT_FOUND = 0x01
 NotFoundError = 0xD

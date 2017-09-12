@@ -30,7 +30,7 @@ from remote.remote_util import RemoteMachineShellConnection, RemoteUtilHelper
 from couchbase_helper.documentgenerator import BatchedDocumentGenerator
 from TestInput import TestInputServer, TestInputSingleton
 from testconstants import MIN_KV_QUOTA, INDEX_QUOTA, FTS_QUOTA, COUCHBASE_FROM_4DOT6, THROUGHPUT_CONCURRENCY, ALLOW_HTP, CBAS_QUOTA, COUCHBASE_FROM_VERSION_4
-from multiprocessing import Process, Manager, Semaphore
+# from multiprocessing import Process, Manager, Semaphore
 
 try:
     CHECK_FLAG = False
@@ -50,7 +50,7 @@ except Exception as e:
 # stacktracer.trace_start("trace.html",interval=30,auto=True) # Set auto flag to always update file!
 
 
-CONCURRENCY_LOCK = Semaphore(THROUGHPUT_CONCURRENCY)
+# CONCURRENCY_LOCK = Semaphore(THROUGHPUT_CONCURRENCY)
 PENDING = 'PENDING'
 EXECUTING = 'EXECUTING'
 CHECKING = 'CHECKING'

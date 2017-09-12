@@ -1,7 +1,7 @@
 import copy
 import socket
-from multiprocessing.process import Process
-from multiprocessing.queues import Queue
+# from multiprocessing.process import Process
+# from multiprocessing.queues import Queue
 import random
 import time
 from random import Random
@@ -20,7 +20,7 @@ from membase.api.rest_client import RestConnection, RestHelper, Bucket, vBucket
 from memcacheConstants import ERR_NOT_FOUND, ERR_NOT_MY_VBUCKET, ERR_ETMPFAIL, ERR_EINVAL
 import json
 import sys
-from perf_engines import mcsoda
+# from perf_engines import mcsoda
 
 from Queue import Queue
 from threading import Thread

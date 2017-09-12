@@ -8,7 +8,7 @@ import string
 import struct
 import random
 import threading
-import multiprocessing
+# import multiprocessing
 import Queue
 import logging
 import logging.config

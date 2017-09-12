@@ -55,7 +55,10 @@ log = logger.Logger.get_logger()
 logging.getLogger("paramiko").setLevel(logging.WARNING)
 
 try:
-    import paramiko
+#     import paramiko
+    from com.jcraft.jsch import JSch
+    from org.python.core.util import FileUtil
+    from java.lang import System
 except ImportError:
     log.warn("{0} {1} {2}".format("Warning: proceeding without importing",
                                   "paramiko due to import error.",
@@ -187,49 +190,47 @@ class RemoteMachineShellConnection:
         elif self.username != "Administrator":
             self.use_sudo = False
             self.nonroot = True
-        self._ssh_client = paramiko.SSHClient()
+#         self._ssh_client = paramiko.SSHClient()
         self.ip = serverInfo.ip
         self.remote = (self.ip != "localhost" and self.ip != "127.0.0.1")
         self.port = serverInfo.port
-        self._ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+#         self._ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         msg = 'connecting to {0} with username:{1} password:{2} ssh_key:{3}'
         log.info(msg.format(serverInfo.ip, serverInfo.ssh_username,
                             serverInfo.ssh_password, serverInfo.ssh_key))
+        
+        jsch=JSch()
+        
         # added attempts for connection because of PID check failed.
         # RNG must be re-initialized after fork() error
         # That's a paramiko bug
         max_attempts_connect = 2
         attempt = 0
-        while True:
-            try:
-                if self.remote and serverInfo.ssh_key == '':
-                    self._ssh_client.connect(hostname=serverInfo.ip,
-                                             username=serverInfo.ssh_username,
-                                             password=serverInfo.ssh_password)
-                elif self.remote:
-                    self._ssh_client.connect(hostname=serverInfo.ip,
-                                             username=serverInfo.ssh_username,
-                                             key_filename=serverInfo.ssh_key)
-                break
-            except paramiko.AuthenticationException:
-                log.error("Authentication failed")
-                exit(1)
-            except paramiko.BadHostKeyException:
-                log.error("Invalid Host key")
-                exit(1)
-            except Exception as e:
-                if str(e).find('PID check failed. RNG must be re-initialized') != -1 and\
-                        attempt != max_attempts_connect:
-                    log.error("Can't establish SSH session to node {1} :\
-                              {0}. Will try again in 1 sec".format(e, self.ip))
-                    attempt += 1
-                    time.sleep(1)
-                else:
-                    log.error("Can't establish SSH session to node {1} :\
-                                                   {0}".format(e, self.ip))
-                    exit(1)
-        log.info("Connected to {0}".format(serverInfo.ip))
-        """ self.info.distribution_type.lower() == "ubuntu" """
+#         while True:
+#             try:
+#                 if self.remote and serverInfo.ssh_key == '':
+#                     self._ssh_client.connect(hostname=serverInfo.ip,
+#                                              username=serverInfo.ssh_username,
+#                                              password=serverInfo.ssh_password)
+#                 elif self.remote:
+#                     self._ssh_client.connect(hostname=serverInfo.ip,
+#                                              username=serverInfo.ssh_username,
+#                                              key_filename=serverInfo.ssh_key)
+#                 break
+#             except Exception as e:
+#                 if str(e).find('PID check failed. RNG must be re-initialized') != -1 and\
+#                         attempt != max_attempts_connect:
+#                     log.error("Can't establish SSH session to node {1} :\
+#                               {0}. Will try again in 1 sec".format(e, self.ip))
+#                     attempt += 1
+#                     time.sleep(1)
+#                 else:
+#                     print str(e)
+#                     log.error("Can't establish SSH session to node {1} :\
+#                                                    {0}".format(e, self.ip))
+#                     exit(1)
+#         log.info("Connected to {0}".format(serverInfo.ip))
+#         """ self.info.distribution_type.lower() == "ubuntu" """
         self.cmd_ext = ""
         self.bin_path = LINUX_COUCHBASE_BIN_PATH
         self.msi = False
@@ -743,15 +744,15 @@ class RemoteMachineShellConnection:
         else:
             command_1 = "/sbin/iptables -F"
             command_2 = "/sbin/iptables -t nat -F"
-            if self.nonroot:
-                self.connect_with_user()
+#             if self.nonroot:
+#                 self.connect_with_user()
             output, error = self.execute_command(command_1)
             self.log_command_output(output, error)
             output, error = self.execute_command(command_2)
             self.log_command_output(output, error)
-            self.connect_with_user(user=self.username)
-            if self.nonroot:
-                self.connect_with_user(user=self.username)
+#             self.connect_with_user(user=self.username)
+#             if self.nonroot:
+#                 self.connect_with_user(user=self.username)
 
     def download_binary(self, url, deliverable_type, filename, latest_url=None, skip_md5_check=True):
         self.extract_remote_info()
@@ -816,7 +817,7 @@ class RemoteMachineShellConnection:
         # build.product has the full name
         # first remove the previous file if it exist ?
         # fix this :
-            output, error = self.execute_command_raw('cd /tmp ; D=$(mktemp -d cb_XXXX) ; mv {0} $D ; mv core.* $D ; rm -f * ; mv $D/* . ; rmdir $D'.format(filename))
+            output, error = self.execute_command_raw_jsch('cd /tmp ; D=$(mktemp -d cb_XXXX) ; mv {0} $D ; mv core.* $D ; rm -f * ; mv $D/* . ; rmdir $D'.format(filename))
             self.log_command_output(output, error)
             if skip_md5_check:
                 if self.nonroot:
@@ -850,7 +851,7 @@ class RemoteMachineShellConnection:
                                                                      self.nr_home_path))
                     self.log_command_output(output, error)
                 else:
-                    output, error = self.execute_command_raw('cd /tmp;wget -q -O {0} {1};cd /tmp;ls -lh'\
+                    output, error = self.execute_command_raw_jsch('cd /tmp;wget -q -O {0} {1};cd /tmp;ls -lh'\
                                                                                   .format(filename, url))
                     self.log_command_output(output, error)
             else:
@@ -875,32 +876,41 @@ class RemoteMachineShellConnection:
 
 
     def get_file(self, remotepath, filename, todir):
-        if self.file_exists(remotepath, filename):
-            if self.remote:
-                sftp = self._ssh_client.open_sftp()
-                try:
-                    filenames = sftp.listdir(remotepath)
-                    for name in filenames:
-                        if name == filename:
-                            sftp.get('{0}/{1}'.format(remotepath, filename), todir)
-                            sftp.close()
-                            return True
-                    sftp.close()
-                    return False
-                except IOError:
-                    return False
-        else:
-            os.system("cp {0} {1}".format('{0}/{1}'.format(remotepath, filename), todir))
+        from com.jcraft.jsch import ChannelSftp
+        from com.jcraft.jsch import JSchException,SftpException
+        jsch=JSch()
+        session=jsch.getSession(self.username, self.ip, 22);
+        session.setPassword(self.password);
+        session.setConfig("StrictHostKeyChecking", "no");
+        session.connect();
+        channel=session.openChannel("sftp");
+#         errstream=channel.getErrStream()
+        channel.connect();
+        channelSftp = channel
+        try:
+            channelSftp.cd(remotepath)
+            if self.file_exists(remotepath, filename):
+                channelSftp.get('{0}/{1}'.format(remotepath, filename), todir)
+                channel.disconnect()
+                session.disconnect()
+                return True
+            else:
+                os.system("cp {0} {1}".format('{0}/{1}'.format(remotepath, filename), todir))
+            channel.disconnect()
+            session.disconnect()
+            
+        except JSchException as e:
+            channel.disconnect()
+            session.disconnect()
+        except SftpException as e:
+            channel.disconnect()
+            session.disconnect()
+        return False        
 
     def read_remote_file(self, remote_path, filename):
         if self.file_exists(remote_path, filename):
             if self.remote:
-                sftp = self._ssh_client.open_sftp()
-                remote_file = sftp.open('{0}/{1}'.format(remote_path, filename))
-                try:
-                    out = remote_file.readlines()
-                finally:
-                    remote_file.close()
+                out, err = self.execute_command_raw_jsch("cat %s"%os.path.join(remote_path,filename))
                 return out
             else:
                 txt = open('{0}/{1}'.format(remote_path, filename))
@@ -922,14 +932,29 @@ class RemoteMachineShellConnection:
 
     def remove_directory(self, remote_path):
         if self.remote:
-            sftp = self._ssh_client.open_sftp()
+            from com.jcraft.jsch import ChannelSftp
+            from com.jcraft.jsch import JSchException,SftpException
+            jsch=JSch()
+            session=jsch.getSession(self.username, self.ip, 22);
+            session.setPassword(self.password);
+            session.setConfig("StrictHostKeyChecking", "no");
+            session.connect();
+            channel=session.openChannel("sftp");
+    #         errstream=channel.getErrStream()
+            channel.connect();
+            channelSftp = channel
             try:
-                log.info("removing {0} directory...".format(remote_path))
-                sftp.rmdir(remote_path)
-            except IOError:
-                return False
-            finally:
-                sftp.close()
+                channelSftp.rmdir(remote_path)
+                channel.disconnect()
+                session.disconnect()
+                return True
+            except JSchException as e:
+                channel.disconnect()
+                session.disconnect()
+            except SftpException as e:
+                channel.disconnect()
+                session.disconnect()
+            return False
         else:
             try:
                 p = Popen("rm -rf {0}".format(remote_path) , shell=True, stdout=PIPE, stderr=PIPE)
@@ -969,17 +994,35 @@ class RemoteMachineShellConnection:
         return True
 
     def list_files(self, remote_path):
+        files = []
         if self.remote:
-            sftp = self._ssh_client.open_sftp()
-            files = []
+            from com.jcraft.jsch import ChannelSftp
+            from com.jcraft.jsch import JSchException,SftpException
+            jsch=JSch()
+            session=jsch.getSession(self.username, self.ip, 22);
+            session.setPassword(self.password);
+            session.setConfig("StrictHostKeyChecking", "no");
+            session.connect();
+            channel=session.openChannel("sftp");
+    #         errstream=channel.getErrStream()
+            channel.connect();
+            channelSftp = channel
             try:
-                file_names = sftp.listdir(remote_path)
-                for name in file_names:
+                channelSftp.cd(remote_path)
+                filenames = channelSftp.ls(remote_path)
+                for name in filenames:
                     files.append({'path': remote_path, 'file': name})
-                sftp.close()
-            except IOError:
+                channel.disconnect()
+                session.disconnect()
+                return False
+            except JSchException as e:
+                channel.disconnect()
+                session.disconnect()
                 return []
-            return files
+            except SftpException as e:
+                channel.disconnect()
+                session.disconnect()
+                return []
         else:
             p = Popen("ls {0}".format(remote_path) , shell=True, stdout=PIPE, stderr=PIPE)
             files, stderro = p.communicate()
@@ -989,17 +1032,29 @@ class RemoteMachineShellConnection:
         """
          Check if file ending with this pattern is present in remote machine
         """
-        sftp = self._ssh_client.open_sftp()
         files_matched = []
+        from com.jcraft.jsch import ChannelSftp
+        from com.jcraft.jsch import JSchException,SftpException
+        jsch=JSch()
+        session=jsch.getSession(self.username, self.ip, 22);
+        session.setPassword(self.password);
+        session.setConfig("StrictHostKeyChecking", "no");
+        session.connect();
+        channel=session.openChannel("sftp");
+#         errstream=channel.getErrStream()
+        channel.connect();
+        channelSftp = channel
         try:
-            file_names = sftp.listdir(remotepath)
-            for name in file_names:
+            channelSftp.cd(remotepath)
+            filenames = channelSftp.ls(remotepath)
+            for name in filenames:
                 if name.endswith(pattern):
                     files_matched.append("{0}/{1}".format(remotepath, name))
-        except IOError:
-            # ignore this error
+        except SftpException as e:
             pass
-        sftp.close()
+        channel.disconnect()
+        session.disconnect()
+        
         if len(files_matched) > 0:
             log.info("found these files : {0}".format(files_matched))
         return files_matched
@@ -1007,37 +1062,68 @@ class RemoteMachineShellConnection:
     # check if this file exists in the remote
     # machine or not
     def file_starts_with(self, remotepath, pattern):
-        sftp = self._ssh_client.open_sftp()
         files_matched = []
+        from com.jcraft.jsch import ChannelSftp
+        from com.jcraft.jsch import JSchException,SftpException
+        jsch=JSch()
+        session=jsch.getSession(self.username, self.ip, 22);
+        session.setPassword(self.password);
+        session.setConfig("StrictHostKeyChecking", "no");
+        session.connect();
+        channel=session.openChannel("sftp");
+#         errstream=channel.getErrStream()
+        channel.connect();
+        channelSftp = channel
         try:
-            file_names = sftp.listdir(remotepath)
-            for name in file_names:
+            channelSftp.cd(remotepath)
+            filenames = channelSftp.ls(remotepath)
+            for name in filenames:
                 if name.startswith(pattern):
                     files_matched.append("{0}/{1}".format(remotepath, name))
-        except IOError:
-            # ignore this error
+        except SftpException as e:
             pass
-        sftp.close()
+        channel.disconnect()
+        session.disconnect()
+        
         if len(files_matched) > 0:
             log.info("found these files : {0}".format(files_matched))
         return files_matched
 
     def file_exists(self, remotepath, filename):
-        sftp = self._ssh_client.open_sftp()
+        from com.jcraft.jsch import ChannelSftp
+        from com.jcraft.jsch import JSchException,SftpException
+        jsch=JSch()
+        session=jsch.getSession(self.username, self.ip, 22);
+        session.setPassword(self.password);
+        session.setConfig("StrictHostKeyChecking", "no");
+        session.connect();
+        channel=session.openChannel("sftp");
+#         errstream=channel.getErrStream()
+        channel.connect();
+        channelSftp = channel
         try:
-            filenames = sftp.listdir_attr(remotepath)
+            channelSftp.cd(remotepath)
+            filenames = channelSftp.ls(remotepath)
             for name in filenames:
-                if name.filename == filename and int(name.st_size) > 0:
-                    sftp.close()
+                if name.getFilename() == filename and int(name.getAttrs().getSize()) > 0:
+                    channel.disconnect()
+                    session.disconnect()
                     return True
-                elif name.filename == filename and int(name.st_size) == 0:
-                    if name.filename == NR_INSTALL_LOCATION_FILE:
+                elif name.getFilename() == filename and int(name.getAttrs().getSize()) == 0:
+                    if name.getFilename() == NR_INSTALL_LOCATION_FILE:
                         continue
                     log.info("File {0} will be deleted".format(filename))
-                    sftp.remove(remotepath + filename)
-            sftp.close()
+                    channel.rm(remotepath + filename)
+            channel.disconnect()
+            session.disconnect()
             return False
-        except IOError:
+        except JSchException as e:
+            channel.disconnect()
+            session.disconnect()
+            return False
+        except SftpException as e:
+            channel.disconnect()
+            session.disconnect()
             return False
 
     def delete_file(self, remotepath, filename):
@@ -1449,20 +1535,31 @@ class RemoteMachineShellConnection:
         os.remove(des_file)
 
     def create_directory(self, remote_path):
-        sftp = self._ssh_client.open_sftp()
+        from com.jcraft.jsch import ChannelSftp
+        from com.jcraft.jsch import JSchException,SftpException
+        jsch=JSch()
+        session=jsch.getSession(self.username, self.ip, 22);
+        session.setPassword(self.password);
+        session.setConfig("StrictHostKeyChecking", "no");
+        session.connect();
+        channel=session.openChannel("sftp");
+#         errstream=channel.getErrStream()
+        channel.connect();
+        channelSftp = channel
         try:
-            sftp.stat(remote_path)
-        except IOError, e:
-            if e[0] == 2:
-                log.info("Directory at {0} DOES NOT exist. We will create on here".format(remote_path))
-                sftp.mkdir(remote_path)
-                sftp.close()
-                return False
-            raise
+            channelSftp.ls(remote_path)
+            channel.disconnect()
+            session.disconnect()
+        except JSchException as e:
+            channel.disconnect()
+            session.disconnect()
+            return False
+        except SftpException as e:
+            channelSftp.mkdir(remote_path)
+            channel.disconnect()
+            session.disconnect()
         else:
-            log.error("Directory at {0} DOES exist. Fx returns True".format(remote_path))
             return True
-
     # this function will remove the automation directory in windows
     def create_multiple_dir(self, dir_paths):
         sftp = self._ssh_client.open_sftp()
@@ -2785,7 +2882,46 @@ class RemoteMachineShellConnection:
         if self.use_sudo:
             command = "sudo " + command
 
-        return self.execute_command_raw(command, debug=debug, use_channel=use_channel)
+        return self.execute_command_raw_jsch(command, debug=debug, use_channel=use_channel)
+
+    def execute_command_raw_jsch(self, command, debug=True, use_channel=False):
+        if debug:
+            log.info("running command.raw on {0}: {1}".format(self.ip, command))
+        output = []
+        error = []
+        if not self.remote:
+            p = Popen(command , shell=True, stdout=PIPE, stderr=PIPE)
+            output, error = p.communicate()
+            
+        else:
+            jsch=JSch()
+            session=jsch.getSession(self.username, self.ip, 22);
+            session.setPassword(self.password);
+            session.setConfig("StrictHostKeyChecking", "no");
+            session.connect();
+            self._ssh_client=session.openChannel("exec");
+            self._ssh_client.setInputStream(None);
+            
+            instream=self._ssh_client.getInputStream();
+            errstream=self._ssh_client.getErrStream()
+            self._ssh_client.setCommand(command)
+            self._ssh_client.connect();
+            output=[]
+            error=[]
+            fu = FileUtil.wrap(instream)
+            for line in fu.readlines():
+                output.append(line)
+                
+            fu = FileUtil.wrap(errstream)
+            for line in fu.readlines():
+                error.append(line)
+#             stdin.close()
+#             ver, err = stdout.read(), stderro.read()
+            self._ssh_client.disconnect()
+            session.disconnect()
+        if debug:
+            log.info('command executed successfully')
+        return output, error
 
     def execute_command_raw(self, command, debug=True, use_channel=False):
         if debug:
@@ -2852,7 +2988,7 @@ class RemoteMachineShellConnection:
                 self.log_command_output(o, r)
 
     def disconnect(self):
-        self._ssh_client.close()
+        self._ssh_client.disconnect()
 
     def extract_remote_info(self):
         # initialize params
@@ -2869,9 +3005,7 @@ class RemoteMachineShellConnection:
             return self.info
         mac_check_cmd = "sw_vers | grep ProductVersion | awk '{ print $2 }'"
         if self.remote:
-            stdin, stdout, stderro = self._ssh_client.exec_command(mac_check_cmd)
-            stdin.close()
-            ver, err = stdout.read(), stderro.read()
+            ver, err = self.execute_command_raw_jsch(mac_check_cmd)
         else:
             p = Popen(mac_check_cmd , shell=True, stdout=PIPE, stderr=PIPE)
             ver, err = p.communicate()
@@ -2883,77 +3017,65 @@ class RemoteMachineShellConnection:
             self.use_sudo = False
         elif self.remote:
             is_mac = False
-            sftp = self._ssh_client.open_sftp()
-            filenames = sftp.listdir('/etc/')
+#             sftp = self._ssh_client.open_sftp()
+#             filenames = sftp.listdir('/etc/')
             os_distro = ""
             os_version = ""
             is_linux_distro = False
-            for name in filenames:
-                if name == 'issue':
-                    # it's a linux_distro . let's downlaod this file
-                    # format Ubuntu 10.04 LTS \n \l
-                    filename = 'etc-issue-{0}'.format(uuid.uuid4())
-                    sftp.get(localpath=filename, remotepath='/etc/issue')
-                    file = open(filename)
-                    etc_issue = ''
-                    # let's only read the first line
-                    for line in file.xreadlines():
-                        # for SuSE that has blank first line
-                        if line.rstrip('\n'):
-                            etc_issue = line
-                            break
-                        # strip all extra characters
-                    etc_issue = etc_issue.rstrip('\n').rstrip('\\l').rstrip('\\n')
-                    if etc_issue.lower().find('ubuntu') != -1:
-                        os_distro = 'Ubuntu'
-                        os_version = etc_issue
-                        tmp_str = etc_issue.split()
-                        if tmp_str and tmp_str[1][:2].isdigit():
-                            os_version = "Ubuntu %s" % tmp_str[1][:5]
-                        is_linux_distro = True
-                    elif etc_issue.lower().find('debian') != -1:
-                        os_distro = 'Ubuntu'
-                        os_version = etc_issue
-                        is_linux_distro = True
-                    elif etc_issue.lower().find('mint') != -1:
-                        os_distro = 'Ubuntu'
-                        os_version = etc_issue
-                        is_linux_distro = True
-                    elif etc_issue.lower().find('amazon linux ami') != -1:
-                        os_distro = 'CentOS'
-                        os_version = etc_issue
-                        is_linux_distro = True
-                    elif etc_issue.lower().find('centos') != -1:
-                        os_distro = 'CentOS'
-                        os_version = etc_issue
-                        is_linux_distro = True
-                    elif etc_issue.lower().find('red hat') != -1:
-                        os_distro = 'Red Hat'
-                        os_version = etc_issue
-                        is_linux_distro = True
-                    elif etc_issue.lower().find('opensuse') != -1:
-                        os_distro = 'openSUSE'
-                        os_version = etc_issue
-                        is_linux_distro = True
-                    elif etc_issue.lower().find('suse linux') != -1:
-                        os_distro = 'SUSE'
-                        os_version = etc_issue
-                        tmp_str = etc_issue.split()
-                        if tmp_str and tmp_str[6].isdigit():
-                            os_version = "SUSE %s" % tmp_str[6]
-                        is_linux_distro = True
-                    elif etc_issue.lower().find('oracle linux') != -1:
-                        os_distro = 'Oracle Linux'
-                        os_version = etc_issue
-                        is_linux_distro = True
-                    else:
-                        log.info("It could be other operating systyem."
-                                 "  Go to check at other location")
-                    file.close()
-                    # now remove this file
-                    os.remove(filename)
-                    break
+            
+            etc_issue = self.execute_command_raw_jsch("cat /etc/issue")[0][0]
+            
+            etc_issue = etc_issue.rstrip('\n').rstrip('\\l').rstrip('\\n')
+            if etc_issue.lower().find('ubuntu') != -1:
+                os_distro = 'Ubuntu'
+                os_version = etc_issue
+                tmp_str = etc_issue.split()
+                if tmp_str and tmp_str[1][:2].isdigit():
+                    os_version = "Ubuntu %s" % tmp_str[1][:5]
+                is_linux_distro = True
+            elif etc_issue.lower().find('debian') != -1:
+                os_distro = 'Ubuntu'
+                os_version = etc_issue
+                is_linux_distro = True
+            elif etc_issue.lower().find('mint') != -1:
+                os_distro = 'Ubuntu'
+                os_version = etc_issue
+                is_linux_distro = True
+            elif etc_issue.lower().find('amazon linux ami') != -1:
+                os_distro = 'CentOS'
+                os_version = etc_issue
+                is_linux_distro = True
+            elif etc_issue.lower().find('centos') != -1:
+                os_distro = 'CentOS'
+                os_version = etc_issue
+                is_linux_distro = True
+            elif etc_issue.lower().find('red hat') != -1:
+                os_distro = 'Red Hat'
+                os_version = etc_issue
+                is_linux_distro = True
+            elif etc_issue.lower().find('opensuse') != -1:
+                os_distro = 'openSUSE'
+                os_version = etc_issue
+                is_linux_distro = True
+            elif etc_issue.lower().find('suse linux') != -1:
+                os_distro = 'SUSE'
+                os_version = etc_issue
+                tmp_str = etc_issue.split()
+                if tmp_str and tmp_str[6].isdigit():
+                    os_version = "SUSE %s" % tmp_str[6]
+                is_linux_distro = True
+            elif etc_issue.lower().find('oracle linux') != -1:
+                os_distro = 'Oracle Linux'
+                os_version = etc_issue
+                is_linux_distro = True
             else:
+                log.info("It could be other operating systyem."
+                         "  Go to check at other location")
+#             file.close()
+#             # now remove this file
+#             os.remove(filename)
+#             break
+#             else:
                 os_distro = "linux"
                 os_version = "default"
                 is_linux_distro = True
@@ -2963,35 +3085,43 @@ class RemoteMachineShellConnection:
                 ext = "local"
                 filenames = []
             """ for centos 7 only """
-            for name in filenames:
-                if name == "redhat-release":
-                    filename = 'redhat-release-{0}'.format(uuid.uuid4())
-                    if self.remote:
-                        sftp.get(localpath=filename, remotepath='/etc/redhat-release')
-                    else:
-                        p = Popen("cat /etc/redhat-release > {0}".format(filename) , shell=True, stdout=PIPE, stderr=PIPE)
-                        var, err = p.communicate()
+#             for name in filenames:
+#                 if name == "redhat-release":
+            if not is_linux_distro:
+                filename = 'redhat-release-{0}'.format(uuid.uuid4())
+                if self.remote:
+                    self._ssh_client.setCommand("cat /etc/redhat-release")
+                    self._ssh_client.setInputStream(None);
+                    instream=self._ssh_client.getInputStream();
+                    errstream=self._ssh_client.getErrStream()
+                    self._ssh_client.connect();
+                    fu = FileUtil.wrap(instream)
+                    for line in fu.readlines():
+                        redhat_release = line
+                else:
+                    p = Popen("cat /etc/redhat-release > {0}".format(filename) , shell=True, stdout=PIPE, stderr=PIPE)
+                    var, err = p.communicate()
                     file = open(filename)
                     redhat_release = ''
                     for line in file.xreadlines():
                         redhat_release = line
                         break
-                    redhat_release = redhat_release.rstrip('\n').rstrip('\\l').rstrip('\\n')
-                    """ in ec2: Red Hat Enterprise Linux Server release 7.2 """
-                    if redhat_release.lower().find('centos') != -1 \
-                         or redhat_release.lower().find('linux server') != -1:
-                        if redhat_release.lower().find('release 7') != -1:
-                            os_distro = 'CentOS'
-                            os_version = "CentOS 7"
-                            is_linux_distro = True
-                    else:
-                        log.error("Could not find OS name."
-                                 "It could be unsupport OS")
-                    file.close()
-                    os.remove(filename)
-                    break
+                redhat_release = redhat_release.rstrip('\n').rstrip('\\l').rstrip('\\n')
+                """ in ec2: Red Hat Enterprise Linux Server release 7.2 """
+                if redhat_release.lower().find('centos') != -1 \
+                     or redhat_release.lower().find('linux server') != -1:
+                    if redhat_release.lower().find('release 7') != -1:
+                        os_distro = 'CentOS'
+                        os_version = "CentOS 7"
+                        is_linux_distro = True
+                else:
+                    log.error("Could not find OS name."
+                             "It could be unsupport OS")
+#                     file.close()
+#                     os.remove(filename)
+#                     break
 
-        if self.remote:
+        if self.remote and not is_linux_distro:
             if self.find_file("/cygdrive/c/Windows", "win.ini"):
                 log.info("This is windows server!")
                 is_linux_distro = False
@@ -3017,10 +3147,10 @@ class RemoteMachineShellConnection:
         else:
             # now run uname -m to get the architechtre type
             if self.remote:
-                stdin, stdout, stderro = self._ssh_client.exec_command('uname -m')
-                stdin.close()
+                
+                stdout, stderro = self.execute_command_raw_jsch('uname -m')
                 os_arch = ''
-                text = stdout.read().splitlines()
+                text = stdout
             else:
                 p = Popen('uname -m' , shell=True, stdout=PIPE, stderr=PIPE)
                 text, err = p.communicate()
@@ -3068,7 +3198,7 @@ class RemoteMachineShellConnection:
             if 'Host Name' not in win_info:
                 win_info = self.create_windows_info()
             o = win_info['Host Name']
-        o, r = self.execute_command_raw('hostname', debug=False)
+        o, r = self.execute_command_raw_jsch('hostname', debug=False)
         if o:
             return o
 
@@ -3083,7 +3213,7 @@ class RemoteMachineShellConnection:
             else:
                 ret = suffix_dns_row[0].split(':')[1].strip()
         else:
-            ret = self.execute_command_raw('hostname -d', debug=False)
+            ret = self.execute_command_raw_jsch('hostname -d', debug=False)
         return ret
 
     def get_full_hostname(self):
@@ -3107,9 +3237,9 @@ class RemoteMachineShellConnection:
                 win_info = self.create_windows_info()
             o = win_info['Processor(s)']
         elif mac:
-            o, r = self.execute_command_raw('/sbin/sysctl -n machdep.cpu.brand_string')
+            o, r = self.execute_command_raw_jsch('/sbin/sysctl -n machdep.cpu.brand_string')
         else:
-            o, r = self.execute_command_raw('cat /proc/cpuinfo', debug=False)
+            o, r = self.execute_command_raw_jsch('cat /proc/cpuinfo', debug=False)
         if o:
             return o
 
@@ -3121,9 +3251,9 @@ class RemoteMachineShellConnection:
             o += "Virtual Memory Available =" + win_info['Virtual Memory Available'] + '\n'
             o += "Virtual Memory In Use =" + win_info['Virtual Memory In Use']
         elif mac:
-            o, r = self.execute_command_raw('/sbin/sysctl -n hw.memsize',debug=False)
+            o, r = self.execute_command_raw_jsch('/sbin/sysctl -n hw.memsize',debug=False)
         else:
-            o, r = self.execute_command_raw('cat /proc/meminfo', debug=False)
+            o, r = self.execute_command_raw_jsch('cat /proc/meminfo', debug=False)
         if o:
             return o
 
@@ -3134,9 +3264,9 @@ class RemoteMachineShellConnection:
             o = "Total Physical Memory =" + win_info['Total Physical Memory'] + '\n'
             o += "Available Physical Memory =" + win_info['Available Physical Memory']
         elif mac:
-            o, r = self.execute_command_raw('df -h', debug=False)
+            o, r = self.execute_command_raw_jsch('df -h', debug=False)
         else:
-            o, r = self.execute_command_raw('df -Th', debug=False)
+            o, r = self.execute_command_raw_jsch('df -Th', debug=False)
         if o:
             return o
 

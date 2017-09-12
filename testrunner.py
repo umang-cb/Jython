@@ -8,7 +8,6 @@ import urllib2
 import sys
 import threading
 from os.path import basename, splitext
-from multiprocessing import Process
 from pprint import pprint
 sys.path = ["lib", "pytests", "pysystests"] + sys.path
 
@@ -281,7 +280,7 @@ class StoppableThreadWithResult(Thread):
     def __init__(self, group=None, target=None, name=None,
                  args=(), kwargs=None, verbose=None):
         super(StoppableThreadWithResult, self).__init__(group=group, target=target,
-                        name=name, args=args, kwargs=kwargs, verbose=verbose)
+                        name=name, args=args, kwargs=kwargs)
         self._stop = Event()
 
     def stop(self):
@@ -414,12 +413,13 @@ def main():
             result = unittest.TextTestRunner(verbosity=2)._makeResult()
             result.errors = [(name, e.message)]
         else:
-            test_timeout = TestInputSingleton.input.param("test_timeout", None)
-            t = StoppableThreadWithResult(target=unittest.TextTestRunner(verbosity=2).run,
-               name="test_thread",
-               args=(suite))
-            t.start()
-            result = t.join(timeout=test_timeout)
+            result = unittest.TextTestRunner(verbosity=2).run(suite)
+#             test_timeout = TestInputSingleton.input.param("test_timeout", None)
+#             t = StoppableThreadWithResult(target=unittest.TextTestRunner(verbosity=2).run,
+#                name="test_thread",
+#                args=(suite))
+#             t.start()
+#             result = t.join(timeout=test_timeout)
             if "get-coredumps" in TestInputSingleton.input.test_params:
                 if TestInputSingleton.input.param("get-coredumps", True):
                     if get_core_dumps(TestInputSingleton.input, logs_folder):
@@ -558,6 +558,19 @@ def watcher():
             pass
 
     sys.exit()
+    
+def testfunc():
+    from pexpect import pxssh
+    s = pxssh.pxssh()
+    if not s.login ('10.142.160.101', 'root', 'couchbase'):
+        print "SSH session failed on login."
+        print str(s)
+    else:
+        print "SSH session login successful"
+        s.sendline ("ps -eo comm,pid | awk '$1 == \"memcached\" { print $2 }'")
+        s.prompt()         # match the prompt
+        print s.before     # print everything before the prompt.
+        s.logout()
 
 if __name__ == "__main__":
-    watcher()
+    main()
