@@ -35,6 +35,19 @@ class CBASAsyncResultDeliveryTests(CBASBaseTest):
         # Allow ingestion to complete
         self.sleep(20)
 
+    def read_json_tempelate(self, path):
+        import os
+        istream = open(path);
+        with istream as data_file:    
+            data = json.load(data_file)
+        return data["key"], data["value"]
+
+    def test_LoadKV(self):
+        path = "/Users/riteshagarwal/CB/garrit/testrunner/b/testdata.json"
+        k,v = self.read_json_tempelate(path)
+        from Jython_tasks.task import docloadertask_executor
+        docloadertask_executor().load(k,v,100000)
+        
     def test_mode(self):
         self.setupForTest()
 
