@@ -2988,7 +2988,8 @@ class RemoteMachineShellConnection:
                 self.log_command_output(o, r)
 
     def disconnect(self):
-        self._ssh_client.disconnect()
+        if self._ssh_client:
+            self._ssh_client.disconnect()
 
     def extract_remote_info(self):
         # initialize params

@@ -10,7 +10,7 @@ import threading
 from os.path import basename, splitext
 from pprint import pprint
 sys.path = ["lib", "pytests", "pysystests"] + sys.path
-
+sys.path = ["core-io-1.4.7.jar","java-client-2.4.7.jar","jsch-0.1.54.jar","rxjava-1.2.7.jar"] + sys.path
 if sys.hexversion < 0x02060000:
     print "Testrunner requires version 2.6+ of python"
     sys.exit()

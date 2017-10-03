@@ -85,3 +85,5 @@ class docloadertask_executor():
         
         print "Executors completed!!"
         shutdown_and_await_termination(pool, 5)
+        if bucket.close() and cluster.disconnect():
+            pass

@@ -5,9 +5,9 @@ from basetestcase import BaseTestCase
 from lib.couchbase_helper.analytics_helper import AnalyticsHelper
 from couchbase_helper.documentgenerator import DocumentGenerator
 import urllib
-from lib.membase.api.rest_client import RestConnection, RestHelper, Bucket
+from lib.membase.api.rest_client import RestHelper, Bucket
+from RestConnectionCbas import RestConnection_cbas
 from lib.couchbase_helper.cluster import *
-from lib.membase.helper.bucket_helper import BucketOperationHelper
 from testconstants import FTS_QUOTA, CBAS_QUOTA, INDEX_QUOTA, MIN_KV_QUOTA
 from threading import Thread
 import threading
@@ -66,7 +66,7 @@ class CBASBaseTest(BaseTestCase):
             self.index_fields = self.index_fields.split("-")
         self.otpNodes = []
 
-        self.rest = RestConnection(self.master)
+        self.rest = RestConnection_cbas(self.master)
         
         self.log.info("Setting the min possible memory quota so that adding mode nodes to the cluster wouldn't be a problem.")
         self.rest.set_service_memoryQuota(service='memoryQuota', memoryQuota=MIN_KV_QUOTA)
@@ -94,24 +94,6 @@ class CBASBaseTest(BaseTestCase):
         
         self.log.info("==============  CBAS_BASE setup was finished for test #{0} {1} ==============" \
                           .format(self.case_number, self._testMethodName))
-    
-    def create_default_bucket(self):
-        node_info = self.rest.get_nodes_self()
-        if node_info.memoryQuota and int(node_info.memoryQuota) > 0 :
-            ram_available = node_info.memoryQuota
-            
-        self.bucket_size = ram_available - 1
-        default_params=self._create_bucket_params(server=self.master, size=self.bucket_size,
-                                                         replicas=self.num_replicas, bucket_type=self.bucket_type,
-                                                         enable_replica_index=self.enable_replica_index,
-                                                         eviction_policy=self.eviction_policy, lww=self.lww)
-        self.cluster.create_default_bucket(default_params)
-        self.buckets.append(Bucket(name="default", authType="sasl", saslPassword="",
-                                   num_replicas=self.num_replicas, bucket_size=self.bucket_size,
-                                   eviction_policy=self.eviction_policy, lww=self.lww,
-                                   type=self.bucket_type))
-        if self.enable_time_sync:
-            self._set_time_sync_on_buckets( ['default'] )
     
     def add_all_cbas_node_then_rebalance(self):
         if len(self.cbas_servers)>=1:
@@ -177,34 +159,6 @@ class CBASBaseTest(BaseTestCase):
         if wait_for_rebalance:
             self.assertTrue(removed, "Rebalance operation failed while removing %s,"%otpnode)
         
-    def load_sample_buckets(self, servers=None, bucketName=None, total_items=None):
-        """ Load the specified sample bucket in Couchbase """
-        self.assertTrue(self.rest.load_sample(bucketName),"Failure while loading sample bucket: %s"%bucketName)
-        
-        """ check for load data into travel-sample bucket """
-        if total_items:
-            import time
-            end_time = time.time() + 600
-            while time.time() < end_time:
-                self.sleep(10)
-                num_actual = 0
-                if not servers:
-                    num_actual = self.get_item_count(self.master,bucketName)
-                else:
-                    for server in servers:
-                        if "kv" in server.services:
-                            num_actual += self.get_item_count(server,bucketName)
-                if int(num_actual) == total_items:
-                    self.log.info("%s items are loaded in the %s bucket" %(num_actual,bucketName))
-                    break
-                self.log.info("%s items are loaded in the %s bucket" %(num_actual,bucketName))
-            if int(num_actual) != total_items:
-                return False
-        else:
-            self.sleep(120)
-
-        return True
-    
     def create_bucket_on_cbas(self, cbas_bucket_name, cb_bucket_name,
                               cb_server_ip=None,
                               validate_error_msg=False):
@@ -580,7 +534,7 @@ class CBASBaseTest(BaseTestCase):
         """
         pretty = "true"
         if not rest:
-            rest = RestConnection(self.cbas_node)
+            rest = RestConnection_cbas(self.cbas_node)
         try:
             self.log.info("Running query on cbas: %s"%statement)
             response = rest.execute_statement_on_cbas(statement, mode, pretty,
@@ -642,7 +596,7 @@ class CBASBaseTest(BaseTestCase):
         """
         Deletes a request from CBAS
         """
-        rest = RestConnection(self.cbas_node)
+        rest = RestConnection_cbas(self.cbas_node)
         try:
             status = rest.delete_active_request_on_cbas(client_context_id)
             self.log.info (status)
