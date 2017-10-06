@@ -261,6 +261,7 @@ class BucketHelper(RestConnection):
         return status
 
     # figure out the proxy port
+    
     def create_bucket(self, bucket='',
                       ramQuotaMB=1,
                       authType='none',
@@ -478,7 +479,6 @@ class BucketHelper(RestConnection):
         status, content, header = self._http_request(api, "POST",
                                   "parallelDBAndViewCompaction=false")
         return status
-
 
     def flush_bucket(self, bucket="default"):
         if isinstance(bucket, Bucket):

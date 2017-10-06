@@ -393,6 +393,11 @@ class bucket_utils():
             exp - The expiration for the items if updated or created (int)
             kv_store - The index of the bucket's kv_store to use. (int)
         """
+#         def read_json_tempelate(path):
+#                 istream = open(path);
+#                 with istream as data_file:    
+#                     data = json.load(data_file)
+#                 return data["key"], data["value"]
         if self.enable_bloom_filter:
             for bucket in self.buckets:
                 ClusterOperationHelper.flushctl_set(self.master,
@@ -403,7 +408,11 @@ class bucket_utils():
                                              timeout_secs, proxy_client)
         for task in tasks:
             task.result()
-
+#         for bucket in self.buckets:
+#             from Jython_tasks.task import docloadertask_executor
+#             path = "/Users/riteshagarwal/CB/garrit/testrunner/b/testdata.json"
+#             k,v = read_json_tempelate(path)
+#             docloadertask_executor().load(k,v,1000,server.ip,bucket.name)
         """
            Load bucket to DGM if params active_resident_threshold is passed
         """

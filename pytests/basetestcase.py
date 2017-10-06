@@ -15,10 +15,10 @@ from security.rbac_base import RbacBase
 import testconstants
 from scripts.collect_server_info import cbcollectRunner
 from bucket_utils.bucket_ready_functions import bucket_utils, BucketOperationHelper
-from cluster_utils.ready_functions import cluster_utils
-from failover_utils.ready_functions import failover_utils
-from node_utils.ready_functions import node_utils
-from views_utils.ready_functions import views_utils
+from cluster_utils.cluster_ready_functions import cluster_utils
+from failover_utils.failover_ready_functions import failover_utils
+from node_utils.node_ready_functions import node_utils
+from views_utils.view_ready_functions import views_utils
 
 class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_utils, node_utils, views_utils):
     def setUp(self):

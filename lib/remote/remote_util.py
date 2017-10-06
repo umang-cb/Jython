@@ -3508,7 +3508,7 @@ class RemoteMachineShellConnection:
         shell.close()
 
     def reset_env_variables(self):
-        shell = self._ssh_client.invoke_shell()
+#         shell = self._ssh_client.invoke_shell()
         if getattr(self, "info", None) is None:
             self.info = self.extract_remote_info()
         init_file = "couchbase_init.d"
@@ -3534,7 +3534,7 @@ class RemoteMachineShellConnection:
             self.log_command_output(o, r)
             o, r = self.execute_command("net start couchbaseserver")
             self.log_command_output(o, r)
-        shell.close()
+#         shell.close()
 
     def set_node_name(self, name):
         """Edit couchbase-server shell script in place and set custom node name.

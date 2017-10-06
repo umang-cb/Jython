@@ -681,9 +681,9 @@ class GenericLoadingTask(Thread, Task):
         self.client = VBucketAwareMemcached(RestConnection(server), bucket)
         self.process_concurrency = THROUGHPUT_CONCURRENCY
         # task queue's for synchronization
-        process_manager = Manager()
-        self.wait_queue = process_manager.Queue()
-        self.shared_kvstore_queue = process_manager.Queue()
+#         process_manager = Manager()
+#         self.wait_queue = process_manager.Queue()
+#         self.shared_kvstore_queue = process_manager.Queue()
 
     def execute(self, task_manager):
         self.start()
@@ -1062,60 +1062,60 @@ class LoadDocumentsGeneratorsTask(LoadDocumentsTask):
             iterator += 1
 
     def run_high_throughput_mode(self):
-
+        self.run_normal_throughput_mode()
         # high throughput mode requires partitioning the doc generators
-        self.generators = []
-        for gen in self.input_generators:
-            gen_start = int(gen.start)
-            gen_end = max(int(gen.end), 1)
-            gen_range = max(int(gen.end/self.process_concurrency), 1)
-            for pos in range(gen_start, gen_end, gen_range):
-                partition_gen = copy.deepcopy(gen)
-                partition_gen.start = pos
-                partition_gen.itr = pos
-                partition_gen.end = pos+gen_range
-                if partition_gen.end > gen.end:
-                    partition_gen.end = gen.end
-                batch_gen = BatchedDocumentGenerator(
-                        partition_gen,
-                        self.batch_size)
-                self.generators.append(batch_gen)
-
-        iterator = 0
-        all_processes = []
-        for generator in self.generators:
-
-            # only start processing when there resources available
-            CONCURRENCY_LOCK.acquire()
-
-            generator_process = Process(
-                target=self.run_generator,
-                args=(generator, iterator))
-            generator_process.start()
-            iterator += 1
-            all_processes.append(generator_process)
-
-            # add child process to wait queue
-            self.wait_queue.put(iterator)
-
-        # wait for all child processes to finish
-        self.wait_queue.join()
-
-        # merge kvstore partitions
-        while self.shared_kvstore_queue.empty() is False:
-
-            # get partitions created by child process
-            rv =  self.shared_kvstore_queue.get()
-            if rv["err"] is not None:
-                raise Exception(rv["err"])
-
-            # merge child partitions with parent
-            generator_partitions = rv["partitions"]
-            self.kv_store.merge_partitions(generator_partitions)
-
-            # terminate child process
-            iterator-=1
-            all_processes[iterator].terminate()
+#         self.generators = []
+#         for gen in self.input_generators:
+#             gen_start = int(gen.start)
+#             gen_end = max(int(gen.end), 1)
+#             gen_range = max(int(gen.end/self.process_concurrency), 1)
+#             for pos in range(gen_start, gen_end, gen_range):
+#                 partition_gen = copy.deepcopy(gen)
+#                 partition_gen.start = pos
+#                 partition_gen.itr = pos
+#                 partition_gen.end = pos+gen_range
+#                 if partition_gen.end > gen.end:
+#                     partition_gen.end = gen.end
+#                 batch_gen = BatchedDocumentGenerator(
+#                         partition_gen,
+#                         self.batch_size)
+#                 self.generators.append(batch_gen)
+# 
+#         iterator = 0
+#         all_processes = []
+#         for generator in self.generators:
+# 
+#             # only start processing when there resources available
+#             CONCURRENCY_LOCK.acquire()
+# 
+#             generator_process = Process(
+#                 target=self.run_generator,
+#                 args=(generator, iterator))
+#             generator_process.start()
+#             iterator += 1
+#             all_processes.append(generator_process)
+# 
+#             # add child process to wait queue
+#             self.wait_queue.put(iterator)
+# 
+#         # wait for all child processes to finish
+#         self.wait_queue.join()
+#         # merge kvstore partitions
+# 
+#         while self.shared_kvstore_queue.empty() is False:
+# 
+#             # get partitions created by child process
+#             rv =  self.shared_kvstore_queue.get()
+#             if rv["err"] is not None:
+#                 raise Exception(rv["err"])
+# 
+#             # merge child partitions with parent
+#             generator_partitions = rv["partitions"]
+#             self.kv_store.merge_partitions(generator_partitions)
+# 
+#             # terminate child process
+#             iterator-=1
+#             all_processes[iterator].terminate()
 
     def run_generator(self, generator, iterator):
 

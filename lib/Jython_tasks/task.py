@@ -67,10 +67,10 @@ class DocloaderTask(Callable):
     
 class docloadertask_executor():
     
-    def load(self, k, v, docs=10000):
-        cluster = CouchbaseCluster.create("localhost");
+    def load(self, k, v, docs=10000, server="localhost", bucket="default"):
+        cluster = CouchbaseCluster.create(server);
         cluster.authenticate("Administrator","password")
-        bucket = cluster.openBucket("default");
+        bucket = cluster.openBucket(bucket);
         
         pool = Executors.newFixedThreadPool(5)
         docloaders=[]
