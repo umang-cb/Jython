@@ -1,0 +1,1553 @@
+import os
+import time
+import logger
+import random
+import socket
+import string
+import copy
+import json
+import re
+import math
+import crc32
+import traceback
+import testconstants
+from httplib import IncompleteRead
+from threading import Thread
+from memcacheConstants import ERR_NOT_FOUND,NotFoundError
+from membase.api.rest_client import RestConnection, Bucket, RestHelper
+from membase.api.exception import BucketCreationException
+from membase.helper.bucket_helper import BucketOperationHelper
+from memcached.helper.data_helper import KVStoreAwareSmartClient, MemcachedClientHelper
+from memcached.helper.kvstore import KVStore
+from couchbase_helper.document import DesignDocument, View
+from mc_bin_client import MemcachedError
+from tasks.future import Future
+from couchbase_helper.stats_tools import StatsCommon
+from membase.api.exception import N1QLQueryException, DropIndexException, CreateIndexException, DesignDocCreationException, QueryViewException, ReadDocumentException, RebalanceFailedException, \
+                                    GetBucketInfoFailed, CompactViewFailed, SetViewInfoNotFound, FailoverFailedException, \
+                                    ServerUnavailableException, BucketFlushFailed, CBRecoveryFailedException, BucketCompactionException, AutoFailoverException
+from remote.remote_util import RemoteMachineShellConnection, RemoteUtilHelper
+from couchbase_helper.documentgenerator import BatchedDocumentGenerator
+from TestInput import TestInputServer, TestInputSingleton
+from testconstants import MIN_KV_QUOTA, INDEX_QUOTA, FTS_QUOTA, COUCHBASE_FROM_4DOT6, THROUGHPUT_CONCURRENCY, ALLOW_HTP, CBAS_QUOTA, COUCHBASE_FROM_VERSION_4
+# from multiprocessing import Process, Manager, Semaphore
+
+try:
+    CHECK_FLAG = False
+    if (testconstants.TESTRUNNER_CLIENT in os.environ.keys()) and os.environ[testconstants.TESTRUNNER_CLIENT] == testconstants.PYTHON_SDK:
+        from sdk_client import SDKSmartClient as VBucketAwareMemcached
+        from sdk_client import SDKBasedKVStoreAwareSmartClient as KVStoreAwareSmartClient
+    else:
+        CHECK_FLAG = True
+        from memcached.helper.data_helper import VBucketAwareMemcached,KVStoreAwareSmartClient
+except Exception as e:
+    CHECK_FLAG = True
+    from memcached.helper.data_helper import VBucketAwareMemcached,KVStoreAwareSmartClient
+
+# TODO: Setup stacktracer
+# TODO: Needs "easy_install pygments"
+# import stacktracer
+# stacktracer.trace_start("trace.html",interval=30,auto=True) # Set auto flag to always update file!
+
+
+# CONCURRENCY_LOCK = Semaphore(THROUGHPUT_CONCURRENCY)
+PENDING = 'PENDING'
+EXECUTING = 'EXECUTING'
+CHECKING = 'CHECKING'
+FINISHED = 'FINISHED'
+
+class Task(Future):
+    def __init__(self, name):
+        Future.__init__(self)
+        self.log = logger.Logger.get_logger()
+        self.state = PENDING
+        self.name = name
+        self.cancelled = False
+        self.retries = 0
+        self.res = None
+
+    def step(self, task_manager):
+        if not self.done():
+            if self.state == PENDING:
+                self.state = EXECUTING
+                task_manager.schedule(self)
+            elif self.state == EXECUTING:
+                self.execute(task_manager)
+            elif self.state == CHECKING:
+                self.check(task_manager)
+            elif self.state != FINISHED:
+                raise Exception("Bad State in {0}: {1}".format(self.name, self.state))
+
+    def execute(self, task_manager):
+        raise NotImplementedError
+
+    def check(self, task_manager):
+        raise NotImplementedError
+
+    def set_unexpected_exception(self, e, suffix = ""):
+        self.log.error("Unexpected exception [{0}] caught".format(e) + suffix)
+        self.log.error(''.join(traceback.format_stack()))
+        self.set_exception(e)
+
+class NodeInitializeTask(Task):
+    def __init__(self, server, task_manager, disabled_consistent_view=None,
+                 rebalanceIndexWaitingDisabled=None,
+                 rebalanceIndexPausingDisabled=None,
+                 maxParallelIndexers=None,
+                 maxParallelReplicaIndexers=None,
+                 port=None, quota_percent=None,
+                 index_quota_percent=None,
+                 services = None, gsi_type='forestdb'):
+        Task.__init__(self, name="node_init_task", task_manager=task_manager)
+        self.server = server
+        self.port = port or server.port
+        self.quota = 0
+        self.index_quota = 0
+        self.index_quota_percent = index_quota_percent
+        self.quota_percent = quota_percent
+        self.disable_consistent_view = disabled_consistent_view
+        self.rebalanceIndexWaitingDisabled = rebalanceIndexWaitingDisabled
+        self.rebalanceIndexPausingDisabled = rebalanceIndexPausingDisabled
+        self.maxParallelIndexers = maxParallelIndexers
+        self.maxParallelReplicaIndexers = maxParallelReplicaIndexers
+        self.services = services
+        self.gsi_type = gsi_type
+
+    def execute(self, task_manager):
+        try:
+            rest = RestConnection(self.server)
+        except ServerUnavailableException as error:
+                self.state = FINISHED
+                self.set_exception(error)
+                return
+        info = Future.wait_until(lambda: rest.get_nodes_self(),
+                                 lambda x: x.memoryTotal > 0, 10)
+        self.log.info("server: %s, nodes/self: %s", self.server, info.__dict__)
+
+        username = self.server.rest_username
+        password = self.server.rest_password
+
+        if int(info.port) in range(9091,9991):
+            self.state = FINISHED
+            self.set_result(True)
+            return
+
+        self.quota = int(info.mcdMemoryReserved * 2/3)
+        if self.index_quota_percent:
+            self.index_quota = int((info.mcdMemoryReserved * 2/3) * \
+                                      self.index_quota_percent / 100)
+            rest.set_service_memoryQuota(service='indexMemoryQuota', username=username, password=password, memoryQuota=self.index_quota)
+        if self.quota_percent:
+           self.quota = int(info.mcdMemoryReserved * self.quota_percent / 100)
+
+        """ Adjust KV RAM to correct value when there is INDEX
+            and FTS services added to node from Watson  """
+        index_quota = INDEX_QUOTA
+        kv_quota = int(info.mcdMemoryReserved * 2/3)
+        if self.index_quota_percent:
+                index_quota = self.index_quota
+        if not self.quota_percent:
+            set_services = copy.deepcopy(self.services)
+            if set_services is None:
+                set_services = ["kv"]
+#             info = rest.get_nodes_self()
+#             cb_version = info.version[:5]
+#             if cb_version in COUCHBASE_FROM_VERSION_4:
+            if "index" in set_services:
+                self.log.info("quota for index service will be %s MB" % (index_quota))
+                kv_quota -= index_quota
+                self.log.info("set index quota to node %s " % self.server.ip)
+                rest.set_service_memoryQuota(service='indexMemoryQuota', memoryQuota=index_quota)
+            if "fts" in set_services:
+                self.log.info("quota for fts service will be %s MB" % (FTS_QUOTA))
+                kv_quota -= FTS_QUOTA
+                self.log.info("set both index and fts quota at node %s "% self.server.ip)
+                rest.set_service_memoryQuota(service='ftsMemoryQuota', memoryQuota=FTS_QUOTA)
+            if "cbas" in set_services:
+                self.log.info("quota for cbas service will be %s MB" % (CBAS_QUOTA))
+                kv_quota -= CBAS_QUOTA
+                rest.set_service_memoryQuota(service = "cbasMemoryQuota", memoryQuota=CBAS_QUOTA)
+            if kv_quota < MIN_KV_QUOTA:
+                    raise Exception("KV RAM needs to be more than %s MB"
+                            " at node  %s"  % (MIN_KV_QUOTA, self.server.ip))
+            if kv_quota < int(self.quota):
+                self.quota = kv_quota
+
+        rest.init_cluster_memoryQuota(username, password, self.quota)
+        rest.set_indexer_storage_mode(username, password, self.gsi_type)
+
+        if self.services:
+            status = rest.init_node_services(username= username, password = password,\
+                                          port = self.port, hostname= self.server.ip,\
+                                                              services= self.services)
+            if not status:
+                self.state = FINISHED
+                self.set_exception(Exception('unable to set services for server %s'\
+                                                               % (self.server.ip)))
+                return
+        if self.disable_consistent_view is not None:
+            rest.set_reb_cons_view(self.disable_consistent_view)
+        if self.rebalanceIndexWaitingDisabled is not None:
+            rest.set_reb_index_waiting(self.rebalanceIndexWaitingDisabled)
+        if self.rebalanceIndexPausingDisabled is not None:
+            rest.set_rebalance_index_pausing(self.rebalanceIndexPausingDisabled)
+        if self.maxParallelIndexers is not None:
+            rest.set_max_parallel_indexers(self.maxParallelIndexers)
+        if self.maxParallelReplicaIndexers is not None:
+            rest.set_max_parallel_replica_indexers(self.maxParallelReplicaIndexers)
+
+        rest.init_cluster(username, password, self.port)
+        self.server.port = self.port
+        try:
+            rest = RestConnection(self.server)
+        except ServerUnavailableException as error:
+                self.state = FINISHED
+                self.set_exception(error)
+                return
+        info = rest.get_nodes_self()
+
+        if info is None:
+            self.state = FINISHED
+            self.set_exception(Exception('unable to get information on a server %s, it is available?' % (self.server.ip)))
+            return
+        self.state = CHECKING
+        task_manager.schedule(self)
+
+    def check(self, task_manager):
+        self.state = FINISHED
+        self.set_result(self.quota)
+
+class BucketCreateTask(Task):
+    def __init__(self, bucket_params, task_manager):
+        Task.__init__(self, "bucket_create_task", task_manager=task_manager)
+        self.server = bucket_params['server']
+        self.bucket = bucket_params['bucket_name']
+        self.replicas = bucket_params['replicas']
+        self.port = bucket_params['port']
+        self.size = bucket_params['size']
+        self.password = bucket_params['password']
+        self.bucket_type = bucket_params['bucket_type']
+        self.enable_replica_index = bucket_params['enable_replica_index']
+        self.eviction_policy = bucket_params['eviction_policy']
+        self.lww = bucket_params['lww']
+        self.flush_enabled = bucket_params['flush_enabled']
+        if bucket_params['bucket_priority'] is None or bucket_params['bucket_priority'].lower() is 'low':
+            self.bucket_priority = 3
+        else:
+            self.bucket_priority = 8
+
+    def execute(self, task_manager):
+        try:
+            rest = RestConnection(self.server)
+        except ServerUnavailableException as error:
+                self.state = FINISHED
+                self.set_exception(error)
+                return
+        info = rest.get_nodes_self()
+
+        if self.size <= 0:
+            self.size = info.memoryQuota * 2 / 3
+
+        authType = 'none' if self.password is None else 'sasl'
+
+        if int(info.port) in xrange(9091, 9991):
+            try:
+                self.port = info.port
+                rest.create_bucket(bucket=self.bucket)
+                self.state = CHECKING
+                task_manager.schedule(self)
+            except Exception as e:
+                self.state = FINISHED
+                self.set_exception(e)
+            return
+
+
+        version = rest.get_nodes_self().version
+        try:
+            if float(version[:2]) >= 3.0 and self.bucket_priority is not None:
+                rest.create_bucket(bucket=self.bucket,
+                               ramQuotaMB=self.size,
+                               replicaNumber=self.replicas,
+                               proxyPort=self.port,
+                               authType=authType,
+                               saslPassword=self.password,
+                               bucketType=self.bucket_type,
+                               replica_index=self.enable_replica_index,
+                               flushEnabled=self.flush_enabled,
+                               evictionPolicy=self.eviction_policy,
+                               threadsNumber=self.bucket_priority,
+                               lww=self.lww
+                               )
+            else:
+                rest.create_bucket(bucket=self.bucket,
+                               ramQuotaMB=self.size,
+                               replicaNumber=self.replicas,
+                               proxyPort=self.port,
+                               authType=authType,
+                               saslPassword=self.password,
+                               bucketType=self.bucket_type,
+                               replica_index=self.enable_replica_index,
+                               flushEnabled=self.flush_enabled,
+                               evictionPolicy=self.eviction_policy,
+                               lww=self.lww)
+            self.state = CHECKING
+            task_manager.schedule(self)
+
+        except BucketCreationException as e:
+            self.state = FINISHED
+            self.set_exception(e)
+        # catch and set all unexpected exceptions
+        except Exception as e:
+            self.state = FINISHED
+            self.set_unexpected_exception(e)
+
+    def check(self, task_manager):
+        try:
+            if self.bucket_type == 'memcached' or int(self.port) in xrange(9091, 9991):
+                self.set_result(True)
+                self.state = FINISHED
+                return
+            if BucketOperationHelper.wait_for_memcached(self.server, self.bucket):
+                self.log.info("bucket '{0}' was created with per node RAM quota: {1}".format(self.bucket, self.size))
+                self.set_result(True)
+                self.state = FINISHED
+                return
+            else:
+                self.log.warn("vbucket map not ready after try {0}".format(self.retries))
+                if self.retries >= 5:
+                    self.set_result(False)
+                    self.state = FINISHED
+                    return
+        except Exception as e:
+            self.log.error("Unexpected error: %s" % str(e))
+            self.log.warn("vbucket map not ready after try {0}".format(self.retries))
+            if self.retries >= 5:
+                self.state = FINISHED
+                self.set_exception(e)
+        self.retries = self.retries + 1
+        task_manager.schedule(self)
+
+class BucketDeleteTask(Task):
+    def __init__(self, server, task_manager, bucket="default"):
+        Task.__init__(self, "bucket_delete_task", task_manager=task_manager)
+        self.server = server
+        self.bucket = bucket
+
+    def execute(self, task_manager):
+        try:
+            rest = RestConnection(self.server)
+            if rest.delete_bucket(self.bucket):
+                self.state = CHECKING
+                task_manager.schedule(self)
+            else:
+                self.log.info(StatsCommon.get_stats([self.server], self.bucket, "timings"))
+                self.state = FINISHED
+                self.set_result(False)
+        # catch and set all unexpected exceptions
+
+        except Exception as e:
+            self.state = FINISHED
+            self.log.info(StatsCommon.get_stats([self.server], self.bucket, "timings"))
+            self.set_unexpected_exception(e)
+
+    def check(self, task_manager):
+        try:
+            rest = RestConnection(self.server)
+            if BucketOperationHelper.wait_for_bucket_deletion(self.bucket, rest, 200):
+                self.set_result(True)
+            else:
+                self.set_result(False)
+            self.state = FINISHED
+        # catch and set all unexpected exceptions
+        except Exception as e:
+            self.state = FINISHED
+            self.log.info(StatsCommon.get_stats([self.server], self.bucket, "timings"))
+            self.set_unexpected_exception(e)
+
+class RebalanceTask(Task):
+    def __init__(self, servers, task_manager, to_add=[], to_remove=[], do_stop=False, progress=30,
+                 use_hostnames=False, services = None):
+        Task.__init__(self, "rebalance_task", task_manager=task_manager)
+        self.servers = servers
+        self.to_add = to_add
+        self.to_remove = to_remove
+        self.start_time = None
+        self.services = services
+        self.monitor_vbuckets_shuffling = False
+
+        try:
+            self.rest = RestConnection(self.servers[0])
+        except ServerUnavailableException, e:
+            self.log.error(e)
+            self.state = FINISHED
+            self.set_exception(e)
+        self.retry_get_progress = 0
+        self.use_hostnames = use_hostnames
+        self.previous_progress = 0
+        self.old_vbuckets = {}
+
+    def execute(self, task_manager):
+        try:
+            if len(self.to_add) and len(self.to_add) == len(self.to_remove):
+                node_version_check = self.rest.check_node_versions()
+                non_swap_servers = set(self.servers) - set(self.to_remove) - set(self.to_add)
+                self.old_vbuckets = RestHelper(self.rest)._get_vbuckets(non_swap_servers, None)
+                if self.old_vbuckets:
+                    self.monitor_vbuckets_shuffling = True
+                if self.monitor_vbuckets_shuffling and node_version_check and self.services:
+                    for service_group in self.services:
+                        if "kv" not in service_group:
+                            self.monitor_vbuckets_shuffling = False
+                if self.monitor_vbuckets_shuffling and node_version_check:
+                    services_map = self.rest.get_nodes_services()
+                    for remove_node in self.to_remove:
+                         key = "{0}:{1}".format(remove_node.ip,remove_node.port)
+                         services = services_map[key]
+                         if "kv" not in services:
+                            self.monitor_vbuckets_shuffling = False
+                if self.monitor_vbuckets_shuffling:
+                    self.log.info("This is swap rebalance and we will monitor vbuckets shuffling")
+            self.add_nodes(task_manager)
+            self.start_rebalance(task_manager)
+            self.state = CHECKING
+            task_manager.schedule(self)
+        except Exception as e:
+            self.state = FINISHED
+            self.set_exception(e)
+
+    def add_nodes(self, task_manager):
+        master = self.servers[0]
+        services_for_node = None
+        node_index = 0
+        for node in self.to_add:
+            self.log.info("adding node {0}:{1} to cluster".format(node.ip, node.port))
+            if self.services != None:
+                services_for_node = [self.services[node_index]]
+                node_index += 1
+            if self.use_hostnames:
+                self.rest.add_node(master.rest_username, master.rest_password,
+                                   node.hostname, node.port, services = services_for_node)
+            else:
+                self.rest.add_node(master.rest_username, master.rest_password,
+                                   node.ip, node.port, services = services_for_node)
+
+    def start_rebalance(self, task_manager):
+        nodes = self.rest.node_statuses()
+
+        # Determine whether its a cluster_run/not
+        cluster_run = True
+
+        firstIp = self.servers[0].ip
+        if len(self.servers) == 1 and self.servers[0].port == '8091':
+            cluster_run = False
+        else:
+            for node in self.servers:
+                if node.ip != firstIp:
+                    cluster_run = False
+                    break
+        ejectedNodes = []
+
+        for server in self.to_remove:
+            for node in nodes:
+                if cluster_run:
+                    if int(server.port) == int(node.port):
+                        ejectedNodes.append(node.id)
+                else:
+                    if self.use_hostnames:
+                        if server.hostname == node.ip and int(server.port) == int(node.port):
+                            ejectedNodes.append(node.id)
+                    elif server.ip == node.ip and int(server.port) == int(node.port):
+                        ejectedNodes.append(node.id)
+        if self.rest.is_cluster_mixed():
+            # workaround MB-8094
+            self.log.warn("cluster is mixed. sleep for 15 seconds before rebalance")
+            time.sleep(15)
+
+        self.rest.rebalance(otpNodes=[node.id for node in nodes], ejectedNodes=ejectedNodes)
+        self.start_time = time.time()
+
+    def check(self, task_manager):
+        status = None
+        progress = -100
+        try:
+            if self.monitor_vbuckets_shuffling:
+                self.log.info("This is swap rebalance and we will monitor vbuckets shuffling")
+                non_swap_servers = set(self.servers) - set(self.to_remove) - set(self.to_add)
+                new_vbuckets = RestHelper(self.rest)._get_vbuckets(non_swap_servers, None)
+                for vb_type in ["active_vb", "replica_vb"]:
+                    for srv in non_swap_servers:
+                        if not(len(self.old_vbuckets[srv][vb_type]) + 1 >= len(new_vbuckets[srv][vb_type]) and\
+                           len(self.old_vbuckets[srv][vb_type]) - 1 <= len(new_vbuckets[srv][vb_type])):
+                            msg = "Vbuckets were suffled! Expected %s for %s" % (vb_type, srv.ip) + \
+                                " are %s. And now are %s" % (
+                                len(self.old_vbuckets[srv][vb_type]),
+                                len(new_vbuckets[srv][vb_type]))
+                            self.log.error(msg)
+                            self.log.error("Old vbuckets: %s, new vbuckets %s" % (self.old_vbuckets, new_vbuckets))
+                            raise Exception(msg)
+            (status, progress) = self.rest._rebalance_status_and_progress()
+            self.log.info("Rebalance - status: %s, progress: %s", status, progress)
+            # if ServerUnavailableException
+            if progress == -100:
+                self.retry_get_progress += 1
+            if self.previous_progress != progress:
+                self.previous_progress = progress
+                self.retry_get_progress = 0
+            else:
+                self.retry_get_progress += 1
+        except RebalanceFailedException as ex:
+            self.state = FINISHED
+            self.set_exception(ex)
+            self.retry_get_progress += 1
+        # catch and set all unexpected exceptions
+        except Exception as e:
+            self.state = FINISHED
+            self.set_unexpected_exception(e, " in {0} sec".format(time.time() - self.start_time))
+        retry_get_process_num = 25
+        if self.rest.is_cluster_mixed():
+            """ for mix cluster, rebalance takes longer """
+            self.log.info("rebalance in mix cluster")
+            retry_get_process_num = 40
+        # we need to wait for status to be 'none' (i.e. rebalance actually finished and
+        # not just 'running' and at 100%) before we declare ourselves done
+        if progress != -1 and status != 'none':
+            if self.retry_get_progress < retry_get_process_num:
+                task_manager.schedule(self, 10)
+            else:
+                self.state = FINISHED
+                #self.set_result(False)
+                self.rest.print_UI_logs()
+                self.set_exception(RebalanceFailedException(\
+                                "seems like rebalance hangs. please check logs!"))
+        else:
+            success_cleaned = []
+            for removed in self.to_remove:
+                try:
+                    rest = RestConnection(removed)
+                except ServerUnavailableException, e:
+                    self.log.error(e)
+                    continue
+                start = time.time()
+                while time.time() - start < 30:
+                    try:
+                        if 'pools' in rest.get_pools_info() and \
+                                      (len(rest.get_pools_info()["pools"]) == 0):
+                            success_cleaned.append(removed)
+                            break
+                        else:
+                            time.sleep(0.1)
+                    except (ServerUnavailableException, IncompleteRead), e:
+                        self.log.error(e)
+            result = True
+            for node in set(self.to_remove) - set(success_cleaned):
+                self.log.error("node {0}:{1} was not cleaned after removing from cluster"\
+                                                              .format(node.ip, node.port))
+                result = False
+
+            self.log.info("rebalancing was completed with progress: {0}% in {1} sec".
+                          format(progress, time.time() - self.start_time))
+            self.state = FINISHED
+            self.set_result(result)
+
+class StatsWaitTask(Task):
+    EQUAL = '=='
+    NOT_EQUAL = '!='
+    LESS_THAN = '<'
+    LESS_THAN_EQ = '<='
+    GREATER_THAN = '>'
+    GREATER_THAN_EQ = '>='
+
+    def __init__(self, servers, task_manager, bucket, param, stat, comparison, value):
+        Task.__init__(self, "stats_wait_task", task_manager=task_manager)
+        self.servers = servers
+        self.bucket = bucket
+        if isinstance(bucket, Bucket):
+            self.bucket = bucket.name
+        self.param = param
+        self.stat = stat
+        self.comparison = comparison
+        self.value = value
+        self.conns = {}
+
+    def execute(self, task_manager):
+        self.state = CHECKING
+        task_manager.schedule(self)
+
+    def check(self, task_manager):
+        stat_result = 0
+        for server in self.servers:
+            try:
+                client = self._get_connection(server)
+                stats = client.stats(self.param)
+                if not stats.has_key(self.stat):
+                    self.state = FINISHED
+                    self.set_exception(Exception("Stat {0} not found".format(self.stat)))
+                    return
+                if stats[self.stat].isdigit():
+                    stat_result += long(stats[self.stat])
+                else:
+                    stat_result = stats[self.stat]
+            except EOFError as ex:
+                self.state = FINISHED
+                self.set_exception(ex)
+                return
+        if not self._compare(self.comparison, str(stat_result), self.value):
+            self.log.warn("Not Ready: %s %s %s %s expected on %s, %s bucket" % (self.stat, stat_result,
+                      self.comparison, self.value, self._stringify_servers(), self.bucket))
+            task_manager.schedule(self, 5)
+            return
+        self.log.info("Saw %s %s %s %s expected on %s,%s bucket" % (self.stat, stat_result,
+                      self.comparison, self.value, self._stringify_servers(), self.bucket))
+
+        for server, conn in self.conns.items():
+            conn.close()
+        self.state = FINISHED
+        self.set_result(True)
+
+    def _stringify_servers(self):
+        return ''.join([`server.ip + ":" + str(server.port)` for server in self.servers])
+
+    def _get_connection(self, server, admin_user='cbadminbucket',admin_pass='password'):
+        if not self.conns.has_key(server):
+            for i in xrange(3):
+                try:
+                    self.conns[server] = MemcachedClientHelper.direct_client(server, self.bucket, admin_user=admin_user,
+                                                                             admin_pass=admin_pass)
+                    return self.conns[server]
+                except (EOFError, socket.error):
+                    self.log.error("failed to create direct client, retry in 1 sec")
+                    time.sleep(1)
+            self.conns[server] = MemcachedClientHelper.direct_client(server, self.bucket, admin_user=admin_user,
+                                                                     admin_pass=admin_pass)
+        return self.conns[server]
+
+    def _compare(self, cmp_type, a, b):
+        if isinstance(b, (int, long)) and a.isdigit():
+            a = long(a)
+        elif isinstance(b, (int, long)) and not a.isdigit():
+                return False
+        if (cmp_type == StatsWaitTask.EQUAL and a == b) or\
+            (cmp_type == StatsWaitTask.NOT_EQUAL and a != b) or\
+            (cmp_type == StatsWaitTask.LESS_THAN_EQ and a <= b) or\
+            (cmp_type == StatsWaitTask.GREATER_THAN_EQ and a >= b) or\
+            (cmp_type == StatsWaitTask.LESS_THAN and a < b) or\
+            (cmp_type == StatsWaitTask.GREATER_THAN and a > b):
+            return True
+        return False
+
+class GenericLoadingTask(Thread, Task):
+    def __init__(self, server, task_manager, bucket, kv_store, batch_size=1, pause_secs=1, timeout_secs=60):
+        Thread.__init__(self)
+        Task.__init__(self, "load_gen_task", task_manager=task_manager)
+        self.kv_store = kv_store
+        self.batch_size = batch_size
+        self.pause = pause_secs
+        self.timeout = timeout_secs
+        self.server = server
+        self.bucket = bucket
+        self.client = VBucketAwareMemcached(RestConnection(server), bucket)
+        self.process_concurrency = THROUGHPUT_CONCURRENCY
+        # task queue's for synchronization
+        process_manager = Manager()
+        self.wait_queue = process_manager.Queue()
+        self.shared_kvstore_queue = process_manager.Queue()
+
+    def execute(self, task_manager):
+        self.start()
+        self.state = EXECUTING
+
+    def check(self, task_manager):
+        pass
+
+    def run(self):
+        while self.has_next() and not self.done():
+            self.next()
+        self.state = FINISHED
+        self.set_result(True)
+
+    def has_next(self):
+        raise NotImplementedError
+
+    def next(self):
+        raise NotImplementedError
+
+    def _unlocked_create(self, partition, key, value, is_base64_value=False):
+        try:
+            value_json = json.loads(value)
+            if isinstance(value_json, dict):
+                value_json['mutated'] = 0
+            value = json.dumps(value_json)
+        except ValueError:
+            index = random.choice(range(len(value)))
+            if not is_base64_value:
+                value = value[0:index] + random.choice(string.ascii_uppercase) + value[index + 1:]
+        except TypeError:
+            value = json.dumps(value)
+
+        try:
+            self.client.set(key, self.exp, self.flag, value)
+            if self.only_store_hash:
+                value = str(crc32.crc32_hash(value))
+            partition.set(key, value, self.exp, self.flag)
+        except Exception as error:
+            self.state = FINISHED
+            self.set_exception(error)
+
+
+    def _unlocked_read(self, partition, key):
+        try:
+            o, c, d = self.client.get(key)
+        except MemcachedError as error:
+            if error.status == ERR_NOT_FOUND and partition.get_valid(key) is None:
+                pass
+            else:
+                self.state = FINISHED
+                self.set_exception(error)
+
+    def _unlocked_replica_read(self, partition, key):
+        try:
+            o, c, d = self.client.getr(key)
+        except Exception as error:
+            self.state = FINISHED
+            self.set_exception(error)
+
+    def _unlocked_update(self, partition, key):
+        value = None
+        try:
+            o, c, value = self.client.get(key)
+            if value is None:
+                return
+
+            value_json = json.loads(value)
+            value_json['mutated'] += 1
+            value = json.dumps(value_json)
+        except MemcachedError as error:
+            if error.status == ERR_NOT_FOUND and partition.get_valid(key) is None:
+                # there is no such item, we do not know what value to set
+                return
+            else:
+                self.state = FINISHED
+                self.log.error("%s, key: %s update operation." % (error, key))
+                self.set_exception(error)
+                return
+        except ValueError:
+            if value is None:
+                return
+            index = random.choice(range(len(value)))
+            value = value[0:index] + random.choice(string.ascii_uppercase) + value[index + 1:]
+        except BaseException as error:
+            self.state = FINISHED
+            self.set_exception(error)
+
+        try:
+            self.client.set(key, self.exp, self.flag, value)
+            if self.only_store_hash:
+                value = str(crc32.crc32_hash(value))
+            partition.set(key, value, self.exp, self.flag)
+        except BaseException as error:
+            self.state = FINISHED
+            self.set_exception(error)
+
+    def _unlocked_delete(self, partition, key):
+        try:
+            self.client.delete(key)
+            partition.delete(key)
+        except MemcachedError as error:
+            if error.status == ERR_NOT_FOUND and partition.get_valid(key) is None:
+                pass
+            else:
+                self.state = FINISHED
+                self.log.error("%s, key: %s delete operation." % (error, key))
+                self.set_exception(error)
+        except BaseException as error:
+            self.state = FINISHED
+            self.set_exception(error)
+
+    def _unlocked_append(self, partition, key, value):
+        try:
+            o, c, old_value = self.client.get(key)
+            if value is None:
+                return
+            value_json = json.loads(value)
+            old_value_json = json.loads(old_value)
+            old_value_json.update(value_json)
+            old_value = json.dumps(old_value_json)
+            value = json.dumps(value_json)
+        except MemcachedError as error:
+            if error.status == ERR_NOT_FOUND and partition.get_valid(key) is None:
+                # there is no such item, we do not know what value to set
+                return
+            else:
+                self.state = FINISHED
+                self.set_exception(error)
+                return
+        except ValueError:
+            o, c, old_value = self.client.get(key)
+            index = random.choice(range(len(value)))
+            value = value[0:index] + random.choice(string.ascii_uppercase) + value[index + 1:]
+            old_value += value
+        except BaseException as error:
+            self.state = FINISHED
+            self.set_exception(error)
+
+        try:
+            self.client.append(key, value)
+            if self.only_store_hash:
+                old_value = str(crc32.crc32_hash(old_value))
+            partition.set(key, old_value)
+        except BaseException as error:
+            self.state = FINISHED
+            self.set_exception(error)
+
+
+    # start of batch methods
+    def _create_batch_client(self, key_val, shared_client = None):
+        """
+        standalone method for creating key/values in batch (sans kvstore)
+
+        arguments:
+            key_val -- array of key/value dicts to load size = self.batch_size
+            shared_client -- optional client to use for data loading
+        """
+        try:
+            self._process_values_for_create(key_val)
+            client = shared_client or self.client
+            client.setMulti(self.exp, self.flag, key_val, self.pause, self.timeout, parallel=False)
+        except (MemcachedError, ServerUnavailableException, socket.error, EOFError, AttributeError, RuntimeError) as error:
+            self.state = FINISHED
+            self.set_exception(error)
+
+    def _create_batch(self, partition_keys_dic, key_val):
+            self._create_batch_client(key_val)
+            self._populate_kvstore(partition_keys_dic, key_val)
+
+    def _update_batch(self, partition_keys_dic, key_val):
+        try:
+            self._process_values_for_update(partition_keys_dic, key_val)
+            self.client.setMulti(self.exp, self.flag, key_val, self.pause, self.timeout, parallel=False)
+            self._populate_kvstore(partition_keys_dic, key_val)
+        except (MemcachedError, ServerUnavailableException, socket.error, EOFError, AttributeError, RuntimeError) as error:
+            self.state = FINISHED
+            self.set_exception(error)
+
+
+    def _delete_batch(self, partition_keys_dic, key_val):
+        for partition, keys in partition_keys_dic.items():
+            for key in keys:
+                try:
+                    self.client.delete(key)
+                    partition.delete(key)
+                except MemcachedError as error:
+                    if error.status == ERR_NOT_FOUND and partition.get_valid(key) is None:
+                        pass
+                    else:
+                        self.state = FINISHED
+                        self.set_exception(error)
+                        return
+                except (ServerUnavailableException, socket.error, EOFError, AttributeError) as error:
+                    self.state = FINISHED
+                    self.set_exception(error)
+
+
+    def _read_batch(self, partition_keys_dic, key_val):
+        try:
+            o, c, d = self.client.getMulti(key_val.keys(), self.pause, self.timeout)
+        except MemcachedError as error:
+                self.state = FINISHED
+                self.set_exception(error)
+
+    def _process_values_for_create(self, key_val):
+        for key, value in key_val.items():
+            try:
+                value_json = json.loads(value)
+                value_json['mutated'] = 0
+                value = json.dumps(value_json)
+            except ValueError:
+                index = random.choice(range(len(value)))
+                value = value[0:index] + random.choice(string.ascii_uppercase) + value[index + 1:]
+            except TypeError:
+                 value = json.dumps(value)
+            finally:
+                key_val[key] = value
+
+    def _process_values_for_update(self, partition_keys_dic, key_val):
+        for partition, keys in partition_keys_dic.items():
+            for key in keys:
+                value = partition.get_valid(key)
+                if value is None:
+                    del key_val[key]
+                    continue
+                try:
+                    value = key_val[key]  # new updated value, however it is not their in orginal code "LoadDocumentsTask"
+                    value_json = json.loads(value)
+                    value_json['mutated'] += 1
+                    value = json.dumps(value_json)
+                except ValueError:
+                    index = random.choice(range(len(value)))
+                    value = value[0:index] + random.choice(string.ascii_uppercase) + value[index + 1:]
+                finally:
+                    key_val[key] = value
+
+
+    def _populate_kvstore(self, partition_keys_dic, key_val):
+        for partition, keys in partition_keys_dic.items():
+            self._populate_kvstore_partition(partition, keys, key_val)
+
+    def _release_locks_on_kvstore(self):
+        for part in self._partitions_keyvals_dic.keys:
+            self.kv_store.release_lock(part)
+
+    def _populate_kvstore_partition(self, partition, keys, key_val):
+        for key in keys:
+            if self.only_store_hash:
+                key_val[key] = str(crc32.crc32_hash(key_val[key]))
+            partition.set(key, key_val[key], self.exp, self.flag)
+
+class LoadDocumentsTask(GenericLoadingTask):
+
+    def __init__(self, server, task_manager, bucket, generator, kv_store, op_type, exp, flag=0,
+                 only_store_hash=True, proxy_client=None, batch_size=1, pause_secs=1, timeout_secs=30):
+        GenericLoadingTask.__init__(self, server, task_manager, bucket, kv_store, batch_size=batch_size,pause_secs=pause_secs,
+                                    timeout_secs=timeout_secs)
+
+        self.generator = generator
+        self.op_type = op_type
+        self.exp = exp
+        self.flag = flag
+        self.only_store_hash = only_store_hash
+
+        if proxy_client:
+            self.log.info("Changing client to proxy %s:%s..." % (proxy_client.host,
+                                                              proxy_client.port))
+            self.client = proxy_client
+
+    def has_next(self):
+        return self.generator.has_next()
+
+    def next(self, override_generator = None):
+        if self.batch_size == 1:
+            key, value = self.generator.next()
+            partition = self.kv_store.acquire_partition(key)
+            if self.op_type == 'create':
+                is_base64_value = (self.generator.__class__.__name__ == 'Base64Generator')
+                self._unlocked_create(partition, key, value, is_base64_value=is_base64_value)
+            elif self.op_type == 'read':
+                self._unlocked_read(partition, key)
+            elif self.op_type == 'read_replica':
+                self._unlocked_replica_read(partition, key)
+            elif self.op_type == 'update':
+                self._unlocked_update(partition, key)
+            elif self.op_type == 'delete':
+                self._unlocked_delete(partition, key)
+            elif self.op_type == 'append':
+                self._unlocked_append(partition, key, value)
+            else:
+                self.state = FINISHED
+                self.set_exception(Exception("Bad operation type: %s" % self.op_type))
+            self.kv_store.release_partition(key)
+
+        else:
+            doc_gen = override_generator or self.generator
+            key_value = doc_gen.next_batch()
+            partition_keys_dic = self.kv_store.acquire_partitions(key_value.keys())
+            if self.op_type == 'create':
+                self._create_batch(partition_keys_dic, key_value)
+            elif self.op_type == 'update':
+                self._update_batch(partition_keys_dic, key_value)
+            elif self.op_type == 'delete':
+                self._delete_batch(partition_keys_dic, key_value)
+            elif self.op_type == 'read':
+                self._read_batch(partition_keys_dic, key_value)
+            else:
+                self.state = FINISHED
+                self.set_exception(Exception("Bad operation type: %s" % self.op_type))
+            self.kv_store.release_partitions(partition_keys_dic.keys())
+
+
+class LoadDocumentsGeneratorsTask(LoadDocumentsTask):
+    def __init__(self, server, task_manager, bucket, generators, kv_store, op_type, exp, flag=0, only_store_hash=True,
+                 batch_size=1,pause_secs=1, timeout_secs=60):
+        LoadDocumentsTask.__init__(self, server, task_manager, bucket, generators[0], kv_store, op_type, exp, flag=flag,
+                    only_store_hash=only_store_hash, batch_size=batch_size, pause_secs=pause_secs, timeout_secs=timeout_secs)
+
+        if batch_size == 1:
+            self.generators = generators
+        else:
+            self.generators = []
+            for i in generators:
+                self.generators.append(BatchedDocumentGenerator(i, batch_size))
+
+        # only run high throughput for batch-create workloads
+        # also check number of input generators isn't greater than
+        # process_concurrency as too many generators become inefficient
+        self.is_high_throughput_mode = False
+        if ALLOW_HTP and not TestInputSingleton.input.param("disable_HTP", False):
+            self.is_high_throughput_mode = self.op_type == "create" and \
+                self.batch_size > 1 and \
+                len(self.generators) < self.process_concurrency
+
+        self.input_generators = generators
+
+        self.op_types = None
+        self.buckets = None
+        if isinstance(op_type, list):
+            self.op_types = op_type
+        if isinstance(bucket, list):
+            self.buckets = bucket
+
+    def run(self):
+        if self.op_types:
+            if len(self.op_types) != len(self.generators):
+                self.state = FINISHED
+                self.set_exception(Exception("not all generators have op_type!"))
+        if self.buckets:
+            if len(self.op_types) != len(self.buckets):
+                self.state = FINISHED
+                self.set_exception(Exception("not all generators have bucket specified!"))
+
+        # check if running in high throughput mode or normal
+        if self.is_high_throughput_mode:
+            self.run_high_throughput_mode()
+        else:
+            self.run_normal_throughput_mode()
+
+        self.state = FINISHED
+        self.set_result(True)
+
+    def run_normal_throughput_mode(self):
+        iterator = 0
+        for generator in self.generators:
+            self.generator = generator
+            if self.op_types:
+                self.op_type = self.op_types[iterator]
+            if self.buckets:
+                self.bucket = self.buckets[iterator]
+            while self.has_next() and not self.done():
+                self.next()
+            iterator += 1
+
+    def run_high_throughput_mode(self):
+
+        # high throughput mode requires partitioning the doc generators
+        self.generators = []
+        for gen in self.input_generators:
+            gen_start = int(gen.start)
+            gen_end = max(int(gen.end), 1)
+            gen_range = max(int(gen.end/self.process_concurrency), 1)
+            for pos in range(gen_start, gen_end, gen_range):
+                partition_gen = copy.deepcopy(gen)
+                partition_gen.start = pos
+                partition_gen.itr = pos
+                partition_gen.end = pos+gen_range
+                if partition_gen.end > gen.end:
+                    partition_gen.end = gen.end
+                batch_gen = BatchedDocumentGenerator(
+                        partition_gen,
+                        self.batch_size)
+                self.generators.append(batch_gen)
+
+        iterator = 0
+        all_processes = []
+        for generator in self.generators:
+
+            # only start processing when there resources available
+            CONCURRENCY_LOCK.acquire()
+
+            generator_process = Process(
+                target=self.run_generator,
+                args=(generator, iterator))
+            generator_process.start()
+            iterator += 1
+            all_processes.append(generator_process)
+
+            # add child process to wait queue
+            self.wait_queue.put(iterator)
+
+        # wait for all child processes to finish
+        self.wait_queue.join()
+
+        # merge kvstore partitions
+        while self.shared_kvstore_queue.empty() is False:
+
+            # get partitions created by child process
+            rv =  self.shared_kvstore_queue.get()
+            if rv["err"] is not None:
+                raise Exception(rv["err"])
+
+            # merge child partitions with parent
+            generator_partitions = rv["partitions"]
+            self.kv_store.merge_partitions(generator_partitions)
+
+            # terminate child process
+            iterator-=1
+            all_processes[iterator].terminate()
+
+    def run_generator(self, generator, iterator):
+
+        # create a tmp kvstore to track work
+        tmp_kv_store = KVStore()
+        rv = {"err": None, "partitions": None}
+
+        try:
+            client = VBucketAwareMemcached(
+                    RestConnection(self.server),
+                    self.bucket)
+            if self.op_types:
+                self.op_type = self.op_types[iterator]
+            if self.buckets:
+                self.bucket = self.buckets[iterator]
+
+            while generator.has_next() and not self.done():
+
+                # generate
+                key_value = generator.next_batch()
+
+                # create
+                self._create_batch_client(key_value, client)
+
+                # cache
+                self.cache_items(tmp_kv_store, key_value)
+
+        except Exception as ex:
+            rv["err"] = ex
+        else:
+            rv["partitions"] = tmp_kv_store.get_partitions()
+        finally:
+            # share the kvstore from this generator
+            self.shared_kvstore_queue.put(rv)
+            self.wait_queue.task_done()
+            # release concurrency lock
+            CONCURRENCY_LOCK.release()
+
+
+    def cache_items(self, store, key_value):
+        """
+            unpacks keys,values and adds them to provided store
+        """
+        for key, value in key_value.iteritems():
+            if self.only_store_hash:
+                value = str(crc32.crc32_hash(value))
+            store.partition(key)["partition"].set(
+                key,
+                value,
+                self.exp,
+                self.flag)
+
+
+class N1QLQueryTask(Task):
+    def __init__(self,
+                 server, task_manager, bucket,
+                 query, n1ql_helper = None,
+                 expected_result=None,
+                 verify_results = True,
+                 is_explain_query = False,
+                 index_name = None,
+                 retry_time=2,
+                 scan_consistency = None,
+                 scan_vector = None):
+        Task.__init__(self, "query_n1ql_task", task_manager)
+        self.server = server
+        self.bucket = bucket
+        self.query = query
+        self.expected_result = expected_result
+        self.n1ql_helper = n1ql_helper
+        self.timeout = 900
+        self.verify_results = verify_results
+        self.is_explain_query = is_explain_query
+        self.index_name = index_name
+        self.retry_time = 2
+        self.scan_consistency = scan_consistency
+        self.scan_vector = scan_vector
+
+    def execute(self, task_manager):
+        try:
+            # Query and get results
+            self.log.info(" <<<<< START Executing Query {0} >>>>>>".format(self.query))
+            if not self.is_explain_query:
+                self.msg, self.isSuccess = self.n1ql_helper.run_query_and_verify_result(
+                    query = self.query, server = self.server, expected_result = self.expected_result,
+                    scan_consistency = self.scan_consistency, scan_vector = self.scan_vector,
+                    verify_results = self.verify_results)
+            else:
+                self.actual_result = self.n1ql_helper.run_cbq_query(query = self.query, server = self.server,
+                 scan_consistency = self.scan_consistency, scan_vector = self.scan_vector)
+                self.log.info(self.actual_result)
+            self.log.info(" <<<<< Done Executing Query {0} >>>>>>".format(self.query))
+            self.state = CHECKING
+            task_manager.schedule(self)
+        except N1QLQueryException as e:
+            self.state = FINISHED
+            # initial query failed, try again
+            task_manager.schedule(self, self.retry_time)
+
+        # catch and set all unexpected exceptions
+        except Exception as e:
+            self.state = FINISHED
+            self.set_unexpected_exception(e)
+
+    def check(self, task_manager):
+        try:
+           # Verify correctness of result set
+           if self.verify_results:
+            if not self.is_explain_query:
+                if not self.isSuccess:
+                    self.log.info(" Query {0} results leads to INCORRECT RESULT ".format(self.query))
+                    raise N1QLQueryException(self.msg)
+            else:
+                check = self.n1ql_helper.verify_index_with_explain(self.actual_result, self.index_name)
+                if not check:
+                    actual_result = self.n1ql_helper.run_cbq_query(query = "select * from system:indexes", server = self.server)
+                    self.log.info(actual_result)
+                    raise Exception(" INDEX usage in Query {0} :: NOT FOUND {1} :: as observed in result {2}".format(
+                        self.query, self.index_name, self.actual_result))
+           self.log.info(" <<<<< Done VERIFYING Query {0} >>>>>>".format(self.query))
+           self.set_result(True)
+           self.state = FINISHED
+        except N1QLQueryException as e:
+            # subsequent query failed! exit
+            self.state = FINISHED
+            self.set_exception(e)
+        # catch and set all unexpected exceptions
+        except Exception as e:
+            self.state = FINISHED
+            self.set_unexpected_exception(e)
+
+class CreateIndexTask(Task):
+    def __init__(self,
+                 server, task_manager, bucket, index_name,
+                 query, n1ql_helper = None,
+                 retry_time=2, defer_build = False,
+                 timeout = 240):
+        Task.__init__(self, "create_index_task", task_manager)
+        self.server = server
+        self.bucket = bucket
+        self.defer_build = defer_build
+        self.query = query
+        self.index_name = index_name
+        self.n1ql_helper = n1ql_helper
+        self.retry_time = 2
+        self.timeout = timeout
+
+    def execute(self, task_manager):
+        try:
+            # Query and get results
+            self.n1ql_helper.run_cbq_query(query = self.query, server = self.server)
+            self.state = CHECKING
+            task_manager.schedule(self)
+        except CreateIndexException as e:
+            # initial query failed, try again
+            self.state = FINISHED
+            task_manager.schedule(self, self.retry_time)
+        # catch and set all unexpected exceptions
+        except Exception as e:
+            self.state = FINISHED
+            self.log.error(e)
+            self.set_exception(e)
+
+    def check(self, task_manager):
+        try:
+           # Verify correctness of result set
+            check = True
+            if not self.defer_build:
+                check = self.n1ql_helper.is_index_online_and_in_list(self.bucket, self.index_name, server = self.server, timeout = self.timeout)
+            if not check:
+                raise CreateIndexException("Index {0} not created as expected ".format(self.index_name))
+            self.set_result(True)
+            self.state = FINISHED
+        except CreateIndexException as e:
+            # subsequent query failed! exit
+            self.state = FINISHED
+            self.log.error(e)
+            self.set_exception(e)
+        # catch and set all unexpected exceptions
+        except Exception as e:
+            self.state = FINISHED
+            self.log.error(e)
+            self.set_exception(e)
+
+class BuildIndexTask(Task):
+    def __init__(self,
+                 server, task_manager, bucket,
+                 query, n1ql_helper = None,
+                 retry_time=2):
+        Task.__init__(self, "build_index_task", task_manager)
+        self.server = server
+        self.bucket = bucket
+        self.query = query
+        self.n1ql_helper = n1ql_helper
+        self.retry_time = 2
+
+    def execute(self, task_manager):
+        try:
+            # Query and get results
+            self.n1ql_helper.run_cbq_query(query = self.query, server = self.server)
+            self.state = CHECKING
+            task_manager.schedule(self)
+        except CreateIndexException as e:
+            # initial query failed, try again
+            self.state = FINISHED
+            task_manager.schedule(self, self.retry_time)
+
+        # catch and set all unexpected exceptions
+        except Exception as e:
+            self.state = FINISHED
+            self.set_unexpected_exception(e)
+
+    def check(self, task_manager):
+        try:
+           # Verify correctness of result set
+            self.set_result(True)
+            self.state = FINISHED
+        except CreateIndexException as e:
+            # subsequent query failed! exit
+            self.state = FINISHED
+            self.set_exception(e)
+
+        # catch and set all unexpected exceptions
+        except Exception as e:
+            self.state = FINISHED
+            self.set_unexpected_exception(e)
+
+class MonitorIndexTask(Task):
+    def __init__(self,
+                 server, task_manager, bucket, index_name,
+                 n1ql_helper = None,
+                 retry_time=2,
+                 timeout = 240):
+        Task.__init__(self, "build_index_task", task_manager)
+        self.server = server
+        self.bucket = bucket
+        self.index_name = index_name
+        self.n1ql_helper = n1ql_helper
+        self.retry_time = 2
+        self.timeout = timeout
+
+    def execute(self, task_manager):
+        try:
+            check = self.n1ql_helper.is_index_online_and_in_list(self.bucket, self.index_name,
+             server = self.server, timeout = self.timeout)
+            if not check:
+                self.state = FINISHED
+                raise CreateIndexException("Index {0} not created as expected ".format(self.index_name))
+            self.state = CHECKING
+            task_manager.schedule(self)
+        except CreateIndexException as e:
+            # initial query failed, try again
+            self.state = FINISHED
+            self.set_exception(e)
+        # catch and set all unexpected exceptions
+        except Exception as e:
+            self.state = FINISHED
+            self.set_unexpected_exception(e)
+
+    def check(self, task_manager):
+        try:
+            self.set_result(True)
+            self.state = FINISHED
+        except CreateIndexException as e:
+            # subsequent query failed! exit
+            self.state = FINISHED
+            self.set_exception(e)
+
+        # catch and set all unexpected exceptions
+        except Exception as e:
+            self.state = FINISHED
+            self.set_unexpected_exception(e)
+
+class DropIndexTask(Task):
+    def __init__(self,
+                 server, task_manager, bucket, index_name,
+                 query, n1ql_helper = None,
+                 retry_time=2):
+        Task.__init__(self, "drop_index_task", task_manager)
+        self.server = server
+        self.bucket = bucket
+        self.query = query
+        self.index_name = index_name
+        self.n1ql_helper = n1ql_helper
+        self.timeout = 900
+        self.retry_time = 2
+
+    def execute(self, task_manager):
+        try:
+            # Query and get results
+            check = self.n1ql_helper._is_index_in_list(self.bucket, self.index_name, server = self.server)
+            if not check:
+                raise DropIndexException("index {0} does not exist will not drop".format(self.index_name))
+            self.n1ql_helper.run_cbq_query(query = self.query, server = self.server)
+            self.state = CHECKING
+            task_manager.schedule(self)
+        except N1QLQueryException as e:
+            # initial query failed, try again
+            self.state = FINISHED
+            task_manager.schedule(self, self.retry_time)
+        # catch and set all unexpected exceptions
+        except DropIndexException as e:
+            self.state = FINISHED
+            self.set_unexpected_exception(e)
+
+    def check(self, task_manager):
+        try:
+        # Verify correctness of result set
+            check = self.n1ql_helper._is_index_in_list(self.bucket, self.index_name, server = self.server)
+            if check:
+                raise Exception("Index {0} not dropped as expected ".format(self.index_name))
+            self.set_result(True)
+            self.state = FINISHED
+        except DropIndexException as e:
+            # subsequent query failed! exit
+            self.state = FINISHED
+            self.set_exception(e)
+        # catch and set all unexpected exceptions
+        except Exception as e:
+            self.state = FINISHED
+            self.set_unexpected_exception(e)
+
+class FailoverTask(Task):
+    def __init__(self, servers, task_manager, to_failover=[], wait_for_pending=0, graceful=False, use_hostnames=False):
+        Task.__init__(self, "failover_task", task_manager)
+        self.servers = servers
+        self.to_failover = to_failover
+        self.graceful = graceful
+        self.wait_for_pending = wait_for_pending
+        self.use_hostnames = use_hostnames
+
+    def execute(self, task_manager):
+        try:
+            self._failover_nodes(task_manager)
+            self.log.info("{0} seconds sleep after failover, for nodes to go pending....".format(self.wait_for_pending))
+            time.sleep(self.wait_for_pending)
+            self.state = FINISHED
+            self.set_result(True)
+
+        except FailoverFailedException as e:
+            self.state = FINISHED
+            self.set_exception(e)
+
+        except Exception as e:
+            self.state = FINISHED
+            self.set_unexpected_exception(e)
+
+    def _failover_nodes(self, task_manager):
+        rest = RestConnection(self.servers[0])
+        # call REST fail_over for the nodes to be failed over
+        for server in self.to_failover:
+            for node in rest.node_statuses():
+                if (server.hostname if self.use_hostnames else server.ip) == node.ip and int(server.port) == int(node.port):
+                    self.log.info("Failing over {0}:{1} with graceful={2}".format(node.ip, node.port, self.graceful))
+                    rest.fail_over(node.id, self.graceful)
+
+class BucketFlushTask(Task):
+    def __init__(self, server, bucket="default"):
+        Task.__init__(self, "bucket_flush_task")
+        self.server = server
+        self.bucket = bucket
+        if isinstance(bucket, Bucket):
+            self.bucket = bucket.name
+
+    def execute(self, task_manager):
+        try:
+            rest = RestConnection(self.server)
+            if rest.flush_bucket(self.bucket):
+                self.state = CHECKING
+                task_manager.schedule(self)
+            else:
+                self.state = FINISHED
+                self.set_result(False)
+
+        except BucketFlushFailed as e:
+            self.state = FINISHED
+            self.set_exception(e)
+
+        except Exception as e:
+            self.state = FINISHED
+            self.set_unexpected_exception(e)
+
+    def check(self, task_manager):
+        try:
+            # check if after flush the vbuckets are ready
+            if BucketOperationHelper.wait_for_vbuckets_ready_state(self.server, self.bucket):
+                self.set_result(True)
+            else:
+                self.log.error("Unable to reach bucket {0} on server {1} after flush".format(self.bucket, self.server))
+                self.set_result(False)
+            self.state = FINISHED
+        except Exception as e:
+            self.state = FINISHED
+            self.set_unexpected_exception(e)
+
+class CompactBucketTask(Task):
+
+    def __init__(self, server, task_manager, bucket="default"):
+        Task.__init__(self, "bucket_compaction_task", task_manager)
+        self.server = server
+        self.bucket = bucket
+        self.rest = RestConnection(server)
+        self.retries = 20
+        self.statuses = {}
+
+        # get the current count of compactions
+
+        nodes = self.rest.get_nodes()
+        self.compaction_count = {}
+
+        for node in nodes:
+            self.compaction_count[node.ip] = 0
+
+    def execute(self, task_manager):
+
+        try:
+            status = self.rest.compact_bucket(self.bucket)
+            self.state = CHECKING
+
+        except BucketCompactionException as e:
+            self.log.error("Bucket compaction failed for unknown reason")
+            self.set_exception(e)
+            self.state = FINISHED
+            self.set_result(False)
+
+        task_manager.schedule(self)
+
+    def check(self, task_manager):
+        # check bucket compaction status across all nodes
+        nodes = self.rest.get_nodes()
+        current_compaction_count = {}
+
+        for node in nodes:
+            current_compaction_count[node.ip] = 0
+            s = TestInputServer()
+            s.ip = node.ip
+            s.ssh_username = self.server.ssh_username
+            s.ssh_password = self.server.ssh_password
+            shell = RemoteMachineShellConnection(s)
+            res = shell.execute_cbstats("", "raw", keyname="kvtimings", vbid="")
+
+
+            for i in res[0]:
+                # check for lines that look like
+                #    rw_0:compact_131072,262144:        8
+                if 'compact' in i:
+                    current_compaction_count[node.ip] += int(i.split(':')[2])
+
+
+        if cmp(current_compaction_count, self.compaction_count) == 1:
+            # compaction count has increased
+            self.set_result(True)
+            self.state = FINISHED
+
+        else:
+            if self.retries > 0:
+                # retry
+                self.retries = self.retries - 1
+                task_manager.schedule(self, 10)
+            else:
+                # never detected a compaction task running
+                self.set_result(False)
+                self.state = FINISHED
+
+    def _get_disk_size(self):
+        stats = self.rest.fetch_bucket_stats(bucket=self.bucket)
+        total_disk_size = stats["op"]["samples"]["couch_total_disk_size"][-1]
+        self.log.info("Disk size is = %d" % total_disk_size)
+        return total_disk_size
+

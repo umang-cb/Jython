@@ -9,8 +9,8 @@ import sys
 import threading
 from os.path import basename, splitext
 from pprint import pprint
-sys.path = ["lib", "pytests"] + sys.path
-sys.path = ["core-io-1.4.7.jar","java-client-2.4.7.jar","jsch-0.1.54.jar","rxjava-1.2.7.jar"] + sys.path
+sys.path = ["lib", "pytests", "pysystests"] + sys.path
+
 if sys.hexversion < 0x02060000:
     print "Testrunner requires version 2.6+ of python"
     sys.exit()
@@ -62,7 +62,7 @@ def parse_args(argv):
     parser.add_option("-n", "--noop", action="store_true",
                       help="NO-OP - emit test names, but don't actually run them e.g -n true")
     parser.add_option("-l", "--log-level",
-                      dest="loglevel", default="INFO", help="e.g -l info,warning,error")
+                      dest="loglevel", default="INFO", help="e.g -l debug,info,warning")
     options, args = parser.parse_args()
 
     tests = []
@@ -93,7 +93,7 @@ def parse_args(argv):
 
 
 def create_log_file(log_config_file_name, log_file_name, level):
-    tmpl_log_file = open("logging.conf.sample")
+    tmpl_log_file = open("jython.logging.conf")
     log_file = open(log_config_file_name, "w")
     log_file.truncate()
     for line in tmpl_log_file:
@@ -515,13 +515,13 @@ def main():
         sd.fetch_logs()
 
     # terminate any non main thread - these were causing hangs
-    for t in threading.enumerate():
-        if t.name != 'MainThread':
-            print 'Thread', t.name, 'was not properly terminated, will be terminated now.'
-            if hasattr(t, 'shutdown'):
-                t.shutdown(True)
-            else:
-                t._Thread__stop()
+    # for t in threading.enumerate():
+    #     if t.name != 'MainThread':
+    #         print 'Thread', t.name, 'was not properly terminated, will be terminated now.'
+    #         if hasattr(t, 'shutdown'):
+    #             t.shutdown(True)
+    #         else:
+    #             t._Thread__stop()
 
 
 def watcher():
