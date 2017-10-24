@@ -7,7 +7,7 @@ from couchbase_helper.tuq_generators import TuqGenerators
 from couchbase_helper.query_definitions import SQLDefinitionGenerator
 from membase.api.rest_client import RestConnection
 
-log = logging.getLogger(__name__)
+log = logging.getLogger()
 
 class BaseSecondaryIndexingTests(QueryTests):
 
@@ -54,7 +54,6 @@ class BaseSecondaryIndexingTests(QueryTests):
             self.set_indexer_logLevel(self.index_loglevel)
         if self.dgm_run:
             self._load_doc_data_all_buckets(gen_load=self.gens_load)
-        self.gsi_thread = Cluster()
         self.defer_build = self.defer_build and self.use_gsi_for_secondary
         self.num_index_replicas = self.input.param("num_index_replica", 0)
 
@@ -81,7 +80,7 @@ class BaseSecondaryIndexingTests(QueryTests):
                                                                   deploy_node_info=deploy_node_info,
                                                                   defer_build=self.defer_build,
                                                                   index_where_clause=index_where_clause, num_replica=self.num_index_replicas, desc=desc)
-        create_index_task = self.gsi_thread.async_create_index(server=self.n1ql_node, bucket=bucket,
+        create_index_task = self.cluster.async_create_index(server=self.n1ql_node, bucket=bucket,
                                                                query=self.query, n1ql_helper=self.n1ql_helper,
                                                                index_name=query_definition.index_name,
                                                                defer_build=self.defer_build)
@@ -103,12 +102,12 @@ class BaseSecondaryIndexingTests(QueryTests):
             index_list = []
         self.query = self.n1ql_helper.gen_build_index_query(bucket=bucket, index_list=index_list)
         self.log.info(self.query)
-        build_index_task = self.gsi_thread.async_build_index(server=self.n1ql_node, bucket=bucket,
+        build_index_task = self.cluster.async_build_index(server=self.n1ql_node, bucket=bucket,
                                                              query=self.query, n1ql_helper=self.n1ql_helper)
         return build_index_task
 
     def async_monitor_index(self, bucket, index_name = None):
-        monitor_index_task = self.gsi_thread.async_monitor_index(server=self.n1ql_node, bucket=bucket,
+        monitor_index_task = self.cluster.async_monitor_index(server=self.n1ql_node, bucket=bucket,
                                                                  n1ql_helper=self.n1ql_helper,index_name=index_name,
                                                                  timeout=self.timeout_for_index_online)
         return monitor_index_task
@@ -146,7 +145,8 @@ class BaseSecondaryIndexingTests(QueryTests):
             query_definitions = self.query_definitions
         create_index_tasks = []
         self.index_lost_during_move_out = []
-        self.log.info(self.index_nodes_out)
+        if self.index_nodes_out:
+            log.info("Index Nodes Out: {0}".format(self.index_nodes_out))
         index_node_count = 0
         for query_definition in query_definitions:
                 index_info = "{0}".format(query_definition.index_name)
@@ -167,13 +167,13 @@ class BaseSecondaryIndexingTests(QueryTests):
         if self.defer_build and self.build_index_after_create:
             index_list = []
             for task in create_index_tasks:
-                task.result()
+                task.get_result()
             for query_definition in query_definitions:
                 if query_definition.index_name not in index_list:
                     index_list.append(query_definition.index_name)
             for bucket in self.buckets:
                 build_index_task = self.async_build_index(bucket, index_list)
-                build_index_task.result()
+                build_index_task.get_result()
             monitor_index_tasks = []
             for index_name in index_list:
                 for bucket in self.buckets:
@@ -243,7 +243,7 @@ class BaseSecondaryIndexingTests(QueryTests):
         self.query = query_definition.generate_index_drop_query(bucket=bucket,
                                                                 use_gsi_for_secondary=self.use_gsi_for_secondary,
                                                                 use_gsi_for_primary=self.use_gsi_for_primary)
-        drop_index_task = self.gsi_thread.async_drop_index(server=self.n1ql_node, bucket=bucket, query=self.query,
+        drop_index_task = self.cluster.async_drop_index(server=self.n1ql_node, bucket=bucket, query=self.query,
                                                            n1ql_helper=self.n1ql_helper,
                                                            index_name=query_definition.index_name)
         return drop_index_task
@@ -258,7 +258,7 @@ class BaseSecondaryIndexingTests(QueryTests):
 
     def async_query_using_index_with_explain(self, bucket, query_definition):
         self.query = query_definition.generate_query_with_explain(bucket=bucket)
-        query_with_index_task = self.gsi_thread.async_n1ql_query_verification(server=self.n1ql_node, bucket=bucket,
+        query_with_index_task = self.cluster.async_n1ql_query_verification(server=self.n1ql_node, bucket=bucket,
                                                                               query=self.query,
                                                                               n1ql_helper=self.n1ql_helper,
                                                                               is_explain_query=True,
@@ -308,7 +308,7 @@ class BaseSecondaryIndexingTests(QueryTests):
         if expected_result == None:
             expected_result = self.gen_results.generate_expected_result(print_expected_result = False)
         self.query = self.gen_results.query
-        query_with_index_task = self.gsi_thread.async_n1ql_query_verification(
+        query_with_index_task = self.cluster.async_n1ql_query_verification(
                  server = self.n1ql_node, bucket = bucket,
                  query = self.query, n1ql_helper = self.n1ql_helper,
                  expected_result=expected_result, index_name = query_definition.index_name,

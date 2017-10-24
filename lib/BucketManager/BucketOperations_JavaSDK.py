@@ -64,17 +64,17 @@ class BucketHelper(bucket_helper_rest):
         true if the removal was successful, false otherwise.
         '''
         try:
-            cluster = CouchbaseCluster.create(self.server.ip);
-            cluster.authenticate(self.server.rest_username,self.server.rest_password)
+            cluster = CouchbaseCluster.create(self.server.ip)
+            cluster.authenticate(self.server.rest_username, self.server.rest_password)
             clusterManager = cluster.clusterManager()
-            clusterManager.removeBucket(bucket_name);
+            clusterManager.removeBucket(bucket_name)
             cluster.disconnect()
             return True
         except BucketDoesNotExistException as e:
-            log.info(e)
+            log.error(e)
             cluster.disconnect()
             return False
         except AuthenticationException as e:
-            log.info(e)
+            log.error(e)
             cluster.disconnect()
             return False

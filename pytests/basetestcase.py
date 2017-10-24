@@ -4,6 +4,7 @@ import copy
 import datetime
 import logging
 import commands
+import json
 import traceback
 from couchbase_helper.cluster import Cluster
 from TestInput import TestInputSingleton
@@ -20,16 +21,18 @@ from failover_utils.failover_ready_functions import failover_utils
 from node_utils.node_ready_functions import node_utils
 from views_utils.view_ready_functions import views_utils
 
+log = logging.getLogger()
+
 class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_utils, node_utils, views_utils):
     def setUp(self):
         self.log = logger.Logger.get_logger()
         self.input = TestInputSingleton.input
         self.primary_index_created = False
-        self.use_sdk_client = self.input.param("use_sdk_client",False)
-        self.analytics = self.input.param("analytics",False)
+        self.use_sdk_client = self.input.param("use_sdk_client", False)
+        self.analytics = self.input.param("analytics", False)
         if self.input.param("log_level", None):
-            self.log.setLevel(level=0)
-            for hd in self.log.handlers:
+            log.setLevel(level=0)
+            for hd in log.handlers:
                 if str(hd.__class__).find('FileHandler') != -1:
                     hd.setLevel(level=logging.DEBUG)
                 else:
@@ -62,8 +65,8 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
         self.data_collector = DataCollector()
         self.data_analyzer = DataAnalyzer()
         self.result_analyzer = DataAnalysisResultAnalyzer()
-#         self.set_testrunner_client()
-        self.change_bucket_properties=False
+        #         self.set_testrunner_client()
+        self.change_bucket_properties = False
         self.cbas_node = self.input.cbas
         self.cbas_servers = []
         self.kv_servers = []
@@ -73,9 +76,9 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
                 self.cbas_servers.append(server)
             if "kv" in server.services:
                 self.kv_servers.append(server)
-        if not self.cbas_node and len(self.cbas_servers)>=1:
+        if not self.cbas_node and len(self.cbas_servers) >= 1:
             self.cbas_node = self.cbas_servers[0]
-                            
+
         try:
             self.skip_setup_cleanup = self.input.param("skip_setup_cleanup", False)
             self.vbuckets = self.input.param("vbuckets", 1024)
@@ -89,7 +92,7 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
             # number of case that is performed from testrunner( increment each time)
             self.case_number = self.input.param("case_number", 0)
             self.default_bucket = self.input.param("default_bucket", True)
-            self.parallelism = self.input.param("parallelism",False)
+            self.parallelism = self.input.param("parallelism", False)
             if self.default_bucket:
                 self.default_bucket_name = "default"
             self.standard_buckets = self.input.param("standard_buckets", 0)
@@ -147,7 +150,7 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
                 self.eviction_policy = 'noEviction'
 
             # for ephemeral buckets it
-            self.sasl_password=self.input.param("sasl_password", 'password')
+            self.sasl_password = self.input.param("sasl_password", 'password')
             self.lww = self.input.param("lww",
                                         False)  # only applies to LWW but is here because the bucket is created here
             self.sasl_bucket_name = "bucket"
@@ -166,7 +169,7 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
                         to get couchbase version to filter out those tests. """
                     self.cb_version = RestConnection(self.master).get_nodes_version()
                 else:
-                    self.log.info("couchbase server does not run yet")
+                    log.info("couchbase server does not run yet")
                 self.protocol = self.get_protocol_type()
             self.services_map = None
             if self.sasl_bucket_priority is not None:
@@ -174,7 +177,7 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
             if self.standard_bucket_priority is not None:
                 self.standard_bucket_priority = self.standard_bucket_priority.split(":")
 
-            self.log.info("==============  basetestcase setup was started for test #{0} {1}==============" \
+            log.info("==============  basetestcase setup was started for test #{0} {1}==============" \
                           .format(self.case_number, self._testMethodName))
             if not self.skip_buckets_handle and not self.skip_init_check_cbserver:
                 self._cluster_cleanup()
@@ -202,24 +205,24 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
             if str(self.__class__).find('newupgradetests') != -1 or \
                             str(self.__class__).find('upgradeXDCR') != -1 or \
                             str(self.__class__).find('Upgrade_EpTests') != -1 or \
-                            hasattr(self, 'skip_buckets_handle') and\
+                            hasattr(self, 'skip_buckets_handle') and \
                             self.skip_buckets_handle:
-                self.log.info("any cluster operation in setup will be skipped")
+                log.info("any cluster operation in setup will be skipped")
                 self.primary_index_created = True
-                self.log.info("==============  basetestcase setup was finished for test #{0} {1} ==============" \
+                log.info("==============  basetestcase setup was finished for test #{0} {1} ==============" \
                               .format(self.case_number, self._testMethodName))
                 return
             # avoid clean up if the previous test has been tear down
             if self.case_number == 1 or self.case_number > 1000:
                 if self.case_number > 1000:
-                    self.log.warn("teardDown for previous test failed. will retry..")
+                    log.warn("teardDown for previous test failed. will retry..")
                     self.case_number -= 1000
                 self.cleanup = True
                 if not self.skip_init_check_cbserver:
                     self.tearDown()
                 self.cluster = Cluster()
             if not self.skip_init_check_cbserver:
-                self.log.info("initializing cluster")
+                log.info("initializing cluster")
                 self.reset_cluster()
                 master_services = self.get_services(self.servers[:1], \
                                                     self.services_init, \
@@ -243,7 +246,7 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
                 # Add built-in user
                 if not self.skip_init_check_cbserver:
                     self.add_built_in_server_user(node=self.master)
-                self.log.info("done initializing cluster")
+                log.info("done initializing cluster")
             else:
                 self.quota = ""
             if self.input.param("log_info", None):
@@ -288,7 +291,7 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
             if self.dgm_run:
                 self.quota = 256
             if self.total_buckets > 10:
-                self.log.info("================== changing max buckets from 10 to {0} =================" \
+                log.info("================== changing max buckets from 10 to {0} =================" \
                               .format(self.total_buckets))
                 self.change_max_buckets(self, self.total_buckets)
             if self.total_buckets > 0 and not self.skip_init_check_cbserver:
@@ -297,7 +300,7 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
                     to get the correct RAM quota available to create bucket(s)
                     after all services were set """
                 node_info = RestConnection(self.master).get_nodes_self()
-                if node_info.memoryQuota and int(node_info.memoryQuota) > 0 :
+                if node_info.memoryQuota and int(node_info.memoryQuota) > 0:
                     ram_available = node_info.memoryQuota
                 else:
                     ram_available = self.quota
@@ -307,8 +310,8 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
                             we need to set bucket size to dgm setting """
                         self.bucket_size = self.quota
                     else:
-                        self.bucket_size = self._get_bucket_size(ram_available,\
-                                                            self.total_buckets)
+                        self.bucket_size = self._get_bucket_size(ram_available, \
+                                                                 self.total_buckets)
 
             self.bucket_base_params['membase']['non_ephemeral']['size'] = self.bucket_size
             self.bucket_base_params['membase']['ephemeral']['size'] = self.bucket_size
@@ -317,7 +320,7 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
             if str(self.__class__).find('upgrade_tests') == -1 and \
                             str(self.__class__).find('newupgradetests') == -1:
                 self._bucket_creation()
-            self.log.info("==============  basetestcase setup was finished for test #{0} {1} ==============" \
+            log.info("==============  basetestcase setup was finished for test #{0} {1} ==============" \
                           .format(self.case_number, self._testMethodName))
 
             if not self.skip_init_check_cbserver:
@@ -327,7 +330,6 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
             traceback.print_exc()
             self.cluster.shutdown(force=True)
             self.fail(e)
-
 
     def get_cbcollect_info(self, server):
         """Collect cbcollectinfo logs for all the servers in the cluster.
@@ -340,13 +342,11 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
             TestInputSingleton.input.test_params[
                 "get-cbcollect-info"] = False
         except Exception as e:
-            self.log.error( "IMPOSSIBLE TO GRAB CBCOLLECT FROM {0}: {1}".format( server.ip, e))
-
-
+            log.error("IMPOSSIBLE TO GRAB CBCOLLECT FROM {0}: {1}".format(server.ip, e))
 
     def tearDown(self):
         if self.skip_setup_cleanup:
-                return
+            return
         try:
             if hasattr(self, 'skip_buckets_handle') and self.skip_buckets_handle:
                 return
@@ -358,14 +358,14 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
 
             if test_failed and TestInputSingleton.input.param("stop-on-failure", False) \
                     or self.input.param("skip_cleanup", False):
-                self.log.warn("CLEANUP WAS SKIPPED")
+                log.warn("CLEANUP WAS SKIPPED")
             else:
 
                 if test_failed:
                     # collect logs here instead of in test runner because we have not shut things down
                     if TestInputSingleton.param("get-cbcollect-info", False):
                         for server in self.servers:
-                            self.log.info("Collecting logs @ {0}".format(server.ip))
+                            log.info("Collecting logs @ {0}".format(server.ip))
                             self.get_cbcollect_info(server)
                         # collected logs so turn it off so it is not done later
                         TestInputSingleton.input.test_params["get-cbcollect-info"] = False
@@ -381,13 +381,9 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
                             except:
                                 pass
                     if self.input.param('BUGS', False):
-                        self.log.warn("Test failed. Possible reason is: {0}".format(self.input.param('BUGS', False)))
+                        log.warn("Test failed. Possible reason is: {0}".format(self.input.param('BUGS', False)))
 
-
-
-
-
-                self.log.info("==============  basetestcase cleanup was started for test #{0} {1} ==============" \
+                log.info("==============  basetestcase cleanup was started for test #{0} {1} ==============" \
                               .format(self.case_number, self._testMethodName))
                 rest = RestConnection(self.master)
                 alerts = rest.get_alerts()
@@ -396,16 +392,16 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
                 if self.forceEject:
                     self.force_eject_nodes()
                 if alerts is not None and len(alerts) != 0:
-                    self.log.warn("Alerts were found: {0}".format(alerts))
+                    log.warn("Alerts were found: {0}".format(alerts))
                 if rest._rebalance_progress_status() == 'running':
                     self.kill_memcached()
-                    self.log.warning("rebalancing is still running, test should be verified")
+                    log.warning("rebalancing is still running, test should be verified")
                     stopped = rest.stop_rebalance()
                     self.assertTrue(stopped, msg="unable to stop rebalance")
                 BucketOperationHelper.delete_all_buckets_or_assert(self.servers, self)
                 ClusterOperationHelper.cleanup_cluster(self.servers, master=self.master)
                 ClusterOperationHelper.wait_for_ns_servers_or_assert(self.servers, self)
-                self.log.info("==============  basetestcase cleanup was finished for test #{0} {1} ==============" \
+                log.info("==============  basetestcase cleanup was finished for test #{0} {1} ==============" \
                               .format(self.case_number, self._testMethodName))
         except BaseException:
             # kill memcached
@@ -456,7 +452,7 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
             pass
 
     def sleep(self, timeout=15, message=""):
-        self.log.info("sleep for {0} secs. {1} ...".format(timeout, message))
+        log.info("sleep for {0} secs. {1} ...".format(timeout, message))
         time.sleep(timeout)
 
     def _cluster_cleanup(self):
@@ -464,7 +460,7 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
         alerts = rest.get_alerts()
         if rest._rebalance_progress_status() == 'running':
             self.kill_memcached()
-            self.log.warning("rebalancing is still running, test should be verified")
+            log.warning("rebalancing is still running, test should be verified")
             stopped = rest.stop_rebalance()
             self.assertTrue(stopped, msg="unable to stop rebalance")
         BucketOperationHelper.delete_all_buckets_or_assert(self.servers, self)
@@ -489,15 +485,15 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
                                                       index_quota_percent=self.index_quota_percent,
                                                       gsi_type=self.gsi_type))
         for task in init_tasks:
-            node_quota = task.result()
+            node_quota = task.get_result()
             if node_quota < quota or quota == 0:
                 quota = node_quota
         if quota < 100 and not len(set([server.ip for server in self.servers])) == 1:
-            self.log.warn("RAM quota was defined less than 100 MB:")
+            log.warn("RAM quota was defined less than 100 MB:")
             for server in servers:
                 remote_client = RemoteMachineShellConnection(server)
                 ram = remote_client.extract_remote_info().ram
-                self.log.info("{0}: {1} MB".format(server.ip, ram))
+                log.info("{0}: {1} MB".format(server.ip, ram))
                 remote_client.disconnect()
         return quota
 
@@ -535,7 +531,7 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
                 self.assertTrue(verified, "Lost items!!! Replication was completed but "
                                           "          sum(curr_items) don't match the curr_items_total")
         else:
-            self.log.warn("verification of items was omitted")
+            log.warn("verification of items was omitted")
 
     def _stats_befor_warmup(self, bucket_name):
         self.pre_warmup_stats[bucket_name] = {}
@@ -633,9 +629,9 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
                 shell.log_command_output(output, error)
                 output = output[0].split(" ")
                 if node not in output:
-                    self.log.info("{0}".format(nodes))
-                    self.log.info("replicas of node {0} are in nodes {1}".format(node, output))
-                    self.log.info("replicas of node {0} are not in its zone {1}".format(node, group))
+                    log.info("{0}".format(nodes))
+                    log.info("replicas of node {0} are in nodes {1}".format(node, output))
+                    log.info("replicas of node {0} are not in its zone {1}".format(node, group))
                 else:
                     raise Exception("replica of node {0} are on its own zone {1}".format(node, group))
         shell.disconnect()
@@ -655,23 +651,23 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
             return
         for version in versions:
             if "5" > version:
-                self.log.info("Atleast one of the nodes in the cluster is "
+                log.info("Atleast one of the nodes in the cluster is "
                               "pre 5.0 version. Hence not creating rbac user "
                               "for the cluster. RBAC is a 5.0 feature.")
                 return
         if testuser is None:
             testuser = [{'id': 'cbadminbucket', 'name': 'cbadminbucket',
-                                                'password': 'password'}]
+                         'password': 'password'}]
         if rolelist is None:
             rolelist = [{'id': 'cbadminbucket', 'name': 'cbadminbucket',
-                                                      'roles': 'admin'}]
+                         'roles': 'admin'}]
 
-        self.log.info("**** add built-in '%s' user to node %s ****" % (testuser[0]["name"],
+        log.info("**** add built-in '%s' user to node %s ****" % (testuser[0]["name"],
                                                                        node.ip))
         RbacBase().create_user_source(testuser, 'builtin', node)
         self.sleep(10)
 
-        self.log.info("**** add '%s' role to '%s' user ****" % (rolelist[0]["roles"],
+        log.info("**** add '%s' role to '%s' user ****" % (rolelist[0]["roles"],
                                                                 testuser[0]["name"]))
         status = RbacBase().add_user_role(rolelist, RestConnection(node), 'builtin')
         self.sleep(10)
@@ -777,3 +773,55 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
         if self.testrunner_client != None:
             os.environ[testconstants.TESTRUNNER_CLIENT] = self.testrunner_client
 
+    def generate_full_docs_list(self, gens_load=[], keys=[], update=False):
+        all_docs_list = []
+        for gen_load in gens_load:
+            doc_gen = copy.deepcopy(gen_load)
+            while doc_gen.has_next():
+                key, val = doc_gen.next()
+                try:
+                    val = json.loads(val)
+                    if isinstance(val, dict) and 'mutated' not in val.keys():
+                        if update:
+                            val['mutated'] = 1
+                        else:
+                            val['mutated'] = 0
+                    else:
+                        val['mutated'] += val['mutated']
+                except TypeError:
+                    pass
+                if keys:
+                    if not (key in keys):
+                        continue
+                all_docs_list.append(val)
+        return all_docs_list
+
+    def load(self, generators_load, buckets=None, exp=0, flag=0,
+             kv_store=1, only_store_hash=True, batch_size=1, pause_secs=1,
+             timeout_secs=30, op_type='create', start_items=0, verify_data=True):
+        if not buckets:
+            buckets = self.buckets
+        gens_load = {}
+        for bucket in buckets:
+            tmp_gen = []
+            for generator_load in generators_load:
+                tmp_gen.append(copy.deepcopy(generator_load))
+            gens_load[bucket] = copy.deepcopy(tmp_gen)
+        tasks = []
+        items = 0
+        for bucket in buckets:
+            for gen_load in gens_load[bucket]:
+                items += (gen_load.end - gen_load.start)
+        for bucket in buckets:
+            log.info("%s %s to %s documents..." % (op_type, items, bucket.name))
+            tasks.append(self.cluster.async_load_gen_docs(self.master, bucket.name,
+                                                          gens_load[bucket],
+                                                          bucket.kvs[kv_store], op_type, exp, flag,
+                                                          only_store_hash, batch_size, pause_secs,
+                                                          timeout_secs))
+        for task in tasks:
+            task.get_result()
+        self.num_items = items + start_items
+        if verify_data:
+            self.verify_cluster_stats(self.servers[:self.nodes_init])
+        log.info("LOAD IS FINISHED")
