@@ -1,51 +1,35 @@
-import time
-import Queue
+import logging
+import sys
+from java.util.concurrent import Executors, TimeUnit
+from tasks import Task
 
-from threading import Thread
-from tasks.task import Task
+log = logging.getLogger(__name__)
 
-class TaskManager(Thread):
-    def __init__(self, thread_name=None):
-        Thread.__init__(self)
-        self.readyq = Queue.Queue()
-        self.sleepq = Queue.Queue()
-        self.running = True
-        if thread_name is not None:
-            self.name = thread_name
+MAX_CONCURRENT = 5
+
+class TaskManager(object):
+    def __init__(self, thread_name):
+        self.thread_pool_name = thread_name
+        self.thread_pool = Executors.newScheduledThreadPool(MAX_CONCURRENT)
+        self.futures = []
 
     def schedule(self, task, sleep_time=0):
         if not isinstance(task, Task):
-            raise TypeError("Tried to schedule somthing that's not a task")
-        if sleep_time <= 0:
-            self.readyq.put(task)
-        else:
-            wakeup_time = time.time() + sleep_time
-            self.sleepq.put({'task': task, 'time': wakeup_time})
+            raise TypeError("Tried to schedule something that's not a task")
+        future = self.thread_pool.schedule(task, sleep_time, TimeUnit.SECONDS)
+        task.future = future
+        self.futures.append(future)
+        return future
 
-    def run(self):
-        while (self.running == True or self.readyq.empty() != True or self.sleepq.empty() != True):
-            if self.readyq.empty():
-                time.sleep(1)
-            else:
-                task = self.readyq.get()
-                task.step(self)
-            for i in range(self.sleepq.qsize()):
-                s_task = self.sleepq.get()
-                if time.time() >= s_task['time']:
-                    self.readyq.put(s_task['task'])
-                else:
-                    self.sleepq.put(s_task)
-
-    def shutdown(self, force=False):
-        self.running = False
+    def shutdown(self, force=False, timeout=None):
+        self.thread_pool.shutdown()
         if force:
-            while not self.sleepq.empty():
-                task = self.sleepq.get()['task']
-                task.cancel()
-                self.readyq.put(task)
-            while not self.readyq.empty():
-                try:
-                    task = self.readyq.get()
-                    task.cancel()
-                except Exception, ex:
-                    raise ex
+            self.thread_pool.setExecuteExistingDelayedTasksAfterShutdownPolicy(False)
+        try:
+            if not self.thread_pool.awaitTermination(timeout, TimeUnit.SECONDS):
+                self.thread_pool.shutdownNow()
+                if not self.thread_pool.awaitTermination(timeout, TimeUnit.SECONDS):
+                    log.error("{0}: Pool did not terminate".format(sys.stderr))
+        except Exception, ex:
+            # (Re-)Cancel if current thread also interrupted
+            self.thread_pool.shutdownNow()
