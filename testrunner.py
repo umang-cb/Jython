@@ -93,7 +93,7 @@ def parse_args(argv):
 
 
 def create_log_file(log_config_file_name, log_file_name, level):
-    tmpl_log_file = open("jython.logging.conf")
+    tmpl_log_file = open("logging.conf.sample")
     log_file = open(log_config_file_name, "w")
     log_file.truncate()
     for line in tmpl_log_file:

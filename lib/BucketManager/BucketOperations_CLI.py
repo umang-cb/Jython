@@ -11,7 +11,7 @@ from bucket import *
 import logger
 from membase.api.rest_client import Node
 from memcached.helper.kvstore import KVStore
-from rest import RestConnection
+from rest import Rest_Connection
 from BucketOperations_Rest import BucketHelper as bucket_helper_rest
 from com.couchbase.client.java import Bucket
 log = logger.Logger.get_logger()

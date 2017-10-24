@@ -1078,7 +1078,7 @@ class LoadDocumentsGeneratorsTask(LoadDocumentsTask):
         #     self.run_normal_throughput_mode()
 
         self.state = FINISHED
-        self.client.close()
+#         self.client.close()
         self.set_result(True)
 
     def run_normal_throughput_mode(self):

@@ -1,5 +1,5 @@
 from cbas_base import *
-from membase.api.rest_client import RestHelper
+from membase.api.rest_client import RestHelper, RestConnection
 from couchbase_cli import CouchbaseCLI
 
 class CBASClusterManagement(CBASBaseTest):

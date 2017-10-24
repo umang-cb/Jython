@@ -6,24 +6,11 @@ Created on Sep 25, 2017
 from membase.api import httplib2
 import base64
 import json
-import urllib
 import logger
 import traceback
 import socket
 import time
-import re
-import uuid
-from copy import deepcopy
-from threading import Thread
 from TestInput import TestInputSingleton
-from testconstants import MIN_KV_QUOTA, INDEX_QUOTA, FTS_QUOTA, CBAS_QUOTA
-from testconstants import COUCHBASE_FROM_VERSION_4, IS_CONTAINER
-try:
-    from couchbase_helper.document import DesignDocument, View
-except ImportError:
-    from lib.couchbase_helper.document import DesignDocument, View
-
-from memcached.helper.kvstore import KVStore
 from membase.api.exception import ServerUnavailableException
 log = logger.Logger.get_logger()
 
