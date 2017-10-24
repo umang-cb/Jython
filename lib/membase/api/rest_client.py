@@ -113,32 +113,32 @@ class RestHelper(object):
         else:
             return False
 
-    def vbucket_map_ready(self, bucket, timeout_in_seconds=360):
-        end_time = time.time() + timeout_in_seconds
-        while time.time() <= end_time:
-            vBuckets = self.rest.get_vbuckets(bucket)
-            if vBuckets:
-                return True
-            else:
-                time.sleep(0.5)
-        msg = 'vbucket map is not ready for bucket {0} after waiting {1} seconds'
-        log.info(msg.format(bucket, timeout_in_seconds))
-        return False
+#     def vbucket_map_ready(self, bucket, timeout_in_seconds=360):
+#         end_time = time.time() + timeout_in_seconds
+#         while time.time() <= end_time:
+#             vBuckets = self.rest.get_vbuckets(bucket)
+#             if vBuckets:
+#                 return True
+#             else:
+#                 time.sleep(0.5)
+#         msg = 'vbucket map is not ready for bucket {0} after waiting {1} seconds'
+#         log.info(msg.format(bucket, timeout_in_seconds))
+#         return False
 
-    def bucket_exists(self, bucket):
-        try:
-            buckets = self.rest.get_buckets()
-            names = [item.name for item in buckets]
-            log.info("node {1} existing buckets : {0}" \
-                              .format(names, self.rest.ip))
-            for item in buckets:
-                if item.name == bucket:
-                    log.info("node {1} found bucket {0}" \
-                             .format(bucket, self.rest.ip))
-                    return True
-            return False
-        except Exception:
-            return False
+#     def bucket_exists(self, bucket):
+#         try:
+#             buckets = self.rest.get_buckets()
+#             names = [item.name for item in buckets]
+#             log.info("node {1} existing buckets : {0}" \
+#                               .format(names, self.rest.ip))
+#             for item in buckets:
+#                 if item.name == bucket:
+#                     log.info("node {1} found bucket {0}" \
+#                              .format(bucket, self.rest.ip))
+#                     return True
+#             return False
+#         except Exception:
+#             return False
 
     def wait_for_node_status(self, node, expected_status, timeout_in_seconds):
         status_reached = False
@@ -196,27 +196,27 @@ class RestHelper(object):
             except Exception, ex:
                 log.error('unable to check index on server %s because of %s' % (server.ip, str(ex)))
 
-    def _get_vbuckets(self, servers, bucket_name='default'):
-        vbuckets_servers = {}
-        for server in servers:
-            buckets = RestConnection(server).get_buckets()
-            if not buckets:
-                return vbuckets_servers
-            if bucket_name:
-                bucket_to_check = [bucket for bucket in buckets
-                               if bucket.name == bucket_name][0]
-            else:
-                bucket_to_check = [bucket for bucket in buckets][0]
-            vbuckets_servers[server] = {}
-            vbs_active = [vb.id for vb in bucket_to_check.vbuckets
-                           if vb.master.startswith(str(server.ip))]
-            vbs_replica = []
-            for replica_num in xrange(0, bucket_to_check.numReplicas):
-                vbs_replica.extend([vb.id for vb in bucket_to_check.vbuckets
-                                    if vb.replica[replica_num].startswith(str(server.ip))])
-            vbuckets_servers[server]['active_vb'] = vbs_active
-            vbuckets_servers[server]['replica_vb'] = vbs_replica
-        return vbuckets_servers
+#     def _get_vbuckets(self, servers, bucket_name='default'):
+#         vbuckets_servers = {}
+#         for server in servers:
+#             buckets = RestConnection(server).get_buckets()
+#             if not buckets:
+#                 return vbuckets_servers
+#             if bucket_name:
+#                 bucket_to_check = [bucket for bucket in buckets
+#                                if bucket.name == bucket_name][0]
+#             else:
+#                 bucket_to_check = [bucket for bucket in buckets][0]
+#             vbuckets_servers[server] = {}
+#             vbs_active = [vb.id for vb in bucket_to_check.vbuckets
+#                            if vb.master.startswith(str(server.ip))]
+#             vbs_replica = []
+#             for replica_num in xrange(0, bucket_to_check.numReplicas):
+#                 vbs_replica.extend([vb.id for vb in bucket_to_check.vbuckets
+#                                     if vb.replica[replica_num].startswith(str(server.ip))])
+#             vbuckets_servers[server]['active_vb'] = vbs_active
+#             vbuckets_servers[server]['replica_vb'] = vbs_replica
+#         return vbuckets_servers
 
 class RestConnection(object):
 
@@ -1708,31 +1708,31 @@ class RestConnection(object):
             parsed = json.loads(content)
         return parsed
 
-    def fetch_vbucket_map(self, bucket="default"):
-        """Return vbucket map for bucket
-        Keyword argument:
-        bucket -- bucket name
-        """
-        api = self.baseUrl + 'pools/default/buckets/' + bucket
-        status, content, header = self._http_request(api)
-        _stats = json.loads(content)
-        return _stats['vBucketServerMap']['vBucketMap']
+#     def fetch_vbucket_map(self, bucket="default"):
+#         """Return vbucket map for bucket
+#         Keyword argument:
+#         bucket -- bucket name
+#         """
+#         api = self.baseUrl + 'pools/default/buckets/' + bucket
+#         status, content, header = self._http_request(api)
+#         _stats = json.loads(content)
+#         return _stats['vBucketServerMap']['vBucketMap']
 
-    def get_vbucket_map_and_server_list(self, bucket="default"):
-        """ Return server list, replica and vbuckets map
-        that matches to server list """
-        vbucket_map = self.fetch_vbucket_map(bucket)
-        api = self.baseUrl + 'pools/default/buckets/' + bucket
-        status, content, header = self._http_request(api)
-        _stats = json.loads(content)
-        num_replica = _stats['vBucketServerMap']['numReplicas']
-        vbucket_map = _stats['vBucketServerMap']['vBucketMap']
-        servers = _stats['vBucketServerMap']['serverList']
-        server_list = []
-        for node in servers:
-            node = node.split(":")
-            server_list.append(node[0])
-        return vbucket_map, server_list, num_replica
+#     def get_vbucket_map_and_server_list(self, bucket="default"):
+#         """ Return server list, replica and vbuckets map
+#         that matches to server list """
+#         vbucket_map = self.fetch_vbucket_map(bucket)
+#         api = self.baseUrl + 'pools/default/buckets/' + bucket
+#         status, content, header = self._http_request(api)
+#         _stats = json.loads(content)
+#         num_replica = _stats['vBucketServerMap']['numReplicas']
+#         vbucket_map = _stats['vBucketServerMap']['vBucketMap']
+#         servers = _stats['vBucketServerMap']['serverList']
+#         server_list = []
+#         for node in servers:
+#             node = node.split(":")
+#             server_list.append(node[0])
+#         return vbucket_map, server_list, num_replica
 
     def get_pools_info(self):
         parsed = {}
@@ -1764,17 +1764,17 @@ class RestConnection(object):
             version = MembaseServerVersion(json_parsed['implementationVersion'], json_parsed['componentsVersion'])
         return version
 
-    def get_buckets(self):
-        # get all the buckets
-        buckets = []
-        api = '{0}{1}'.format(self.baseUrl, 'pools/default/buckets?basic_stats=true')
-        status, content, header = self._http_request(api)
-        json_parsed = json.loads(content)
-        if status:
-            for item in json_parsed:
-                bucketInfo = RestParser().parse_get_bucket_json(item)
-                buckets.append(bucketInfo)
-        return buckets
+#     def get_buckets(self):
+#         # get all the buckets
+#         buckets = []
+#         api = '{0}{1}'.format(self.baseUrl, 'pools/default/buckets?basic_stats=true')
+#         status, content, header = self._http_request(api)
+#         json_parsed = json.loads(content)
+#         if status:
+#             for item in json_parsed:
+#                 bucketInfo = RestParser().parse_get_bucket_json(item)
+#                 buckets.append(bucketInfo)
+#         return buckets
 
     def get_buckets_itemCount(self):
         # get all the buckets

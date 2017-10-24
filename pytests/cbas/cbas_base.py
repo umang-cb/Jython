@@ -11,8 +11,10 @@ from lib.couchbase_helper.cluster import *
 from testconstants import FTS_QUOTA, CBAS_QUOTA, INDEX_QUOTA, MIN_KV_QUOTA
 from threading import Thread
 import threading
+import logger
+from bucket_utils.bucket_ready_functions import bucket_utils
 
-class CBASBaseTest(BaseTestCase):
+class CBASBaseTest(BaseTestCase, bucket_utils):
     def setUp(self, add_defualt_cbas_node = True):
         self.log = logger.Logger.get_logger()
         if self._testMethodDoc:
