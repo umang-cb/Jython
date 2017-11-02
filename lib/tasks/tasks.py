@@ -5,7 +5,7 @@ import random
 import socket
 import string
 import copy
-import json
+# import json
 import re
 import math
 import crc32
@@ -15,7 +15,7 @@ from threading import Thread
 from memcacheConstants import ERR_NOT_FOUND,NotFoundError
 from membase.api.rest_client import RestConnection, Bucket, RestHelper
 from membase.api.exception import BucketCreationException
-from membase.helper.bucket_helper import BucketOperationHelper
+from bucket_utils.bucket_helper import BucketOperationHelper
 from memcached.helper.data_helper import KVStoreAwareSmartClient, MemcachedClientHelper
 from memcached.helper.kvstore import KVStore
 from couchbase_helper.document import DesignDocument, View
@@ -29,7 +29,12 @@ from remote.remote_util import RemoteMachineShellConnection, RemoteUtilHelper
 from couchbase_helper.documentgenerator import BatchedDocumentGenerator
 from TestInput import TestInputServer, TestInputSingleton
 from testconstants import MIN_KV_QUOTA, INDEX_QUOTA, FTS_QUOTA, COUCHBASE_FROM_4DOT6, THROUGHPUT_CONCURRENCY, ALLOW_HTP, CBAS_QUOTA, COUCHBASE_FROM_VERSION_4
-
+from com.couchbase.client.java import *;
+from com.couchbase.client.java.transcoder import JsonTranscoder
+from com.couchbase.client.java.document import *;
+from com.couchbase.client.java.document.json import *;
+from com.couchbase.client.java.query import *;
+from BucketLib.BucketOperations import BucketHelper
 try:
     CHECK_FLAG = False
     if (testconstants.TESTRUNNER_CLIENT in os.environ.keys()) and os.environ[testconstants.TESTRUNNER_CLIENT] == testconstants.PYTHON_SDK:
@@ -314,7 +319,7 @@ class BucketCreateTask(Task):
         if int(info.port) in xrange(9091, 9991):
             try:
                 self.port = info.port
-                rest.create_bucket(bucket=self.bucket)
+                BucketHelper(self.server).create_bucket(bucket=self.bucket)
                 self.state = CHECKING
                 self.call()
             except Exception as e:
@@ -325,7 +330,7 @@ class BucketCreateTask(Task):
         version = rest.get_nodes_self().version
         try:
             if float(version[:2]) >= 3.0 and self.bucket_priority is not None:
-                rest.create_bucket(bucket=self.bucket,
+                BucketHelper(self.server).create_bucket(bucket=self.bucket,
                                ramQuotaMB=self.size,
                                replicaNumber=self.replicas,
                                proxyPort=self.port,
@@ -339,7 +344,7 @@ class BucketCreateTask(Task):
                                lww=self.lww
                                )
             else:
-                rest.create_bucket(bucket=self.bucket,
+                BucketHelper(self.server).create_bucket(bucket=self.bucket,
                                ramQuotaMB=self.size,
                                replicaNumber=self.replicas,
                                proxyPort=self.port,
@@ -397,8 +402,7 @@ class BucketDeleteTask(Task):
 
     def execute(self):
         try:
-            rest = RestConnection(self.server)
-            if rest.delete_bucket(self.bucket):
+            if BucketHelper(self.server).delete_bucket(self.bucket):
                 self.state = CHECKING
                 self.call()
             else:
@@ -1200,6 +1204,45 @@ class LoadDocumentsGeneratorsTask(LoadDocumentsTask):
                 self.exp,
                 self.flag)
 
+class LoadDocumentsTask_java(Task):
+    def __init__(self, task_manager, server, bucket, num_items, start_from, k, v):
+        Task.__init__(self, "load_documents_javasdk", task_manager)
+        self.bucket = bucket
+        self.num_items = num_items
+        self.start_from = start_from
+        self.started = None
+        self.completed = None
+        self.loaded = 0
+        self.thread_used = None
+        self.exception = None
+        self.key = k
+        self.value = v
+        self.server = server
+        
+    def execute(self):
+        try:
+#             data = JsonObject.create().put("type", "user").put("name", "asdsfsdfsdf")
+            import json as python_json
+            var = str(python_json.dumps(self.value))
+            data = JsonTranscoder().stringToJsonObject(var);
+            cluster = CouchbaseCluster.create(self.server.ip);
+            cluster.authenticate(self.server.rest_username, self.server.rest_password)
+            bucket = cluster.openBucket(self.bucket);
+            print bucket
+            for i in xrange(self.num_items):
+                doc = JsonDocument.create(self.key+str(i+self.start_from), data);
+                response = bucket.insert(doc);
+            bucket.close() and cluster.disconnect()
+            self.state = CHECKING
+            self.call()
+        except Exception as e:
+            self.state = FINISHED
+            self.set_unexpected_exception(e)
+    
+    def check(self):
+        self.state = FINISHED
+        pass
+
 class N1QLQueryTask(Task):
     def __init__(self,
                  server, task_manager, bucket,
@@ -1514,7 +1557,7 @@ class BucketFlushTask(Task):
 
     def execute(self, task_manager):
         try:
-            rest = RestConnection(self.server)
+            rest = BucketHelper(self.server)
             if rest.flush_bucket(self.bucket):
                 self.state = CHECKING
                 task_manager.schedule(self)
@@ -1549,7 +1592,7 @@ class CompactBucketTask(Task):
         Task.__init__(self, "bucket_compaction_task", task_manager)
         self.server = server
         self.bucket = bucket
-        self.rest = RestConnection(server)
+        self.rest = BucketHelper(server)
         self.retries = 20
         self.statuses = {}
 

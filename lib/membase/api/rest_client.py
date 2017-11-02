@@ -125,21 +125,6 @@ class RestHelper(object):
 #         log.info(msg.format(bucket, timeout_in_seconds))
 #         return False
 
-#     def bucket_exists(self, bucket):
-#         try:
-#             buckets = self.rest.get_buckets()
-#             names = [item.name for item in buckets]
-#             log.info("node {1} existing buckets : {0}" \
-#                               .format(names, self.rest.ip))
-#             for item in buckets:
-#                 if item.name == bucket:
-#                     log.info("node {1} found bucket {0}" \
-#                              .format(bucket, self.rest.ip))
-#                     return True
-#             return False
-#         except Exception:
-#             return False
-
     def wait_for_node_status(self, node, expected_status, timeout_in_seconds):
         status_reached = False
         end_time = time.time() + timeout_in_seconds
@@ -195,28 +180,6 @@ class RestHelper(object):
                     self._wait_for_task_pid(old_pid, end_time, ddoc_name)
             except Exception, ex:
                 log.error('unable to check index on server %s because of %s' % (server.ip, str(ex)))
-
-#     def _get_vbuckets(self, servers, bucket_name='default'):
-#         vbuckets_servers = {}
-#         for server in servers:
-#             buckets = RestConnection(server).get_buckets()
-#             if not buckets:
-#                 return vbuckets_servers
-#             if bucket_name:
-#                 bucket_to_check = [bucket for bucket in buckets
-#                                if bucket.name == bucket_name][0]
-#             else:
-#                 bucket_to_check = [bucket for bucket in buckets][0]
-#             vbuckets_servers[server] = {}
-#             vbs_active = [vb.id for vb in bucket_to_check.vbuckets
-#                            if vb.master.startswith(str(server.ip))]
-#             vbs_replica = []
-#             for replica_num in xrange(0, bucket_to_check.numReplicas):
-#                 vbs_replica.extend([vb.id for vb in bucket_to_check.vbuckets
-#                                     if vb.replica[replica_num].startswith(str(server.ip))])
-#             vbuckets_servers[server]['active_vb'] = vbs_active
-#             vbuckets_servers[server]['replica_vb'] = vbs_replica
-#         return vbuckets_servers
 
 class RestConnection(object):
 
@@ -567,15 +530,6 @@ class RestConnection(object):
         if not status:
             raise ReadDocumentException(ddoc_name, json)
         return json, meta
-
-    # the same as Preview a Random Document on UI
-    def get_random_key(self, bucket):
-        api = self.baseUrl + 'pools/default/buckets/%s/localRandomKey' % (bucket)
-        status, content, header = self._http_request(api, headers=self._create_capi_headers())
-        json_parsed = json.loads(content)
-        if not status:
-            raise Exception("unable to get random document/key for bucket %s" % (bucket))
-        return json_parsed
 
     def run_view(self, bucket, view, name):
         api = self.capiBaseUrl + '/%s/_design/%s/_view/%s' % (bucket, view, name)
@@ -1764,117 +1718,11 @@ class RestConnection(object):
             version = MembaseServerVersion(json_parsed['implementationVersion'], json_parsed['componentsVersion'])
         return version
 
-#     def get_buckets(self):
-#         # get all the buckets
-#         buckets = []
-#         api = '{0}{1}'.format(self.baseUrl, 'pools/default/buckets?basic_stats=true')
-#         status, content, header = self._http_request(api)
-#         json_parsed = json.loads(content)
-#         if status:
-#             for item in json_parsed:
-#                 bucketInfo = RestParser().parse_get_bucket_json(item)
-#                 buckets.append(bucketInfo)
-#         return buckets
-
-    def get_buckets_itemCount(self):
-        # get all the buckets
-        bucket_map = {}
-        api = '{0}{1}'.format(self.baseUrl, 'pools/default/buckets?basic_stats=true')
-        status, content, header = self._http_request(api)
-        json_parsed = json.loads(content)
-        if status:
-            for item in json_parsed:
-                bucketInfo = RestParser().parse_get_bucket_json(item)
-                bucket_map[bucketInfo.name] = bucketInfo.stats.itemCount
-        log.info(bucket_map)
-        return bucket_map
-
-    def get_bucket_stats_for_node(self, bucket='default', node=None):
-        if not node:
-            log.error('node_ip not specified')
-            return None
-        stats = {}
-        api = "{0}{1}{2}{3}{4}:{5}{6}".format(self.baseUrl, 'pools/default/buckets/',
-                                     bucket, "/nodes/", node.ip, node.port, "/stats")
-        status, content, header = self._http_request(api)
-        if status:
-            json_parsed = json.loads(content)
-            op = json_parsed["op"]
-            samples = op["samples"]
-            for stat_name in samples:
-                if stat_name not in stats:
-                    if len(samples[stat_name]) == 0:
-                        stats[stat_name] = []
-                    else:
-                        stats[stat_name] = samples[stat_name][-1]
-                else:
-                    raise Exception("Duplicate entry in the stats command {0}".format(stat_name))
-        return stats
-
-    def get_bucket_status(self, bucket):
-        if not bucket:
-            log.error("Bucket Name not Specified")
-            return None
-        api = self.baseUrl + 'pools/default/buckets'
-        status, content, header = self._http_request(api)
-        if status:
-            json_parsed = json.loads(content)
-            for item in json_parsed:
-                if item["name"] == bucket:
-                    return item["nodes"][0]["status"]
-            log.error("Bucket {} doesn't exist".format(bucket))
-            return None
-
-    def fetch_bucket_stats(self, bucket='default', zoom='minute'):
-        """Return deserialized buckets stats.
-        Keyword argument:
-        bucket -- bucket name
-        zoom -- stats zoom level (minute | hour | day | week | month | year)
-        """
-        api = self.baseUrl + 'pools/default/buckets/{0}/stats?zoom={1}'.format(bucket, zoom)
-        log.info(api)
-        status, content, header = self._http_request(api)
-        return json.loads(content)
-
-
-
-    def fetch_bucket_xdcr_stats(self, bucket='default', zoom='minute'):
-        """Return deserialized bucket xdcr stats.
-        Keyword argument:
-        bucket -- bucket name
-        zoom -- stats zoom level (minute | hour | day | week | month | year)
-        """
-        api = self.baseUrl + 'pools/default/buckets/@xdcr-{0}/stats?zoom={1}'.format(bucket, zoom)
-        status, content, header = self._http_request(api)
-        return json.loads(content)
-
     def fetch_system_stats(self):
         """Return deserialized system stats."""
         api = self.baseUrl + 'pools/default/'
         status, content, header = self._http_request(api)
         return json.loads(content)
-
-    def get_xdc_queue_size(self, bucket):
-        """Fetch bucket stats and return the latest value of XDC replication
-        queue size"""
-        bucket_stats = self.fetch_bucket_xdcr_stats(bucket)
-        return bucket_stats['op']['samples']['replication_changes_left'][-1]
-
-    def get_dcp_queue_size(self, bucket):
-        """Fetch bucket stats and return the latest value of DCP
-        queue size"""
-        bucket_stats = self.fetch_bucket_stats(bucket)
-        return bucket_stats['op']['samples']['ep_dcp_xdcr_items_remaining'][-1]
-
-    def get_active_key_count(self, bucket):
-        """Fetch bucket stats and return the bucket's curr_items count"""
-        bucket_stats = self.fetch_bucket_stats(bucket)
-        return bucket_stats['op']['samples']['curr_items'][-1]
-
-    def get_replica_key_count(self, bucket):
-        """Fetch bucket stats and return the bucket's replica count"""
-        bucket_stats = self.fetch_bucket_stats(bucket)
-        return bucket_stats['op']['samples']['vb_replica_curr_items'][-1]
 
     def get_nodes(self):
         nodes = []
@@ -1946,19 +1794,6 @@ class RestConnection(object):
             return False
         return True
 
-    def get_bucket_stats(self, bucket='default'):
-        stats = {}
-        status, json_parsed = self.get_bucket_stats_json(bucket)
-        if status:
-            op = json_parsed["op"]
-            samples = op["samples"]
-            for stat_name in samples:
-                if samples[stat_name]:
-                    last_sample = len(samples[stat_name]) - 1
-                    if last_sample:
-                        stats[stat_name] = samples[stat_name][last_sample]
-        return stats
-
     def get_fts_stats(self, index_name, bucket_name, stat_name):
         """
         List of fts stats available as of 03/16/2017 -
@@ -2008,238 +1843,6 @@ class RestConnection(object):
         except:
             self.log.error("ERROR: Stat {0} not found for {1} on bucket {2}".
                            format(stat_name, index_name, bucket_name))
-
-    def get_bucket_status(self, bucket):
-        if not bucket:
-            log.error("Bucket Name not Specified")
-            return None
-        api = self.baseUrl + 'pools/default/buckets'
-        status, content, header = self._http_request(api)
-        if status:
-            json_parsed = json.loads(content)
-            for item in json_parsed:
-                if item["name"] == bucket:
-                    return item["nodes"][0]["status"]
-            log.error("Bucket {0} doesn't exist".format(bucket))
-            return None
-
-    def get_bucket_stats_json(self, bucket='default'):
-        stats = {}
-        api = "{0}{1}{2}{3}".format(self.baseUrl, 'pools/default/buckets/', bucket, "/stats")
-        if isinstance(bucket, Bucket):
-            api = '{0}{1}{2}{3}'.format(self.baseUrl, 'pools/default/buckets/', bucket.name, "/stats")
-        status, content, header = self._http_request(api)
-        json_parsed = json.loads(content)
-        return status, json_parsed
-
-    def get_bucket_json(self, bucket='default'):
-        api = '{0}{1}{2}'.format(self.baseUrl, 'pools/default/buckets/', bucket)
-        if isinstance(bucket, Bucket):
-            api = '{0}{1}{2}'.format(self.baseUrl, 'pools/default/buckets/', bucket.name)
-        status, content, header = self._http_request(api)
-        if not status:
-            raise GetBucketInfoFailed(bucket, content)
-        return json.loads(content)
-
-    def is_lww_enabled(self, bucket='default'):
-        bucket_info = self.get_bucket_json(bucket=bucket)
-        try:
-            if bucket_info['conflictResolutionType'] == 'lww':
-                return True
-        except KeyError:
-            return False
-
-    def get_bucket(self, bucket='default', num_attempt=1, timeout=1):
-        bucketInfo = None
-        api = '%s%s%s?basic_stats=true' % (self.baseUrl, 'pools/default/buckets/', bucket)
-        if isinstance(bucket, Bucket):
-            api = '%s%s%s?basic_stats=true' % (self.baseUrl, 'pools/default/buckets/', bucket.name)
-        status, content, header = self._http_request(api)
-        num = 1
-        while not status and num_attempt > num:
-            log.error("try to get {0} again after {1} sec".format(api, timeout))
-            time.sleep(timeout)
-            status, content, header = self._http_request(api)
-            num += 1
-        if status:
-            bucketInfo = RestParser().parse_get_bucket_response(content)
-        return bucketInfo
-
-    def get_vbuckets(self, bucket='default'):
-        b = self.get_bucket(bucket)
-        return None if not b else b.vbuckets
-
-    def delete_bucket(self, bucket='default'):
-        api = '%s%s%s' % (self.baseUrl, 'pools/default/buckets/', bucket)
-        if isinstance(bucket, Bucket):
-            api = '%s%s%s' % (self.baseUrl, 'pools/default/buckets/', bucket.name)
-        status, content, header = self._http_request(api, 'DELETE')
-
-        if int(header['status']) == 500:
-            # According to http://docs.couchbase.com/couchbase-manual-2.5/cb-rest-api/#deleting-buckets
-            # the cluster will return with 500 if it failed to nuke
-            # the bucket on all of the nodes within 30 secs
-            log.warn("Bucket deletion timed out waiting for all nodes")
-
-        return status
-
-    '''Load any of the three sample buckets'''
-    def load_sample(self,sample_name):
-        api = '{0}{1}'.format(self.baseUrl, "sampleBuckets/install")
-        data = '["{0}"]'.format(sample_name)
-        status, content, header = self._http_request(api, 'POST', data)
-        # Sleep to allow the sample bucket to be loaded
-        time.sleep(10)
-        return status
-
-    # figure out the proxy port
-    def create_bucket(self, bucket='',
-                      ramQuotaMB=1,
-                      authType='none',
-                      saslPassword='',
-                      replicaNumber=1,
-                      proxyPort=11211,
-                      bucketType='membase',
-                      replica_index=1,
-                      threadsNumber=3,
-                      flushEnabled=1,
-                      evictionPolicy='valueOnly',
-                      lww=False):
-
-
-        api = '{0}{1}'.format(self.baseUrl, 'pools/default/buckets')
-        params = urllib.urlencode({})
-
-
-
-        # this only works for default bucket ?
-        if bucket == 'default':
-            init_params = {'name': bucket,
-                           'authType': 'sasl',
-                           'saslPassword': saslPassword,
-                           'ramQuotaMB': ramQuotaMB,
-                           'replicaNumber': replicaNumber,
-                           #'proxyPort': proxyPort,
-                           'bucketType': bucketType,
-                           'replicaIndex': replica_index,
-                           'threadsNumber': threadsNumber,
-                           'flushEnabled': flushEnabled,
-                           'evictionPolicy': evictionPolicy}
-
-        elif authType == 'none':
-            init_params = {'name': bucket,
-                           'ramQuotaMB': ramQuotaMB,
-                           'authType': authType,
-                           'replicaNumber': replicaNumber,
-                           #'proxyPort': proxyPort,
-                           'bucketType': bucketType,
-                           'replicaIndex': replica_index,
-                           'threadsNumber': threadsNumber,
-                           'flushEnabled': flushEnabled,
-                           'evictionPolicy': evictionPolicy}
-        elif authType == 'sasl':
-            init_params = {'name': bucket,
-                           'ramQuotaMB': ramQuotaMB,
-                           'authType': authType,
-                           'saslPassword': saslPassword,
-                           'replicaNumber': replicaNumber,
-                           #'proxyPort': self.get_nodes_self().moxi,
-                           'bucketType': bucketType,
-                           'replicaIndex': replica_index,
-                           'threadsNumber': threadsNumber,
-                           'flushEnabled': flushEnabled,
-                           'evictionPolicy': evictionPolicy}
-        if lww:
-            init_params['conflictResolutionType'] = 'lww'
-
-
-        if bucketType == 'ephemeral':
-            del init_params['replicaIndex']     # does not apply to ephemeral buckets, and is even rejected
-
-        versions = self.get_nodes_versions()
-        pre_spock = False
-        for version in versions:
-            if "5" > version:
-                pre_spock = True
-
-        if pre_spock:
-            init_params['proxyPort'] = proxyPort
-
-        params = urllib.urlencode(init_params)
-
-        log.info("{0} with param: {1}".format(api, params))
-        create_start_time = time.time()
-
-        maxwait = 60
-        for numsleep in range(maxwait):
-            status, content, header = self._http_request(api, 'POST', params)
-            if status:
-                break
-            elif (int(header['status']) == 503 and
-                    '{"_":"Bucket with given name still exists"}' in content):
-                log.info("The bucket still exists, sleep 1 sec and retry")
-                time.sleep(1)
-            else:
-                raise BucketCreationException(ip=self.ip, bucket_name=bucket)
-
-        if (numsleep + 1) == maxwait:
-            log.error("Tried to create the bucket for {0} secs.. giving up".
-                      format(maxwait))
-            raise BucketCreationException(ip=self.ip, bucket_name=bucket)
-
-
-
-
-        create_time = time.time() - create_start_time
-        log.info("{0:.02f} seconds to create bucket {1}".
-                 format(round(create_time, 2), bucket))
-        return status
-
-    def change_bucket_props(self, bucket,
-                      ramQuotaMB=None,
-                      authType=None,
-                      saslPassword=None,
-                      replicaNumber=None,
-                      proxyPort=None,
-                      replicaIndex=None,
-                      flushEnabled=None,
-                      timeSynchronization=None):
-        api = '{0}{1}{2}'.format(self.baseUrl, 'pools/default/buckets/', bucket)
-        if isinstance(bucket, Bucket):
-            api = '{0}{1}{2}'.format(self.baseUrl, 'pools/default/buckets/', bucket.name)
-        params = urllib.urlencode({})
-        params_dict = {}
-        existing_bucket = self.get_bucket_json(bucket)
-        if ramQuotaMB:
-            params_dict["ramQuotaMB"] = ramQuotaMB
-        if authType:
-            params_dict["authType"] = authType
-        if saslPassword:
-            params_dict["authType"] = "sasl"
-            params_dict["saslPassword"] = saslPassword
-        if replicaNumber:
-            params_dict["replicaNumber"] = replicaNumber
-        #if proxyPort:
-        #    params_dict["proxyPort"] = proxyPort
-        if replicaIndex:
-            params_dict["replicaIndex"] = replicaIndex
-        if flushEnabled:
-            params_dict["flushEnabled"] = flushEnabled
-        if timeSynchronization:
-            params_dict["timeSynchronization"] = timeSynchronization
-
-        params = urllib.urlencode(params_dict)
-
-        log.info("%s with param: %s" % (api, params))
-        status, content, header = self._http_request(api, 'POST', params)
-        if timeSynchronization:
-            if status:
-                raise Exception("Erroneously able to set bucket settings %s for bucket on time-sync" % (params, bucket))
-            return status, content
-        if not status:
-            raise Exception("Unable to set bucket settings %s for bucket" % (params, bucket))
-        log.info("bucket %s updated" % bucket)
-        return status
 
     # return AutoFailoverSettings
     def get_autofailover_settings(self):
@@ -3422,29 +3025,6 @@ class RestConnection(object):
             if task["type"] == "warming_up":
                 tasks_warmup.append(task)
         return tasks_warmup
-
-    def compact_bucket(self, bucket="default"):
-        api = self.baseUrl + 'pools/default/buckets/{0}/controller/compactBucket'.format(bucket)
-        status, content, header = self._http_request(api, 'POST')
-        if status:
-            log.info('bucket compaction successful')
-        else:
-            raise BucketCompactionException(bucket)
-
-        return True
-
-    def cancel_bucket_compaction(self, bucket="default"):
-        api = self.baseUrl + 'pools/default/buckets/{0}/controller/cancelBucketCompaction'.format(bucket)
-        if isinstance(bucket, Bucket):
-            api = self.baseUrl + 'pools/default/buckets/{0}/controller/cancelBucketCompaction'.format(bucket.name)
-        status, content, header = self._http_request(api, 'POST')
-        log.info("Status is {0}".format(status))
-        if status:
-            log.info('Cancel bucket compaction successful')
-        else:
-            raise BucketCompactionException(bucket)
-        return True
-
 
     '''LDAP Rest API '''
     '''

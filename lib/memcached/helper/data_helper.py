@@ -24,6 +24,7 @@ import sys
 
 from Queue import Queue
 from threading import Thread
+from BucketLib.BucketOperations import BucketHelper
 
 log = logger.Logger.get_logger()
 try:
@@ -69,7 +70,7 @@ class MemcachedClientHelper(object):
         list = []
 
         if ram_load_ratio >= 0:
-            info = RestConnection(servers[0]).get_bucket(name)
+            info = BucketHelper(servers[0]).get_bucket(name)
             emptySpace = info.stats.ram - info.stats.memUsed
             space_to_fill = (int((emptySpace * ram_load_ratio) / 100.0))
             log.info('space_to_fill : {0}, emptySpace : {1}'.format(space_to_fill, emptySpace))
@@ -136,7 +137,7 @@ class MemcachedClientHelper(object):
         list = []
 
         if ram_load_ratio >= 0:
-            info = RestConnection(serverInfo).get_bucket(name)
+            info = BucketHelper(serverInfo).get_bucket(name)
             emptySpace = info.stats.ram - info.stats.memUsed
             space_to_fill = (int((emptySpace * ram_load_ratio) / 100.0))
             log.info('space_to_fill : {0}, emptySpace : {1}'.format(space_to_fill, emptySpace))
@@ -293,8 +294,8 @@ class MemcachedClientHelper(object):
             log.info("creating direct client {0}:{1} {2}".format(server["ip"], node.memcached, bucket))
         else:
             log.info("creating direct client {0}:{1} {2}".format(server.ip, node.memcached, bucket))
-        RestHelper(rest).vbucket_map_ready(bucket, 60)
-        vBuckets = RestConnection(server).get_vbuckets(bucket)
+        BucketHelper(server).vbucket_map_ready(bucket, 60)
+        vBuckets = BucketHelper(server).get_vbuckets(bucket)
         if isinstance(server, dict):
             client = MemcachedClient(server["ip"], node.memcached, timeout=timeout)
         else:
@@ -303,7 +304,7 @@ class MemcachedClientHelper(object):
             client.vbucket_count = len(vBuckets)
         else:
             client.vbucket_count = 0
-        bucket_info = rest.get_bucket(bucket)
+        bucket_info = BucketHelper(server).get_bucket(bucket)
         # todo raise exception for not bucket_info
 
         versions = rest.get_nodes_versions(logging=False)
@@ -331,7 +332,7 @@ class MemcachedClientHelper(object):
         # for this bucket on this node what is the proxy ?
         rest = RestConnection(server)
         log = logger.Logger.get_logger()
-        bucket_info = rest.get_bucket(bucket)
+        bucket_info = BucketHelper(server).get_bucket(bucket)
         nodes = bucket_info.nodes
 
         if (TestInputSingleton.input and "ascii" in TestInputSingleton.input.test_params \
@@ -341,8 +342,8 @@ class MemcachedClientHelper(object):
         else:
             ascii = False
         for node in nodes:
-            RestHelper(rest).vbucket_map_ready(bucket, 60)
-            vBuckets = rest.get_vbuckets(bucket)
+            BucketHelper(server).vbucket_map_ready(bucket, 60)
+            vBuckets = BucketHelper(server).get_vbuckets(bucket)
             port_moxi = standalone_moxi_port or node.moxi
             if ascii:
                 log = logger.Logger.get_logger()
@@ -771,7 +772,7 @@ class VBucketAwareMemcached(object):
             forward_map = rest.get_bucket(self.bucket, num_attempt=2).forward_map
             if not forward_map:
                 self.reset(rest)
-                forward_map = rest.get_vbuckets(self.bucket)
+                forward_map = BucketHelper(self.info).get_vbuckets(self.bucket)
         nodes = rest.get_nodes()
         for vBucket in forward_map:
             if vBucket.id in vbucketids_set:
@@ -807,10 +808,10 @@ class VBucketAwareMemcached(object):
         memcacheds = {}
         vBucketMap = {}
         vBucketMapReplica = {}
-        vb_ready = RestHelper(rest).vbucket_map_ready(bucket, 60)
+        vb_ready = BucketHelper(self.info).vbucket_map_ready(bucket, 60)
         if not vb_ready:
             raise Exception("vbucket map is not ready for bucket {0}".format(bucket))
-        vBuckets = rest.get_vbuckets(bucket)
+        vBuckets = BucketHelper(self.info).get_vbuckets(bucket)
         for vBucket in vBuckets:
             vBucketMap[vBucket.id] = vBucket.master
             self.add_memcached(vBucket.master, memcacheds, rest, bucket)
@@ -1750,7 +1751,7 @@ class LoadWithMcsoda(object):
 
         rest = RestConnection(master)
         self.bucket = bucket
-        vBuckets = rest.get_vbuckets(self.bucket)
+        vBuckets = BucketHelper(master).get_vbuckets(self.bucket)
         self.vbucket_count = len(vBuckets)
 
         self.cfg = {

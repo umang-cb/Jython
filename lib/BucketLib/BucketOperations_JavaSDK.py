@@ -10,6 +10,9 @@ from com.couchbase.client.java.document.json import *;
 from com.couchbase.client.java.query import *;
 from com.couchbase.client.java.error import BucketDoesNotExistException
 from com.couchbase.client.core.endpoint.kv import AuthenticationException
+from com.couchbase.client.java.cluster import DefaultBucketSettings
+from com.couchbase.client.java.bucket import BucketType
+
 import json
 import time
 import urllib
@@ -67,7 +70,7 @@ class BucketHelper(bucket_helper_rest):
             cluster = CouchbaseCluster.create(self.server.ip)
             cluster.authenticate(self.server.rest_username, self.server.rest_password)
             clusterManager = cluster.clusterManager()
-            clusterManager.removeBucket(bucket_name)
+            clusterManager.removeBucket(bucket_name);
             cluster.disconnect()
             return True
         except BucketDoesNotExistException as e:
@@ -76,5 +79,52 @@ class BucketHelper(bucket_helper_rest):
             return False
         except AuthenticationException as e:
             log.error(e)
+            cluster.disconnect()
+            return False
+        
+    def create_bucket(self, bucket='',
+                      ramQuotaMB=1,
+                      authType='none',
+                      saslPassword='',
+                      replicaNumber=1,
+                      proxyPort=11211,
+                      bucketType='membase',
+                      replica_index=1,
+                      threadsNumber=3,
+                      flushEnabled=1,
+                      evictionPolicy='valueOnly',
+                      lww=False):
+        
+        cluster = CouchbaseCluster.create(self.server.ip);
+        cluster.authenticate(self.server.rest_username,self.server.rest_password)
+        clusterManager = cluster.clusterManager()
+        
+        try:
+            bucketSettings = DefaultBucketSettings.builder()
+            
+            if bucketType == "memcached":
+                bucketSettings.type(BucketType.MEMCACHED)
+            elif bucketType == "ephemeral":
+                bucketSettings.type(BucketType.EPHEMERAL)
+            else:
+                bucketSettings.type(BucketType.COUCHBASE)
+                
+            bucketSettings.password(saslPassword)
+            bucketSettings.replicas(replicaNumber)
+            bucketSettings.name(bucket)
+            bucketSettings.quota(ramQuotaMB)
+            bucketSettings.enableFlush(flushEnabled)
+            bucketSettings.indexReplicas(replica_index)
+            bucketSettings.build()
+            clusterManager.insertBucket(bucketSettings)
+    
+            cluster.disconnect()
+            return True
+        except BucketDoesNotExistException as e:
+            log.info(e)
+            cluster.disconnect()
+            return False
+        except AuthenticationException as e:
+            log.info(e)
             cluster.disconnect()
             return False

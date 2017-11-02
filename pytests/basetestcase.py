@@ -15,7 +15,7 @@ from couchbase_helper.data_analysis_helper import *
 from security.rbac_base import RbacBase
 import testconstants
 from scripts.collect_server_info import cbcollectRunner
-from bucket_utils.bucket_ready_functions import bucket_utils, BucketOperationHelper
+from bucket_utils.bucket_ready_functions import bucket_utils
 from cluster_utils.cluster_ready_functions import cluster_utils
 from failover_utils.failover_ready_functions import failover_utils
 from node_utils.node_ready_functions import node_utils

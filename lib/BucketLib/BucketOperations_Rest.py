@@ -26,11 +26,11 @@ class BucketHelper(RestConnection):
             buckets = self.get_buckets()
             names = [item.name for item in buckets]
             log.info("node {1} existing buckets : {0}" \
-                              .format(names, self.rest.ip))
+                              .format(names, self.ip))
             for item in buckets:
                 if item.name == bucket:
                     log.info("node {1} found bucket {0}" \
-                             .format(bucket, self.rest.ip))
+                             .format(bucket, self.ip))
                     return True
             return False
         except Exception:
@@ -51,7 +51,7 @@ class BucketHelper(RestConnection):
     def vbucket_map_ready(self, bucket, timeout_in_seconds=360):
         end_time = time.time() + timeout_in_seconds
         while time.time() <= end_time:
-            vBuckets = self.rest.get_vbuckets(bucket)
+            vBuckets = self.get_vbuckets(bucket)
             if vBuckets:
                 return True
             else:
@@ -63,7 +63,7 @@ class BucketHelper(RestConnection):
     def _get_vbuckets(self, servers, bucket_name='default'):
         vbuckets_servers = {}
         for server in servers:
-            buckets = RestConnection(server).get_buckets()
+            buckets = self.get_buckets()
             if not buckets:
                 return vbuckets_servers
             if bucket_name:
@@ -325,14 +325,14 @@ class BucketHelper(RestConnection):
         if bucketType == 'ephemeral':
             del init_params['replicaIndex']     # does not apply to ephemeral buckets, and is even rejected
 
-        versions = self.get_nodes_versions()
-        pre_spock = False
-        for version in versions:
-            if "5" > version:
-                pre_spock = True
-
-        if pre_spock:
-            init_params['proxyPort'] = proxyPort
+#         versions = self.get_nodes_versions()
+#         pre_spock = False
+#         for version in versions:
+#             if "5" > version:
+#                 pre_spock = True
+# 
+#         if pre_spock:
+#             init_params['proxyPort'] = proxyPort
 
         params = urllib.urlencode(init_params)
 
@@ -619,3 +619,45 @@ class RestParser():
                 node.id = nodeDictionary["otpNode"]
             bucket.nodes.append(node)
         return bucket
+
+    def fetch_bucket_xdcr_stats(self, bucket='default', zoom='minute'):
+        """Return deserialized bucket xdcr stats.
+        Keyword argument:
+        bucket -- bucket name
+        zoom -- stats zoom level (minute | hour | day | week | month | year)
+        """
+        api = self.baseUrl + 'pools/default/buckets/@xdcr-{0}/stats?zoom={1}'.format(bucket, zoom)
+        status, content, header = self._http_request(api)
+        return json.loads(content)
+
+    def get_xdc_queue_size(self, bucket):
+        """Fetch bucket stats and return the latest value of XDC replication
+        queue size"""
+        bucket_stats = self.fetch_bucket_xdcr_stats(bucket)
+        return bucket_stats['op']['samples']['replication_changes_left'][-1]
+
+    def get_dcp_queue_size(self, bucket):
+        """Fetch bucket stats and return the latest value of DCP
+        queue size"""
+        bucket_stats = self.fetch_bucket_stats(bucket)
+        return bucket_stats['op']['samples']['ep_dcp_xdcr_items_remaining'][-1]
+
+    def get_active_key_count(self, bucket):
+        """Fetch bucket stats and return the bucket's curr_items count"""
+        bucket_stats = self.fetch_bucket_stats(bucket)
+        return bucket_stats['op']['samples']['curr_items'][-1]
+
+    def get_replica_key_count(self, bucket):
+        """Fetch bucket stats and return the bucket's replica count"""
+        bucket_stats = self.fetch_bucket_stats(bucket)
+        return bucket_stats['op']['samples']['vb_replica_curr_items'][-1]
+    
+    # the same as Preview a Random Document on UI
+    def get_random_key(self, bucket):
+        api = self.baseUrl + 'pools/default/buckets/%s/localRandomKey' % (bucket)
+        status, content, header = self._http_request(api, headers=self._create_capi_headers())
+        json_parsed = json.loads(content)
+        if not status:
+            raise Exception("unable to get random document/key for bucket %s" % (bucket))
+        return json_parsed
+    

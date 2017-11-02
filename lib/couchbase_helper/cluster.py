@@ -137,13 +137,18 @@ class Cluster(object):
         self.task_manager.schedule(_task)
         return _task
 
-    def async_load_gen_docs(self, server, bucket, generator, kv_store, op_type, exp=0, flag=0, only_store_hash=True,
-                            batch_size=1, pause_secs=1, timeout_secs=5, proxy_client=None):
-
-        if isinstance(generator, list):
-                _task = conc.LoadDocumentsGeneratorsTask(server, self.task_manager, bucket, generator, kv_store, op_type, exp, flag, only_store_hash, batch_size)
-        else:
-                _task = conc.LoadDocumentsGeneratorsTask(server, self.task_manager, bucket, [generator], kv_store, op_type, exp, flag, only_store_hash, batch_size)
+    def async_load_gen_docs(self, server, bucket, start_from, num_items=10000):
+        def read_json_tempelate(path):
+            import json
+            istream = open(path);
+            with istream as data_file:    
+                data = json.load(data_file)
+            return data["key"], data["value"]
+        
+        path = "/Users/riteshagarwal/CB/garrit/testrunner/b/testdata.json"
+        k,v = read_json_tempelate(path)
+        
+        _task = conc.LoadDocumentsTask_java(self.task_manager, server, bucket, num_items, start_from, k, v)
 
         self.task_manager.schedule(_task)
         return _task
