@@ -15,7 +15,7 @@ from threading import Thread
 from memcacheConstants import ERR_NOT_FOUND,NotFoundError
 from membase.api.rest_client import RestConnection, Bucket, RestHelper
 from membase.api.exception import BucketCreationException
-from bucket_utils.bucket_helper import BucketOperationHelper
+# from bucket_utils.bucket_helper import BucketOperationHelper
 from memcached.helper.data_helper import KVStoreAwareSmartClient, MemcachedClientHelper
 from memcached.helper.kvstore import KVStore
 from couchbase_helper.document import DesignDocument, View
@@ -35,6 +35,7 @@ from com.couchbase.client.java.document import *;
 from com.couchbase.client.java.document.json import *;
 from com.couchbase.client.java.query import *;
 from BucketLib.BucketOperations import BucketHelper
+from BucketLib.MemcachedOperations import MemcachedHelper
 try:
     CHECK_FLAG = False
     if (testconstants.TESTRUNNER_CLIENT in os.environ.keys()) and os.environ[testconstants.TESTRUNNER_CLIENT] == testconstants.PYTHON_SDK:
@@ -374,7 +375,7 @@ class BucketCreateTask(Task):
                 self.set_result(True)
                 self.state = FINISHED
                 return
-            if BucketOperationHelper.wait_for_memcached(self.server, self.bucket):
+            if MemcachedHelper.wait_for_memcached(self.server, self.bucket):
                 log.info("bucket '{0}' was created with per node RAM quota: {1}".format(self.bucket, self.size))
                 self.set_result(True)
                 self.state = FINISHED
@@ -1578,7 +1579,7 @@ class BucketFlushTask(Task):
     def check(self, task_manager):
         try:
             # check if after flush the vbuckets are ready
-            if BucketOperationHelper.wait_for_vbuckets_ready_state(self.server, self.bucket):
+            if MemcachedHelper.wait_for_vbuckets_ready_state(self.server, self.bucket):
                 self.set_result(True)
             else:
                 log.error("Unable to reach bucket {0} on server {1} after flush".format(self.bucket, self.server))

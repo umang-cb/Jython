@@ -36,7 +36,6 @@ from testconstants import MIN_COMPACTION_THRESHOLD
 from testconstants import STANDARD_BUCKET_PORT
 
 from BucketLib.BucketOperations import BucketHelper
-from bucket_helper import BucketOperationHelper
 log = logger.Logger.get_logger()
 
 class bucket_utils():

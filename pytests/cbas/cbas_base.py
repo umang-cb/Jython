@@ -5,7 +5,7 @@ from basetestcase import BaseTestCase
 from lib.couchbase_helper.analytics_helper import AnalyticsHelper
 from couchbase_helper.documentgenerator import DocumentGenerator
 import urllib
-from lib.membase.api.rest_client import RestHelper, Bucket
+from lib.membase.api.rest_client import RestHelper
 from RestConnectionCbas import RestConnection_cbas
 from lib.couchbase_helper.cluster import *
 from testconstants import FTS_QUOTA, CBAS_QUOTA, INDEX_QUOTA, MIN_KV_QUOTA
