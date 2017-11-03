@@ -145,7 +145,7 @@ class Cluster(object):
                 data = json.load(data_file)
             return data["key"], data["value"]
         
-        path = "/Users/riteshagarwal/CB/garrit/testrunner/b/testdata.json"
+        path = "b/testdata.json"
         k,v = read_json_tempelate(path)
         
         _task = conc.LoadDocumentsTask_java(self.task_manager, server, bucket, num_items, start_from, k, v)

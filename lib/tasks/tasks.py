@@ -1231,7 +1231,9 @@ class LoadDocumentsTask_java(Task):
             print bucket
             for i in xrange(self.num_items):
                 doc = JsonDocument.create(self.key+str(i+self.start_from), data);
-                response = bucket.insert(doc);
+                response = bucket.upsert(doc);
+                if i%2000 == 0:
+                    log.info("%s documents loaded in bucket %s"%(i,self.bucket))
             bucket.close() and cluster.disconnect()
             self.state = CHECKING
             self.call()

@@ -122,7 +122,7 @@ class CBASBaseTest(BaseTestCase, bucket_utils):
             self.assertTrue(result, "Rebalance operation failed after adding %s cbas nodes,"%self.cbas_servers)
             self.log.info("successfully rebalanced cluster {0}".format(result))
         else:
-            self.assertTrue(started, "Rebalance operation started and in progress,"%self.cbas_servers)
+            self.assertTrue(started, "Rebalance operation started and in progress %s"%self.cbas_servers)
         
     def remove_all_cbas_node_then_rebalance(self,cbas_otpnodes=None, rebalance=True ):
         return self.remove_node(cbas_otpnodes,rebalance) 

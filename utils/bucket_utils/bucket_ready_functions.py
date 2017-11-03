@@ -442,7 +442,7 @@ class bucket_utils():
         for bucket in self.buckets:
             gen = copy.deepcopy(kv_gen)
             if bucket.type != 'memcached':
-                tasks.append(self.cluster.async_load_gen_docs(server, bucket.name, 1,10000))
+                tasks.append(self.cluster.async_load_gen_docs(server, bucket.name, gen.start,gen.end-gen.start))
             else:
                 self._load_memcached_bucket(server, gen, bucket.name)
         return tasks

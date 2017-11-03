@@ -398,7 +398,7 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
                     log.warning("rebalancing is still running, test should be verified")
                     stopped = rest.stop_rebalance()
                     self.assertTrue(stopped, msg="unable to stop rebalance")
-                BucketOperationHelper.delete_all_buckets_or_assert(self.servers, self)
+                self.delete_all_buckets_or_assert(self.servers)
                 ClusterOperationHelper.cleanup_cluster(self.servers, master=self.master)
                 ClusterOperationHelper.wait_for_ns_servers_or_assert(self.servers, self)
                 log.info("==============  basetestcase cleanup was finished for test #{0} {1} ==============" \
@@ -463,7 +463,7 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
             log.warning("rebalancing is still running, test should be verified")
             stopped = rest.stop_rebalance()
             self.assertTrue(stopped, msg="unable to stop rebalance")
-        BucketOperationHelper.delete_all_buckets_or_assert(self.servers, self)
+        self.delete_all_buckets_or_assert(self.servers)
         ClusterOperationHelper.cleanup_cluster(self.servers, master=self.master)
         self.sleep(10)
         ClusterOperationHelper.wait_for_ns_servers_or_assert(self.servers, self)
@@ -665,12 +665,10 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
         log.info("**** add built-in '%s' user to node %s ****" % (testuser[0]["name"],
                                                                        node.ip))
         RbacBase().create_user_source(testuser, 'builtin', node)
-        self.sleep(10)
 
         log.info("**** add '%s' role to '%s' user ****" % (rolelist[0]["roles"],
                                                                 testuser[0]["name"]))
         status = RbacBase().add_user_role(rolelist, RestConnection(node), 'builtin')
-        self.sleep(10)
         return status
 
     def get_index_stats(self, perNode=False):

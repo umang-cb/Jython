@@ -163,7 +163,7 @@ class CBASClusterManagement(CBASBaseTest):
             from random import randint
             service = ["kv","cbas"]
             self.log.info("Adding %s to the cluster with services %s"%(cbas_server,service))
-            self.add_node(node=cbas_server,services=service,wait_for_rebalance_completion=wait_for_rebalance)
+            self.add_node(node=cbas_server,services=service,wait_for_rebalance_completion=True)
             
             if not set_up_cbas:
                 set_up_cbas = self.setup_cbas_bucket_dataset_connect("default", docs_to_verify)
