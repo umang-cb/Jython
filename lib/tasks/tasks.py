@@ -881,7 +881,7 @@ class GenericLoadingTask(Thread, Task):
             self._process_values_for_create(key_val)
             client = shared_client or self.client
             client.setMulti(self.exp, self.flag, key_val, self.pause, self.timeout, parallel=False)
-            log.info("%s documents are INSERTED into bucket %s"%(key_val.itemCount, self.bucket))
+            log.info("Batch Operation: %s documents are INSERTED into bucket %s"%(len(key_val), self.bucket))
         except (MemcachedError, ServerUnavailableException, socket.error, EOFError, AttributeError, RuntimeError) as error:
             self.state = FINISHED
             self. set_unexpected_exception(error)
@@ -894,7 +894,7 @@ class GenericLoadingTask(Thread, Task):
         try:
             self._process_values_for_update(partition_keys_dic, key_val)
             self.client.setMulti(self.exp, self.flag, key_val, self.pause, self.timeout, parallel=False)
-            log.info("%s documents are UPSERTED into bucket %s"%(key_val.itemCount, self.bucket))
+            log.info("Batch Operation: %s documents are UPSERTED into bucket %s"%(len(key_val), self.bucket))
             self._populate_kvstore(partition_keys_dic, key_val)
         except (MemcachedError, ServerUnavailableException, socket.error, EOFError, AttributeError, RuntimeError) as error:
             self.state = FINISHED
@@ -922,7 +922,7 @@ class GenericLoadingTask(Thread, Task):
     def _read_batch(self, partition_keys_dic, key_val):
         try:
             o, c, d = self.client.getMulti(key_val.keys(), self.pause, self.timeout)
-            log.info("%s documents are READ from bucket %s"%(key_val.itemCount, self.bucket))
+            log.info("Batch Operation: %s documents are READ from bucket %s"%(len(key_val), self.bucket))
         except MemcachedError as error:
                 self.state = FINISHED
                 self. set_unexpected_exception(error)
