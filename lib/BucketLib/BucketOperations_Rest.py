@@ -11,7 +11,7 @@ from bucket import *
 from membase.api.exception import BucketCreationException, GetBucketInfoFailed, BucketFlushFailed, BucketCompactionException
 from membase.api.rest_client import Node
 from memcached.helper.kvstore import KVStore
-from rest.Rest_Connection import RestConnection
+from Rest_Connection import RestConnection
 import logger
 
 log = logger.Logger.get_logger()

@@ -137,21 +137,32 @@ class Cluster(object):
         self.task_manager.schedule(_task)
         return _task
 
-    def async_load_gen_docs(self, server, bucket, start_from, num_items=10000):
-        def read_json_tempelate(path):
-            import json
-            istream = open(path);
-            with istream as data_file:    
-                data = json.load(data_file)
-            return data["key"], data["value"]
-        
-        path = "b/testdata.json"
-        k,v = read_json_tempelate(path)
-        
-        _task = conc.LoadDocumentsTask_java(self.task_manager, server, bucket, num_items, start_from, k, v)
+    def async_load_gen_docs(self, server, bucket, generator, kv_store, op_type, exp=0, flag=0, only_store_hash=True,
+                            batch_size=1, pause_secs=1, timeout_secs=5, proxy_client=None):
+
+        if isinstance(generator, list):
+                _task = conc.LoadDocumentsGeneratorsTask(server, self.task_manager, bucket, generator, kv_store, op_type, exp, flag, only_store_hash, batch_size)
+        else:
+                _task = conc.LoadDocumentsGeneratorsTask(server, self.task_manager, bucket, [generator], kv_store, op_type, exp, flag, only_store_hash, batch_size)
 
         self.task_manager.schedule(_task)
         return _task
+    
+#     def async_load_gen_docs_java(self, server, bucket, start_from, num_items=10000):
+#         def read_json_tempelate(path):
+#             import json
+#             istream = open(path);
+#             with istream as data_file:    
+#                 data = json.load(data_file)
+#             return data["key"], data["value"]
+#         
+#         path = "b/testdata.json"
+#         k,v = read_json_tempelate(path)
+#         
+#         _task = conc.LoadDocumentsTask_java(self.task_manager, server, bucket, num_items, start_from, k, v)
+# 
+#         self.task_manager.schedule(_task)
+#         return _task
 
     def async_rebalance(self, servers, to_add, to_remove, use_hostnames=False, services = None):
         """Asyncronously rebalances a cluster
@@ -277,6 +288,15 @@ class Cluster(object):
         _task = self.async_verify_data(server, bucket, kv_store)
         return _task.result(timeout)
 
+    def async_verify_data(self, server, bucket, kv_store, max_verify=None,
+                          only_store_hash=True, batch_size=1, replica_to_read=None, timeout_sec=5):
+        if batch_size > 1:
+            _task = conc.BatchedValidateDataTask(server, bucket, kv_store, max_verify, only_store_hash, batch_size, timeout_sec, self.task_manager)
+        else:
+            _task = conc.ValidateDataTask(server, bucket, kv_store, max_verify, only_store_hash, replica_to_read, self.task_manager)
+        self.task_manager.schedule(_task)
+        return _task
+    
     def wait_for_stats(self, servers, bucket, param, stat, comparison, value, timeout=None):
         """Synchronously wait for stats
 

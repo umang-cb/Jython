@@ -4,6 +4,7 @@ from remote.remote_util import RemoteMachineShellConnection
 from basetestcase import BaseTestCase
 from couchbase_helper.tuq_helper import N1QLHelper
 from membase.api.rest_client import RestConnection
+from BucketLib.BucketOperations import BucketHelper
 
 class QueryTests(BaseTestCase):
     def setUp(self):
@@ -44,7 +45,7 @@ class QueryTests(BaseTestCase):
         self.create_primary_index = self.input.param("create_primary_index", True)
         self.use_rest = self.input.param("use_rest", True)
         self.max_verify = self.input.param("max_verify", None)
-        self.buckets = RestConnection(self.master).get_buckets()
+        self.buckets = BucketHelper(self.master).get_buckets()
         self.docs_per_day = self.input.param("doc-per-day", 49)
         self.item_flag = self.input.param("item_flag", 4042322160)
         self.n1ql_port = self.input.param("n1ql_port", 8093)

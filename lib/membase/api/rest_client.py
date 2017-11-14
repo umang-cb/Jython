@@ -14,7 +14,6 @@ from TestInput import TestInputSingleton
 from testconstants import MIN_KV_QUOTA, INDEX_QUOTA, FTS_QUOTA, CBAS_QUOTA
 from testconstants import COUCHBASE_FROM_VERSION_4, IS_CONTAINER
 
-
 try:
     from couchbase_helper.document import DesignDocument, View
 except ImportError:

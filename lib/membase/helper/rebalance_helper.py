@@ -10,7 +10,7 @@ from membase.api.rest_client import RestConnection, RestHelper, Bucket
 from membase.helper.bucket_helper import BucketOperationHelper
 from memcached.helper.data_helper import MemcachedClientHelper, VBucketAwareMemcached
 from mc_bin_client import MemcachedClient, MemcachedError
-
+from BucketLib.BucketOperations import BucketHelper
 log = logger.Logger.get_logger()
 
 
@@ -339,7 +339,7 @@ class RebalanceHelper():
         rest = RestConnection(master)
         if isinstance(bucket, Bucket):
             bucket = bucket.name
-        bucket_info = rest.get_bucket(bucket, num_attempt, timeout)
+        bucket_info = BucketHelper(master).get_bucket(bucket, num_attempt, timeout)
         replica_factor = bucket_info.numReplicas
         vbucket_active_sum = 0
         vbucket_replica_sum = 0
@@ -349,7 +349,7 @@ class RebalanceHelper():
         nodes = rest.get_nodes()
         for server in nodes:
             #get the stats
-            server_stats = rest.get_bucket_stats_for_node(bucket, server)
+            server_stats = BucketHelper(master).get_bucket_stats_for_node(bucket, server)
             if not server_stats:
                 log.info("unable to get stats from {0}:{1}".format(server.ip, server.port))
                 stats_received = False
@@ -383,7 +383,7 @@ class RebalanceHelper():
         log.info(msg.format(vbucket_active_sum, vbucket_pending_sum, vbucket_replica_sum))
         msg = 'sum : {0} and sum * (replica_factor + 1) ({1}) : {2}'
         log.info(msg.format(sum, replica_factor + 1, (sum * (replica_factor + 1))))
-        master_stats = rest.get_bucket_stats(bucket)
+        master_stats = BucketHelper(master).get_bucket_stats(bucket)
         if "curr_items_tot" in master_stats:
             log.info('curr_items_tot from master: {0}'.format(master_stats["curr_items_tot"]))
         else:

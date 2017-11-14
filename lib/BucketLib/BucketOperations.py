@@ -6,6 +6,7 @@ Created on Oct 24, 2017
 java_sdk = True
 use_cli = False
 use_rest = False
+use_memcached = True
 
 if java_sdk:
     from BucketOperations_JavaSDK import BucketHelper as bucketlib

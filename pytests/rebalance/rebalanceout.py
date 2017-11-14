@@ -182,7 +182,7 @@ class RebalanceOutTests(RebalanceBaseTest):
             if("delete" in self.doc_ops):
                 tasks += self._async_load_all_buckets(self.master, gen_delete, "delete", 0)
         for task in tasks:
-            task.result()
+            task.get_result()
         self.verify_cluster_stats(self.servers[:self.num_servers - self.nodes_out])
         self.verify_unacked_bytes_all_buckets()
 

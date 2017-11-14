@@ -12,7 +12,6 @@ from com.couchbase.client.java.error import BucketDoesNotExistException
 from com.couchbase.client.core.endpoint.kv import AuthenticationException
 from com.couchbase.client.java.cluster import DefaultBucketSettings
 from com.couchbase.client.java.bucket import BucketType
-
 import json
 import time
 import urllib
@@ -20,33 +19,33 @@ from bucket import *
 import logger
 from membase.api.rest_client import Node
 from memcached.helper.kvstore import KVStore
-from rest import Rest_Connection
 from BucketOperations_Rest import BucketHelper as bucket_helper_rest
 from com.couchbase.client.java import Bucket
+from Java_Connection import SDKClient
+
 log = logger.Logger.get_logger()
 
-class BucketHelper(bucket_helper_rest):
+class BucketHelper(bucket_helper_rest, SDKClient):
 
     def __init__(self,server):
         self.server = server
         super(BucketHelper, self).__init__(server)
+        super(SDKClient, self).__init__(server)
         pass
     
     def bucket_exists(self, bucket):
         try:
-            cluster = CouchbaseCluster.create(self.server.ip);
-            cluster.authenticate(self.server.rest_username,self.server.rest_password)
-            clusterManager = cluster.clusterManager()
-            return clusterManager.hasBucket(bucket);
-            cluster.disconnect()
-            return True
+            self.connectCluster()
+            hasBucket = self.clusterManager.hasBucket(bucket);
+            self.disconnectCluster()
+            return hasBucket
         except BucketDoesNotExistException as e:
             log.info(e)
-            cluster.disconnect()
+            self.disconnectCluster()
             return False
         except AuthenticationException as e:
             log.info(e)
-            cluster.disconnect()
+            self.disconnectCluster()
             return False
 
     def delete_bucket(self, bucket_name):
@@ -67,19 +66,17 @@ class BucketHelper(bucket_helper_rest):
         true if the removal was successful, false otherwise.
         '''
         try:
-            cluster = CouchbaseCluster.create(self.server.ip)
-            cluster.authenticate(self.server.rest_username, self.server.rest_password)
-            clusterManager = cluster.clusterManager()
-            clusterManager.removeBucket(bucket_name);
-            cluster.disconnect()
+            self.connectCluster()
+            self.clusterManager.removeBucket(bucket_name);
+            self.disconnectCluster()
             return True
         except BucketDoesNotExistException as e:
             log.error(e)
-            cluster.disconnect()
+            self.disconnectCluster()
             return False
         except AuthenticationException as e:
             log.error(e)
-            cluster.disconnect()
+            self.disconnectCluster()
             return False
         
     def create_bucket(self, bucket='',
@@ -95,10 +92,7 @@ class BucketHelper(bucket_helper_rest):
                       evictionPolicy='valueOnly',
                       lww=False):
         
-        cluster = CouchbaseCluster.create(self.server.ip);
-        cluster.authenticate(self.server.rest_username,self.server.rest_password)
-        clusterManager = cluster.clusterManager()
-        
+        self.connectCluster()        
         try:
             bucketSettings = DefaultBucketSettings.builder()
             
@@ -116,15 +110,15 @@ class BucketHelper(bucket_helper_rest):
             bucketSettings.enableFlush(flushEnabled)
             bucketSettings.indexReplicas(replica_index)
             bucketSettings.build()
-            clusterManager.insertBucket(bucketSettings)
+            self.clusterManager.insertBucket(bucketSettings)
     
-            cluster.disconnect()
+            self.disconnectCluster()
             return True
         except BucketDoesNotExistException as e:
             log.info(e)
-            cluster.disconnect()
+            self.disconnectCluster()
             return False
         except AuthenticationException as e:
             log.info(e)
-            cluster.disconnect()
+            self.disconnectCluster()
             return False

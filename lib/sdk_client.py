@@ -15,6 +15,8 @@ from com.couchbase.client.core import CouchbaseException
 from com.couchbase.client.java.transcoder import JsonTranscoder
 from mc_bin_client import MemcachedError
 from java.util.concurrent import TimeUnit
+from BucketLib.BucketOperations import BucketHelper
+from com.couchbase.client.java.error.subdoc import DocumentNotJsonException
 
 FMT_AUTO = "autoformat"
 
@@ -35,22 +37,28 @@ class SDKClient(object):
         self.transcoder = transcoder
         self.default_timeout = 0
         self._createConn()
+        self.cluster = None
         #couchbase.set_json_converters(json.dumps, json.loads)
 
     def _createConn(self):
         try:
-            cluster = CouchbaseCluster.create(self.hosts)
-            cluster.authenticate("Administrator", self.password)
-            self.cb = cluster.openBucket(self.bucket)
+            self.cluster = CouchbaseCluster.create(self.hosts)
+            self.cluster.authenticate("Administrator", self.password)
+            self.cb = self.cluster.openBucket(self.bucket)
         except CouchbaseException:
-             raise
+            self.cluster.disconnect()
+            raise
 
     def reconnect(self):
-        self.cb.close()
+        self.close()
         self._createConn()
 
     def close(self):
-        self.cb.close()
+#         self.log.info("Closing down the cluster.")
+        if self.cb:
+            self.cb.close()
+        if self.cluster:
+            self.cluster.disconnect()
 
     def counter_in(self, key, path, delta, create_parents=True, cas=0, ttl=0, persist_to=0, replicate_to=0):
         try:
@@ -208,8 +216,8 @@ class SDKClient(object):
             except CouchbaseException as e:
                 raise
 
-    def delete(self, keys, quiet=True, persist_to=0, replicate_to=0):
-        return self.remove(self, keys, quiet=quiet, persist_to=persist_to, replicate_to=replicate_to)
+#     def delete(self, keys, quiet=True, persist_to=0, replicate_to=0):
+#         return self.remove(self, keys, quiet=quiet, persist_to=persist_to, replicate_to=replicate_to)
 
     def remove_multi(self, keys, quiet=True, persist_to=0, replicate_to=0):
         try:
@@ -222,7 +230,15 @@ class SDKClient(object):
                 raise
 
     def set(self, key, value, ttl=0, format=None, persist_to=0, replicate_to=0):
-        return self.upsert(key, value, ttl=ttl, persist_to=persist_to, replicate_to=replicate_to)
+        doc = self.__translate_to_json_document(key, value)
+        try:
+            return self.cb.set(doc)
+        except CouchbaseException as e:
+            try:
+                time.sleep(10)
+                return self.cb.set(doc, persist_to, replicate_to, ttl, TimeUnit.SECONDS)
+            except CouchbaseException as e:
+                raise
 
     def upsert(self, key, value, ttl=0, persist_to=0, replicate_to=0):
         doc = self.__translate_to_json_document(key, value)
@@ -236,12 +252,19 @@ class SDKClient(object):
                 raise
 
     def set_multi(self, keys, ttl=0, format=None, persist_to=0, replicate_to=0):
-        return self.upsert_multi(keys, ttl=ttl, persist_to=persist_to, replicate_to=replicate_to)
-
-    def upsert_multi(self, keys, ttl=0, persist_to=0, replicate_to=0):
+        import bulk_doc_operations.doc_ops as doc_op
+        docs = []
         for key, value in keys.items():
-            self.upsert(key, value, ttl=ttl, persist_to=persist_to, replicate_to=replicate_to)
-
+            docs.append(self.__translate_to_json_document(key, value))
+        doc_op().bulkSet(self.cb, docs)
+        
+    def upsert_multi(self, keys, ttl=0, persist_to=0, replicate_to=0):
+        import bulk_doc_operations.doc_ops as doc_op
+        docs = []
+        for key, value in keys.items():
+            docs.append(self.__translate_to_json_document(key, value))
+        doc_op().bulkUpsert(self.cb, docs)
+        
     def insert(self, key, value, ttl=0, format=None, persist_to=0, replicate_to=0):
         doc = self.__translate_to_json_document(key, value)
         try:
@@ -254,8 +277,11 @@ class SDKClient(object):
                 raise
 
     def insert_multi(self, keys,  ttl=0, format=None, persist_to=0, replicate_to=0):
+        import bulk_doc_operations.doc_ops as doc_op
+        docs = []
         for key, value in keys.items():
-            self.insert(key, value, ttl, format, persist_to, replicate_to)
+            docs.append(self.__translate_to_json_document(key, value))
+        doc_op().bulkSet(self.cb, docs)
 
     def touch(self, key, ttl=0):
         try:
@@ -472,13 +498,21 @@ class SDKClient(object):
             raise
 
     def __translate_to_json_document(self, key, value):
-        value = json.loads(value)
-        js = JsonObject.create()
-        for field, val in value.items():
-            js.put(field, val)
-        doc = JsonDocument.create(key, js)
-        return doc
-
+        try:
+            value = json.loads(value)
+            js = JsonObject.create()
+            for field, val in value.items():
+                js.put(field, val)
+            doc = JsonDocument.create(key, js)
+            return doc
+        except DocumentNotJsonException as e:
+            return StringDocument.create(key,value)
+        except Exception as e:
+            return StringDocument.create(key,value)
+        except:
+            pass
+        return StringDocument.create(key,value)
+    
     def __translate_get_multi(self, data):
         map = {}
         if data == None:
@@ -517,8 +551,9 @@ class SDKClient(object):
 
 
 class SDKSmartClient(object):
-    def __init__(self, rest, bucket):
+    def __init__(self, rest, bucket, info = None):
         self.rest = rest
+        self.server = info
         if hasattr(bucket, 'name'):
             self.bucket = bucket.name
         else:
@@ -526,7 +561,7 @@ class SDKSmartClient(object):
         if hasattr(bucket, 'saslPassword'):
             self.saslPassword = bucket.saslPassword
         else:
-            bucket_info = rest.get_bucket(bucket)
+            bucket_info = BucketHelper(self.server).get_bucket(bucket)
             self.saslPassword = bucket_info.saslPassword
 
         if rest.ip == "127.0.0.1":
@@ -535,7 +570,7 @@ class SDKSmartClient(object):
         else:
             self.host = rest.ip
             self.scheme = "couchbase"
-        self.client = SDKClient(self.bucket, hosts=[self.host], scheme=self.scheme, password=self.saslPassword)
+        self.client = SDKClient(self.bucket, hosts=[self.host], scheme=self.scheme, password=rest.password)
 
     def close(self):
         self.client.close()
@@ -562,19 +597,25 @@ class SDKSmartClient(object):
         return self.client.rget(key,replica_index=replica_index)
 
     def setMulti(self, exp, flags, key_val_dic, pause = None, timeout = 5.0, parallel=None, format = FMT_AUTO):
-        try:
-            self.client.cb.timeout = timeout
-            return self.client.upsert_multi(key_val_dic, ttl = exp, format = format)
-        finally:
-            self.client.cb.timeout = self.client.default_timeout
+#         try:
+#             self.client.cb.timeout = timeout
+        return self.client.set_multi(key_val_dic, ttl = exp)
+#         finally:
+#             self.client.cb.timeout = self.client.default_timeout
 
+    def upsertMulti(self, exp, flags, key_val_dic, pause = None, timeout = 5.0, parallel=None, format = FMT_AUTO):
+        return self.client.upsert_multi(key_val_dic, ttl = exp)
+    
     def getMulti(self, keys_lst, pause = None, timeout_sec = 5.0, parallel=None):
+        map = None
         try:
-            self.client.cb.timeout = timeout_sec
+#             self.client.cb.timeout = timeout_sec
             map = self.client.get_multi(keys_lst)
+        except Exception as e:
             return map
-        finally:
-            self.client.cb.timeout = self.client.default_timeout
+        return map
+#         finally:
+#             self.client.cb.timeout = self.client.default_timeout
 
     def getrMulti(self, keys_lst, replica_index= None, pause = None, timeout_sec = 5.0, parallel=None):
         try:

@@ -93,3 +93,4 @@ utils/node_utils/__init__$py.class
 utils/node_utils/node_ready_functions$py.class
 utils/views_utils/__init__$py.class
 utils/views_utils/view_ready_functions$py.class
+lib/BucketLib/MemcachedOperations$py.class

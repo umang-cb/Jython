@@ -5,7 +5,7 @@ import random
 import socket
 import string
 import copy
-# import json
+import json
 import re
 import math
 import crc32
@@ -29,29 +29,26 @@ from remote.remote_util import RemoteMachineShellConnection, RemoteUtilHelper
 from couchbase_helper.documentgenerator import BatchedDocumentGenerator
 from TestInput import TestInputServer, TestInputSingleton
 from testconstants import MIN_KV_QUOTA, INDEX_QUOTA, FTS_QUOTA, COUCHBASE_FROM_4DOT6, THROUGHPUT_CONCURRENCY, ALLOW_HTP, CBAS_QUOTA, COUCHBASE_FROM_VERSION_4
-from com.couchbase.client.java import *;
-from com.couchbase.client.java.transcoder import JsonTranscoder
-from com.couchbase.client.java.document import *;
-from com.couchbase.client.java.document.json import *;
-from com.couchbase.client.java.query import *;
 from BucketLib.BucketOperations import BucketHelper
 from BucketLib.MemcachedOperations import MemcachedHelper
-try:
-    CHECK_FLAG = False
-    if (testconstants.TESTRUNNER_CLIENT in os.environ.keys()) and os.environ[testconstants.TESTRUNNER_CLIENT] == testconstants.PYTHON_SDK:
-        from sdk_client import SDKSmartClient as VBucketAwareMemcached
-        from sdk_client import SDKBasedKVStoreAwareSmartClient as KVStoreAwareSmartClient
-    if (testconstants.TESTRUNNER_CLIENT in os.environ.keys()) and os.environ[testconstants.TESTRUNNER_CLIENT] == testconstants.JAVA_SDK:
-        from java_sdk_client import SDKSmartClient as VBucketAwareMemcached
-        from java_sdk_client import SDKBasedKVStoreAwareSmartClient as KVStoreAwareSmartClient
-    else:
-        CHECK_FLAG = True
-        from memcached.helper.data_helper import VBucketAwareMemcached,KVStoreAwareSmartClient
-except Exception as e:
-    CHECK_FLAG = True
-    from memcached.helper.data_helper import VBucketAwareMemcached,KVStoreAwareSmartClient
+import testconstants
+# try:
+#     CHECK_FLAG = False
+#     if (testconstants.TESTRUNNER_CLIENT in os.environ.keys()) and os.environ[testconstants.TESTRUNNER_CLIENT] == testconstants.PYTHON_SDK:
+#         from sdk_client import SDKSmartClient as VBucketAwareMemcached
+#         from sdk_client import SDKBasedKVStoreAwareSmartClient as KVStoreAwareSmartClient
+#     if (testconstants.TESTRUNNER_CLIENT in os.environ.keys()) and os.environ[testconstants.TESTRUNNER_CLIENT] == testconstants.JAVA_SDK:
+#         from java_sdk_client import SDKSmartClient as VBucketAwareMemcached
+#         from java_sdk_client import SDKBasedKVStoreAwareSmartClient as KVStoreAwareSmartClient
+#     else:
+#         CHECK_FLAG = True
+#         from memcached.helper.data_helper import VBucketAwareMemcached,KVStoreAwareSmartClient
+# except Exception as e:
+#     CHECK_FLAG = True
+#     from memcached.helper.data_helper import VBucketAwareMemcached,KVStoreAwareSmartClient
 #from sdk_client import SDKSmartClient as VBucketAwareMemcached
-
+from sdk_client import SDKSmartClient as VBucketAwareMemcached
+from sdk_client import SDKBasedKVStoreAwareSmartClient as KVStoreAwareSmartClient
 
 
 PENDING = 'PENDING'
@@ -628,7 +625,7 @@ class StatsWaitTask(Task):
     GREATER_THAN = '>'
     GREATER_THAN_EQ = '>='
 
-    def __init__(self, servers, task_manager, bucket, param, stat, comparison, value):
+    def __init__(self, servers, bucket, param, stat, comparison, value, task_manager):
         Task.__init__(self, "stats_wait_task", task_manager=task_manager)
         self.servers = servers
         self.bucket = bucket
@@ -640,11 +637,11 @@ class StatsWaitTask(Task):
         self.value = value
         self.conns = {}
 
-    def execute(self, task_manager):
+    def execute(self):
         self.state = CHECKING
-        task_manager.schedule(self)
+        self.call()
 
-    def check(self, task_manager):
+    def check(self):
         stat_result = 0
         for server in self.servers:
             try:
@@ -665,7 +662,7 @@ class StatsWaitTask(Task):
         if not self._compare(self.comparison, str(stat_result), self.value):
             log.warn("Not Ready: %s %s %s %s expected on %s, %s bucket" % (self.stat, stat_result,
                       self.comparison, self.value, self._stringify_servers(), self.bucket))
-            task_manager.schedule(self, 5)
+            self.task_manager.schedule(self, 5)
             return
         log.info("Saw %s %s %s %s expected on %s,%s bucket" % (self.stat, stat_result,
                       self.comparison, self.value, self._stringify_servers(), self.bucket))
@@ -716,7 +713,7 @@ class GenericLoadingTask(Thread, Task):
         self.timeout = timeout_secs
         self.server = server
         self.bucket = bucket
-        self.client = VBucketAwareMemcached(RestConnection(server), bucket)
+        self.client = VBucketAwareMemcached(RestConnection(server), bucket, info=self.server)
         self.process_concurrency = THROUGHPUT_CONCURRENCY
         # task queue's for synchronization
         #process_manager = Manager()
@@ -728,12 +725,12 @@ class GenericLoadingTask(Thread, Task):
         self.state = EXECUTING
 
     def check(self):
+        self.client.close()
         pass
 
     def run(self):
-        while self.has_next() and not self.done():
+        while self.has_next():
             self.next()
-        self.client.close()
         self.state = FINISHED
         self.set_result(True)
 
@@ -755,7 +752,6 @@ class GenericLoadingTask(Thread, Task):
                 value = value[0:index] + random.choice(string.ascii_uppercase) + value[index + 1:]
         except TypeError:
             value = json.dumps(value)
-
         try:
             self.client.set(key, self.exp, self.flag, value)
             if self.only_store_hash:
@@ -885,6 +881,7 @@ class GenericLoadingTask(Thread, Task):
             self._process_values_for_create(key_val)
             client = shared_client or self.client
             client.setMulti(self.exp, self.flag, key_val, self.pause, self.timeout, parallel=False)
+            log.info("%s documents are INSERTED into bucket %s"%(key_val.itemCount, self.bucket))
         except (MemcachedError, ServerUnavailableException, socket.error, EOFError, AttributeError, RuntimeError) as error:
             self.state = FINISHED
             self. set_unexpected_exception(error)
@@ -897,6 +894,7 @@ class GenericLoadingTask(Thread, Task):
         try:
             self._process_values_for_update(partition_keys_dic, key_val)
             self.client.setMulti(self.exp, self.flag, key_val, self.pause, self.timeout, parallel=False)
+            log.info("%s documents are UPSERTED into bucket %s"%(key_val.itemCount, self.bucket))
             self._populate_kvstore(partition_keys_dic, key_val)
         except (MemcachedError, ServerUnavailableException, socket.error, EOFError, AttributeError, RuntimeError) as error:
             self.state = FINISHED
@@ -924,6 +922,7 @@ class GenericLoadingTask(Thread, Task):
     def _read_batch(self, partition_keys_dic, key_val):
         try:
             o, c, d = self.client.getMulti(key_val.keys(), self.pause, self.timeout)
+            log.info("%s documents are READ from bucket %s"%(key_val.itemCount, self.bucket))
         except MemcachedError as error:
                 self.state = FINISHED
                 self. set_unexpected_exception(error)
@@ -938,7 +937,7 @@ class GenericLoadingTask(Thread, Task):
                 index = random.choice(range(len(value)))
                 value = value[0:index] + random.choice(string.ascii_uppercase) + value[index + 1:]
             except TypeError:
-                 value = json.dumps(value)
+                value = json.dumps(value)
             finally:
                 key_val[key] = value
 
@@ -1083,7 +1082,7 @@ class LoadDocumentsGeneratorsTask(LoadDocumentsTask):
         #     self.run_normal_throughput_mode()
 
         self.state = FINISHED
-#         self.client.close()
+        self.client.close()
         self.set_result(True)
 
     def run_normal_throughput_mode(self):
@@ -1205,46 +1204,47 @@ class LoadDocumentsGeneratorsTask(LoadDocumentsTask):
                 self.exp,
                 self.flag)
 
-class LoadDocumentsTask_java(Task):
-    def __init__(self, task_manager, server, bucket, num_items, start_from, k, v):
-        Task.__init__(self, "load_documents_javasdk", task_manager)
-        self.bucket = bucket
-        self.num_items = num_items
-        self.start_from = start_from
-        self.started = None
-        self.completed = None
-        self.loaded = 0
-        self.thread_used = None
-        self.exception = None
-        self.key = k
-        self.value = v
-        self.server = server
-        
-    def execute(self):
-        try:
-#             data = JsonObject.create().put("type", "user").put("name", "asdsfsdfsdf")
-            import json as python_json
-            var = str(python_json.dumps(self.value))
-            data = JsonTranscoder().stringToJsonObject(var);
-            cluster = CouchbaseCluster.create(self.server.ip);
-            cluster.authenticate(self.server.rest_username, self.server.rest_password)
-            bucket = cluster.openBucket(self.bucket);
-            print bucket
-            for i in xrange(self.num_items):
-                doc = JsonDocument.create(self.key+str(i+self.start_from), data);
-                response = bucket.upsert(doc);
-                if i%2000 == 0:
-                    log.info("%s documents loaded in bucket %s"%(i,self.bucket))
-            bucket.close() and cluster.disconnect()
-            self.state = CHECKING
-            self.call()
-        except Exception as e:
-            self.state = FINISHED
-            self.set_unexpected_exception(e)
-    
-    def check(self):
-        self.state = FINISHED
-        pass
+# class LoadDocumentsTask_java(Task):
+#     def __init__(self, task_manager, server, bucket, num_items, start_from, k, v):
+#         Task.__init__(self, "load_documents_javasdk", task_manager)
+#         self.bucket = bucket
+#         self.num_items = num_items
+#         self.start_from = start_from
+#         self.started = None
+#         self.completed = None
+#         self.loaded = 0
+#         self.thread_used = None
+#         self.exception = None
+#         self.key = k
+#         self.value = v
+#         self.server = server
+#         
+#     def execute(self):
+#         try:
+# #             data = JsonObject.create().put("type", "user").put("name", "asdsfsdfsdf")
+#             import json as python_json
+#             var = str(python_json.dumps(self.value))
+#             data = JsonTranscoder().stringToJsonObject(var);
+#             cluster = CouchbaseCluster.create(self.server.ip);
+#             cluster.authenticate(self.server.rest_username, self.server.rest_password)
+#             bucket = cluster.openBucket(self.bucket);
+#             print bucket
+#             for i in xrange(self.num_items):
+#                 doc = JsonDocument.create(self.key+str(i+self.start_from), data);
+#                 response = bucket.upsert(doc);
+#                 if i%(self.num_items/10) == 0:
+#                     log.info("%s documents loaded in bucket %s"%(i,self.bucket))
+#             bucket.close() and cluster.disconnect()
+#             self.state = CHECKING
+#             self.call()
+#         except Exception as e:
+#             self.state = FINISHED
+#             bucket.close() and cluster.disconnect()
+#             self.set_unexpected_exception(e)
+#     
+#     def check(self):
+#         self.state = FINISHED
+#         pass
 
 class N1QLQueryTask(Task):
     def __init__(self,
@@ -1663,3 +1663,199 @@ class CompactBucketTask(Task):
         total_disk_size = stats["op"]["samples"]["couch_total_disk_size"][-1]
         log.info("Disk size is = %d" % total_disk_size)
         return total_disk_size
+
+class ValidateDataTask(GenericLoadingTask):
+    def __init__(self, server, bucket, kv_store, max_verify=None, only_store_hash=True, replica_to_read=None, task_manager=None):
+        GenericLoadingTask.__init__(self, server, task_manager, bucket, kv_store)
+        self.valid_keys, self.deleted_keys = kv_store.key_set()
+        self.num_valid_keys = len(self.valid_keys)
+        self.num_deleted_keys = len(self.deleted_keys)
+        self.itr = 0
+        self.max_verify = self.num_valid_keys + self.num_deleted_keys
+        self.only_store_hash = only_store_hash
+        self.replica_to_read = replica_to_read
+        if max_verify is not None:
+            self.max_verify = min(max_verify, self.max_verify)
+        log.info("%s items will be verified on %s bucket" % (self.max_verify, bucket))
+        self.start_time = time.time()
+
+    def has_next(self):
+        if self.itr < (self.num_valid_keys + self.num_deleted_keys) and\
+            self.itr < self.max_verify:
+            if not self.itr % 50000:
+                log.info("{0} items were verified".format(self.itr))
+            return True
+        log.info("{0} items were verified in {1} sec.the average number of ops\
+            - {2} per second ".format(self.itr, time.time() - self.start_time,
+                self.itr / (time.time() - self.start_time)).rstrip())
+        return False
+
+    def next(self):
+        if self.itr < self.num_valid_keys:
+            self._check_valid_key(self.valid_keys[self.itr])
+        else:
+            self._check_deleted_key(self.deleted_keys[self.itr - self.num_valid_keys])
+        self.itr += 1
+
+    def _check_valid_key(self, key):
+        partition = self.kv_store.acquire_partition(key)
+
+        value = partition.get_valid(key)
+        flag = partition.get_flag(key)
+        if value is None or flag is None:
+            self.kv_store.release_partition(key)
+            return
+
+        try:
+            if self.replica_to_read is None:
+                o, c, d = self.client.get(key)
+            else:
+                o, c, d = self.client.getr(key, replica_index=self.replica_to_read)
+            if self.only_store_hash:
+                if crc32.crc32_hash(d) != int(value):
+                    self.state = FINISHED
+                    self.set_exception(Exception('Key: %s, Bad hash result: %d != %d for key %s' % (key, crc32.crc32_hash(d), int(value), key)))
+            else:
+                value = json.dumps(value)
+                if d != json.loads(value):
+                    self.state = FINISHED
+                    self.set_exception(Exception('Key: %s, Bad result: %s != %s for key %s' % (key, json.dumps(d), value, key)))
+            if CHECK_FLAG and o != flag:
+                self.state = FINISHED
+                self.set_exception(Exception('Key: %s, Bad result for flag value: %s != the value we set: %s' % (key, o, flag)))
+
+        except MemcachedError as error:
+            if error.status == ERR_NOT_FOUND and partition.get_valid(key) is None:
+                pass
+            else:
+                self.state = FINISHED
+                self.set_exception(error)
+        except Exception as error:
+            log.error("Unexpected error: %s" % str(error))
+            self.state = FINISHED
+            self.set_exception(error)
+        self.kv_store.release_partition(key)
+
+    def _check_deleted_key(self, key):
+        partition = self.kv_store.acquire_partition(key)
+
+        try:
+            self.client.delete(key)
+            if partition.get_valid(key) is not None:
+                self.state = FINISHED
+                self.set_exception(Exception('Not Deletes: %s' % (key)))
+        except MemcachedError as error:
+            if error.status == ERR_NOT_FOUND:
+                pass
+            else:
+                self.state = FINISHED
+                self.set_exception(error)
+        except Exception as error:
+            if error.rc != NotFoundError:
+                self.state = FINISHED
+                self.set_exception(error)
+        self.kv_store.release_partition(key)
+        
+class BatchedValidateDataTask(GenericLoadingTask):
+    def __init__(self, server, bucket, kv_store, max_verify=None, only_store_hash=True, batch_size=100, timeout_sec=5, task_manager=None):
+        GenericLoadingTask.__init__(self, server, task_manager, bucket, kv_store)
+        self.valid_keys, self.deleted_keys = kv_store.key_set()
+        self.num_valid_keys = len(self.valid_keys)
+        self.num_deleted_keys = len(self.deleted_keys)
+        self.itr = 0
+        self.max_verify = self.num_valid_keys + self.num_deleted_keys
+        self.timeout_sec = timeout_sec
+        self.only_store_hash = only_store_hash
+        if max_verify is not None:
+            self.max_verify = min(max_verify, self.max_verify)
+        log.info("%s items will be verified on %s bucket" % (self.max_verify, bucket))
+        self.batch_size = batch_size
+        self.start_time = time.time()
+
+    def has_next(self):
+        has = False
+        if self.itr < (self.num_valid_keys + self.num_deleted_keys) and self.itr < self.max_verify:
+            has = True
+        if math.fmod(self.itr, 10000) == 0.0:
+                log.info("{0} items were verified".format(self.itr))
+        if not has:
+            log.info("{0} items were verified in {1} sec.the average number of ops\
+                - {2} per second".format(self.itr, time.time() - self.start_time,
+                self.itr / (time.time() - self.start_time)).rstrip())
+        return has
+
+    def next(self):
+        if self.itr < self.num_valid_keys:
+            keys_batch = self.valid_keys[self.itr:self.itr + self.batch_size]
+            self.itr += len(keys_batch)
+            self._check_valid_keys(keys_batch)
+        else:
+            self._check_deleted_key(self.deleted_keys[self.itr - self.num_valid_keys])
+            self.itr += 1
+
+    def _check_valid_keys(self, keys):
+        partition_keys_dic = self.kv_store.acquire_partitions(keys)
+        try:
+            key_vals = self.client.getMulti(keys, parallel=True, timeout_sec=self.timeout_sec)
+        except ValueError, error:
+            self.state = FINISHED
+            self.kv_store.release_partitions(partition_keys_dic.keys())
+            self.set_unexpected_exception(error)
+            return
+        except BaseException, error:
+        # handle all other exception, for instance concurrent.futures._base.TimeoutError
+            self.state = FINISHED
+            self.kv_store.release_partitions(partition_keys_dic.keys())
+            self.set_unexpected_exception(error)
+            self.client.close()
+            return
+        for partition, keys in partition_keys_dic.items():
+            self._check_validity(partition, keys, key_vals)
+        self.kv_store.release_partitions(partition_keys_dic.keys())
+
+    def _check_validity(self, partition, keys, key_vals):
+
+        for key in keys:
+            value = partition.get_valid(key)
+            flag = partition.get_flag(key)
+            if value is None:
+                continue
+            try:
+                o, c, d = key_vals[key]
+
+                if self.only_store_hash:
+                    if crc32.crc32_hash(d) != int(value):
+                        self.state = FINISHED
+                        self.set_exception(Exception('Key: %s Bad hash result: %d != %d' % (key, crc32.crc32_hash(d), int(value))))
+                else:
+                    #value = json.dumps(value)
+                    if json.loads(d) != json.loads(value):
+                        self.state = FINISHED
+                        self.set_exception(Exception('Key: %s Bad result: %s != %s' % (key, json.dumps(d), value)))
+                if CHECK_FLAG and o != flag:
+                    self.state = FINISHED
+                    self.set_exception(Exception('Key: %s Bad result for flag value: %s != the value we set: %s' % (key, o, flag)))
+            except KeyError as error:
+                self.state = FINISHED
+                self.set_exception(error)
+
+    def _check_deleted_key(self, key):
+        partition = self.kv_store.acquire_partition(key)
+        try:
+            self.client.delete(key)
+            if partition.get_valid(key) is not None:
+                self.state = FINISHED
+                self.set_exception(Exception('Not Deletes: %s' % (key)))
+        except MemcachedError as error:
+            if error.status == ERR_NOT_FOUND:
+                pass
+            else:
+                self.state = FINISHED
+                self.kv_store.release_partitions(key)
+                self.set_exception(error)
+        except Exception as error:
+            if error.rc != NotFoundError:
+                self.state = FINISHED
+                self.kv_store.release_partitions(key)
+                self.set_exception(error)
+        self.kv_store.release_partition(key)

@@ -15,7 +15,6 @@ import string
 from subprocess import call
 from threading import Thread
 import zlib
-from TestInput import TestInputSingleton
 from couchbase_helper.data_analysis_helper import *
 from couchbase_helper.document import View
 from couchbase_helper.documentgenerator import BlobGenerator
@@ -408,7 +407,7 @@ class bucket_utils():
                                                                  items * (available_replicas + 1)))
         try:
             for task in stats_tasks:
-                task.result(timeout)
+                task.get_result(timeout)
         except Exception as e:
             self.log.info("{0}".format(e))
             for task in stats_tasks:
@@ -441,13 +440,18 @@ class bucket_utils():
         for bucket in self.buckets:
             gen = copy.deepcopy(kv_gen)
             if bucket.type != 'memcached':
-                tasks.append(self.cluster.async_load_gen_docs(server, bucket.name, gen.start,gen.end-gen.start))
+#                 tasks.append(self.cluster.async_load_gen_docs_java(server, bucket.name, gen.start,gen.end-gen.start))
+                tasks.append(self.cluster.async_load_gen_docs(server, bucket.name, gen,
+                                                              bucket.kvs[kv_store],
+                                                              op_type, exp, flag, only_store_hash,
+                                                              batch_size, pause_secs, timeout_secs,
+                                                              proxy_client))
             else:
                 self._load_memcached_bucket(server, gen, bucket.name)
         return tasks
 
     def _load_all_buckets(self, server, kv_gen, op_type, exp, kv_store=1, flag=0,
-                          only_store_hash=True, batch_size=1000, pause_secs=1,
+                          only_store_hash=True, batch_size=5000, pause_secs=1,
                           timeout_secs=30, proxy_client=None):
         """
         Synchronously applys load generation to all bucekts in the cluster.
@@ -591,7 +595,7 @@ class bucket_utils():
                                                                    bucket, self.protocol,
                                                                    ep_items_remaining, "==", 0))
         for task in tasks:
-            task.result(timeout)
+            task.get_result(timeout)
 
     def verify_unacked_bytes_all_buckets(self, filter_list=[], sleep_time=5, master_node=None):
         """
@@ -632,7 +636,7 @@ class bucket_utils():
             tasks.append(self.cluster.async_verify_data(server, bucket, bucket.kvs[kv_store], max_verify,
                                                         only_store_hash, batch_size, replica_to_read))
         for task in tasks:
-            task.result(timeout)
+            task.get_result(timeout)
 
     def disable_compaction(self, server=None, bucket="default"):
 

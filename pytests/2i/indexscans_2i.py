@@ -358,7 +358,7 @@ class SecondaryIndexingScanTests(BaseSecondaryIndexingTests):
 
     def _run_tasks(self, tasks):
         for task in tasks:
-            task.result()
+            task.get_result()
 
     def _translate_where_clause(self, query):
         query = query.replace("EQUALS","==")

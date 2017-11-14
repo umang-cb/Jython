@@ -3,40 +3,12 @@ Created on Sep 26, 2017
 
 @author: riteshagarwal
 '''
-import logger
-import unittest
 import copy
-import datetime
-import time
-import string
-import random
-import logging
-import json
-import commands
-import mc_bin_client
-import traceback
-from memcached.helper.data_helper import VBucketAwareMemcached
-from couchbase_helper.documentgenerator import BlobGenerator
-from couchbase_helper.cluster import Cluster
-from couchbase_helper.document import View
-from couchbase_helper.documentgenerator import DocumentGenerator
-from couchbase_helper.stats_tools import StatsCommon
-from TestInput import TestInputSingleton
-from membase.api.rest_client import RestConnection, Bucket, RestHelper
-from membase.helper.cluster_helper import ClusterOperationHelper
-from membase.helper.rebalance_helper import RebalanceHelper
-from memcached.helper.data_helper import MemcachedClientHelper
-from remote.remote_util import RemoteMachineShellConnection, RemoteUtilHelper
-from membase.api.exception import ServerUnavailableException
-from couchbase_helper.data_analysis_helper import *
-from testconstants import STANDARD_BUCKET_PORT
-from testconstants import MIN_COMPACTION_THRESHOLD
-from testconstants import MAX_COMPACTION_THRESHOLD
-from membase.helper.cluster_helper import ClusterOperationHelper
-from security.rbac_base import RbacBase
+
 from couchbase_cli import CouchbaseCLI
-import testconstants
-from scripts.collect_server_info import cbcollectRunner
+from membase.api.rest_client import RestConnection
+from remote.remote_util import RemoteMachineShellConnection
+
 
 class cluster_utils():
     def get_nodes_in_cluster(self, master_node=None):
