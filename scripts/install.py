@@ -13,6 +13,7 @@ import socket
 import Queue
 
 sys.path = [".", "lib"] + sys.path
+sys.path = ["lib", "pytests", "pysystests", "utils", "connections"] + sys.path
 import testconstants
 import time
 from builds.build_query import BuildQuery
