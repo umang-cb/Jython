@@ -266,20 +266,6 @@ class RestConnection(object):
             self.capiBaseUrl = "http://{0}:{1}/".format(self.hostname, 8092)
             self.query_baseUrl = "http://{0}:{1}/".format(self.hostname, 8093)
 
-        # Initialization of CBAS related params
-        self.cbas_base_url = ""
-        if hasattr(self.input, 'cbas'):
-            if self.input.cbas:
-                self.cbas_node = self.input.cbas
-                self.cbas_port = 8095
-                if hasattr(self.cbas_node, 'port'):
-                    self.cbas_port = self.cbas_node.port
-                self.cbas_base_url = "http://{0}:{1}".format(
-                    self.cbas_node.ip,
-                    self.cbas_port)
-            elif "cbas" in self.services:
-                self.cbas_base_url = "http://{0}:{1}".format(self.ip, 8095)
-            
         # for Node is unknown to this cluster error
         for iteration in xrange(5):
             http_res, success = self.init_http_request(self.baseUrl + 'nodes/self')
@@ -919,60 +905,6 @@ class RestConnection(object):
             log.error("listRebalanceTokens:{0},content:{1}".format(status, content))
             raise Exception("list rebalance tokens failed")
 
-    def execute_statement_on_cbas(self, statement, mode, pretty=True,
-                                  timeout=70, client_context_id=None):
-        api = self.cbas_base_url + "/analytics/service"
-        authorization = base64.encodestring('%s:%s' % (self.username, self.password))
-        headers = {'Content-Type': 'application/json',
-                'Authorization': 'Basic %s' % authorization,
-                'Accept': '*/*'}
-        
-        params = {'statement': statement, 'mode': mode, 'pretty': pretty,
-                  'client_context_id': client_context_id}
-        params = json.dumps(params)
-        status, content, header = self._http_request(api, 'POST',
-                                                     headers=headers,
-                                                     params=params,
-                                                     timeout=timeout)
-        if status:
-            return content
-        elif str(header['status']) == '503':
-            log.info("Request Rejected")
-            raise Exception("Request Rejected")
-        elif str(header['status']) in ['500','400']:
-            json_content = json.loads(content)
-            msg = json_content['errors'][0]['msg']
-            if "Job requirement" in  msg and "exceeds capacity" in msg:
-                raise Exception("Capacity cannot meet job requirement")
-            else:
-                return content
-        else:
-            log.error("/analytics/service status:{0},content:{1}".format(
-                status, content))
-            raise Exception("Analytics Service API failed")
-
-    def delete_active_request_on_cbas(self, client_context_id):
-        api = self.cbas_base_url + "/analytics/admin/active_requests?client_context_id={0}".format(
-            client_context_id)
-        authorization = base64.encodestring('%s:%s' % (self.username, self.password))
-        headers = {'Content-Type': 'application/json',
-                'Authorization': 'Basic %s' % authorization,
-                'Accept': '*/*'}
-
-        status, content, header = self._http_request(api, 'DELETE',
-                                                     headers=headers,
-                                                     timeout=60)
-        if status:
-            return header['status']
-        elif str(header['status']) == '404':
-            log.info("Request Not Found")
-            return header['status']
-        else:
-            log.error(
-                "/analytics/admin/active_requests status:{0},content:{1}".format(
-                    status, content))
-            raise Exception("Analytics Admin API failed")
-
     def get_cluster_ceritificate(self):
         api = self.baseUrl + 'pools/default/certificate'
         status, content, _ = self._http_request(api, 'GET')
@@ -1435,7 +1367,7 @@ class RestConnection(object):
                 sleep = duration
             log.info('rebalance progress took {0} seconds '.format(duration))
             log.info("sleep for {0} seconds after rebalance...".format(sleep))
-            time.sleep(sleep)
+            time.sleep(20)
             return True
 
     def _rebalance_progress_status(self):

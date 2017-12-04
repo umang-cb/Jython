@@ -28,17 +28,18 @@ class CBASCompilationParamsTests(CBASBaseTest):
         super(CBASCompilationParamsTests, self).tearDown()
 
     def _setupForTest(self):
+        self.cbas_util.createConn(self.cb_bucket_name)
         # Create bucket on CBAS
-        self.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
                                    cb_bucket_name=self.cb_bucket_name,
                                    cb_server_ip=self.cb_server_ip)
 
         # Create dataset on the CBAS bucket
-        self.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                       cbas_dataset_name=self.cbas_dataset_name)
 
         # Connect to Bucket
-        self.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                cb_bucket_password=self.cb_bucket_password)
 
         # Load CB bucket
@@ -46,11 +47,11 @@ class CBASCompilationParamsTests(CBASBaseTest):
                                                self.num_items)
 
         # Wait while ingestion is completed
-        total_items, _ = self.get_num_items_in_cbas_dataset(
+        total_items, _ = self.cbas_util.get_num_items_in_cbas_dataset(
             self.cbas_dataset_name)
         while (self.num_items > total_items):
             self.sleep(5)
-            total_items, _ = self.get_num_items_in_cbas_dataset(
+            total_items, _ = self.cbas_util.get_num_items_in_cbas_dataset(
                 self.cbas_dataset_name)
 
     def test_compilation_params(self):
@@ -76,7 +77,7 @@ class CBASCompilationParamsTests(CBASBaseTest):
             self.statement = compiler_param_statement + default_query_statement
 
         try:
-            status, metrics, errors, results, handle = self.execute_statement_on_cbas_via_rest(
+            status, metrics, errors, results, handle = self.cbas_util.execute_statement_on_cbas_util(
                 self.statement, mode=self.mode, timeout=3600)
             self.log.info("Status = %s", status)
             if not self.expect_failure and status != "success":
@@ -105,7 +106,7 @@ class CBASCompilationParamsTests(CBASBaseTest):
         self.statement = compiler_param_statement + group_order_query_statement + join_query_statement
 
         try:
-            status, metrics, errors, results, handle = self.execute_statement_on_cbas_via_rest(
+            status, metrics, errors, results, handle = self.cbas_util.execute_statement_on_cbas_util(
                 self.statement, mode=self.mode, timeout=3600)
             self.log.info("Status = %s", status)
             if not self.expect_failure and status != "success":

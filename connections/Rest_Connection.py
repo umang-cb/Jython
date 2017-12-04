@@ -17,7 +17,7 @@ log = logger.Logger.get_logger()
 
 class RestConnection(object):
 
-    def __new__(self, serverInfo={}):
+    def __new__(self, serverInfo={}, node = None):
         # allow port to determine
         # behavior of restconnection
         port = None
@@ -128,12 +128,23 @@ class RestConnection(object):
                 print e
             return content, False
         
-    def _create_capi_headers(self):
-        authorization = base64.encodestring('%s:%s' % (self.username, self.password))
+    def _create_capi_headers(self, username=None, password=None):
+        if username==None and password==None:
+            username = self.username
+            password = self.password            
+        authorization = base64.encodestring('%s:%s' % (username, password))
         return {'Content-Type': 'application/json',
                 'Authorization': 'Basic %s' % authorization,
                 'Accept': '*/*'}
-        
+
+    def _get_auth(self, headers):
+        key = 'Authorization'
+        if key in headers:
+            val = headers[key]
+            if val.startswith("Basic "):
+                return "auth: " + base64.decodestring(val[6:])
+        return ""
+    
     def _http_request(self, api, method='GET', params='', headers=None, timeout=120):
         if not headers:
             headers = self._create_headers()

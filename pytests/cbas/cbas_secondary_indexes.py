@@ -1,5 +1,5 @@
 from cbas_base import *
-from couchbase import FMT_BYTES
+# from couchbase import FMT_BYTES
 import threading
 import random
 
@@ -18,15 +18,16 @@ class CBASSecondaryIndexes(CBASBaseTest):
         if "add_all_cbas_nodes" in self.input.test_params and \
                 self.input.test_params["add_all_cbas_nodes"] and len(
             self.cbas_servers) > 1:
-            self.add_all_cbas_node_then_rebalance()
-
+            self.add_all_nodes_then_rebalance(self.cbas_servers)
+        
+        self.cbas_util.createConn(self.cb_bucket_name)
         # Create bucket on CBAS
-        self.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
                                    cb_bucket_name=self.cb_bucket_name,
                                    cb_server_ip=self.cb_server_ip)
 
         # Create dataset on the CBAS bucket
-        self.create_dataset_on_bucket(
+        self.cbas_util.create_dataset_on_bucket(
             cbas_bucket_name=self.cbas_bucket_name,
             cbas_dataset_name=self.cbas_dataset_name)
 
@@ -35,7 +36,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
     
     def verify_index_used(self, statement, index_used=False, index_name=None):
         statement = 'EXPLAIN %s'%statement
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             statement)
         self.assertEquals(status, "success")
         if status == 'success':
@@ -68,13 +69,13 @@ class CBASSecondaryIndexes(CBASBaseTest):
         index_fields = index_fields[:-1]
         create_idx_statement = "create index {0} on {1}({2});".format(
             self.index_name, self.cbas_dataset_name, index_fields)
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             create_idx_statement)
 
         self.assertTrue(status == "success", "Create Index query failed")
 
         self.assertTrue(
-            self.verify_index_created(self.index_name, self.index_fields,
+            self.cbas_util.verify_index_created(self.index_name, self.index_fields,
                                       self.cbas_dataset_name)[0])
 
     def test_create_index_without_if_not_exists(self):
@@ -95,17 +96,17 @@ class CBASSecondaryIndexes(CBASBaseTest):
         index_fields = index_fields[:-1]
         create_idx_statement = "create index {0} on {1}({2});".format(
             self.index_name, self.cbas_dataset_name, index_fields)
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             create_idx_statement)
 
         self.assertTrue(status == "success", "Create Index query failed")
 
         self.assertTrue(
-            self.verify_index_created(self.index_name, self.index_fields,
+            self.cbas_util.verify_index_created(self.index_name, self.index_fields,
                                       self.cbas_dataset_name)[0])
 
         # Create another index with same name
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             create_idx_statement)
         self.assertTrue(self.validate_error_in_response(status, errors),
                         "Error msg not matching expected error msg")
@@ -128,22 +129,22 @@ class CBASSecondaryIndexes(CBASBaseTest):
         index_fields = index_fields[:-1]
         create_idx_statement = "create index {0} IF NOT EXISTS on {1}({2});".format(
             self.index_name, self.cbas_dataset_name, index_fields)
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             create_idx_statement)
 
         self.assertTrue(status == "success", "Create Index query failed")
 
         self.assertTrue(
-            self.verify_index_created(self.index_name, self.index_fields,
+            self.cbas_util.verify_index_created(self.index_name, self.index_fields,
                                       self.cbas_dataset_name)[0])
 
         # Create another index with same name
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             create_idx_statement)
         self.assertTrue(status == "success", "Create Index query failed")
 
         self.assertTrue(
-            self.verify_index_created(self.index_name, self.index_fields,
+            self.cbas_util.verify_index_created(self.index_name, self.index_fields,
                                       self.cbas_dataset_name)[0])
 
     def test_create_index_with_if_not_exists_different_fields(self):
@@ -164,25 +165,25 @@ class CBASSecondaryIndexes(CBASBaseTest):
         # Create Index
         create_idx_statement = "create index {0} IF NOT EXISTS on {1}({2});".format(
             self.index_name, self.cbas_dataset_name, index_field1)
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             create_idx_statement)
 
         self.assertTrue(status == "success", "Create Index query failed")
 
         self.assertTrue(
-            self.verify_index_created(self.index_name, [index_field1],
+            self.cbas_util.verify_index_created(self.index_name, [index_field1],
                                       self.cbas_dataset_name)[0])
 
         # Create another index with same name
         create_idx_statement = "create index {0} IF NOT EXISTS on {1}({2});".format(
             self.index_name, self.cbas_dataset_name, index_field2)
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             create_idx_statement)
         self.assertTrue(status == "success", "Create Index query failed")
 
         # The index definition should be based on the older field, it should not change
         self.assertTrue(
-            self.verify_index_created(self.index_name, [index_field1],
+            self.cbas_util.verify_index_created(self.index_name, [index_field1],
                                       self.cbas_dataset_name)[0])
 
     def test_multiple_composite_index_with_overlapping_fields(self):
@@ -207,13 +208,13 @@ class CBASSecondaryIndexes(CBASBaseTest):
         index_fields = index_fields[:-1]
         create_idx_statement = "create index {0} IF NOT EXISTS on {1}({2});".format(
             self.index_name + "1", self.cbas_dataset_name, index_fields)
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             create_idx_statement)
 
         self.assertTrue(status == "success", "Create Index query failed")
 
         self.assertTrue(
-            self.verify_index_created(self.index_name + "1", index_fields1,
+            self.cbas_util.verify_index_created(self.index_name + "1", index_fields1,
                                       self.cbas_dataset_name)[0])
 
         # Create another composite index with overlapping fields
@@ -223,12 +224,12 @@ class CBASSecondaryIndexes(CBASBaseTest):
         index_fields = index_fields[:-1]
         create_idx_statement = "create index {0} IF NOT EXISTS on {1}({2});".format(
             self.index_name + "2", self.cbas_dataset_name, index_fields)
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             create_idx_statement)
         self.assertTrue(status == "success", "Create Index query failed")
 
         self.assertTrue(
-            self.verify_index_created(self.index_name + "2", index_fields2,
+            self.cbas_util.verify_index_created(self.index_name + "2", index_fields2,
                                       self.cbas_dataset_name)[0])
 
     def test_create_index_non_empty_dataset(self):
@@ -242,7 +243,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
             Created date : 8/1/2017
         '''
         # Connect to Bucket
-        result = self.connect_to_bucket(cbas_bucket_name=
+        result = self.cbas_util.connect_to_bucket(cbas_bucket_name=
                                         self.cbas_bucket_name,
                                         cb_bucket_password=self.cb_bucket_password)
 
@@ -260,13 +261,13 @@ class CBASSecondaryIndexes(CBASBaseTest):
         index_fields = index_fields[:-1]
         create_idx_statement = "create index {0} on {1}({2});".format(
             self.index_name, self.cbas_dataset_name, index_fields)
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             create_idx_statement)
 
         self.assertTrue(status == "success", "Create Index query failed")
 
         self.assertTrue(
-            self.verify_index_created(self.index_name, self.index_fields,
+            self.cbas_util.verify_index_created(self.index_name, self.index_fields,
                                       self.cbas_dataset_name)[0])
 
     def test_create_index_with_bucket_connected(self):
@@ -281,7 +282,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
             Created date : 8/1/2017
         '''
         # Connect to Bucket
-        self.connect_to_bucket(cbas_bucket_name=
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=
                                self.cbas_bucket_name,
                                cb_bucket_password=self.cb_bucket_password)
 
@@ -295,7 +296,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
         index_fields = index_fields[:-1]
         create_idx_statement = "create index {0} on {1}({2});".format(
             self.index_name, self.cbas_dataset_name, index_fields)
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             create_idx_statement)
 
         self.assertTrue(self.validate_error_in_response(status, errors))
@@ -319,24 +320,24 @@ class CBASSecondaryIndexes(CBASBaseTest):
         index_fields = index_fields[:-1]
         create_idx_statement = "create index {0} on {1}({2});".format(
             self.index_name, self.cbas_dataset_name, index_fields)
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             create_idx_statement)
 
         self.assertTrue(status == "success", "Create Index query failed")
 
         self.assertTrue(
-            self.verify_index_created(self.index_name, self.index_fields,
+            self.cbas_util.verify_index_created(self.index_name, self.index_fields,
                                       self.cbas_dataset_name)[0])
 
         drop_idx_statement = "drop index {0}.{1};".format(
             self.cbas_dataset_name, self.index_name)
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             drop_idx_statement)
 
         self.assertTrue(status == "success", "Drop Index query failed")
 
         self.assertFalse(
-            self.verify_index_created(self.index_name, self.index_fields,
+            self.cbas_util.verify_index_created(self.index_name, self.index_fields,
                                       self.cbas_dataset_name)[0])
 
     def test_drop_non_existing_index(self):
@@ -354,7 +355,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
         # Drop non-existing index without IF EXISTS
         drop_idx_statement = "drop index {0}.{1};".format(
             self.cbas_dataset_name, self.index_name)
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             drop_idx_statement)
 
         self.assertTrue(self.validate_error_in_response(status, errors))
@@ -362,7 +363,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
         # Drop non-existing index with IF EXISTS
         drop_idx_statement = "drop index {0}.{1} IF EXISTS;".format(
             self.cbas_dataset_name, self.index_name)
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             drop_idx_statement)
 
         self.assertEqual(status, "success",
@@ -387,13 +388,13 @@ class CBASSecondaryIndexes(CBASBaseTest):
         index_fields = index_fields[:-1]
         create_idx_statement = "create index {0} on {1}({2});".format(
             self.index_name, self.cbas_dataset_name, index_fields)
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             create_idx_statement)
 
         self.assertTrue(status == "success", "Create Index query failed")
 
         self.assertTrue(
-            self.verify_index_created(self.index_name, self.index_fields,
+            self.cbas_util.verify_index_created(self.index_name, self.index_fields,
                                       self.cbas_dataset_name)[0])
 
         # Drop dataset
@@ -401,7 +402,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
 
         # Check that the index no longer exists
         self.assertFalse(
-            self.verify_index_created(self.index_name, self.index_fields,
+            self.cbas_util.verify_index_created(self.index_name, self.index_fields,
                                       self.cbas_dataset_name)[0])
 
     def test_drop_non_empty_index(self):
@@ -424,17 +425,17 @@ class CBASSecondaryIndexes(CBASBaseTest):
         index_fields = index_fields[:-1]
         create_idx_statement = "create index {0} on {1}({2});".format(
             self.index_name, self.cbas_dataset_name, index_fields)
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             create_idx_statement)
 
         self.assertTrue(status == "success", "Create Index query failed")
 
         self.assertTrue(
-            self.verify_index_created(self.index_name, self.index_fields,
+            self.cbas_util.verify_index_created(self.index_name, self.index_fields,
                                       self.cbas_dataset_name)[0])
 
         # Connect to Bucket
-        self.connect_to_bucket(cbas_bucket_name=
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=
                                self.cbas_bucket_name,
                                cb_bucket_password=self.cb_bucket_password)
 
@@ -447,13 +448,13 @@ class CBASSecondaryIndexes(CBASBaseTest):
 
         drop_idx_statement = "drop index {0}.{1};".format(
             self.cbas_dataset_name, self.index_name)
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             drop_idx_statement)
 
         self.assertTrue(status == "success", "Drop Index query failed")
 
         self.assertFalse(
-            self.verify_index_created(self.index_name, self.index_fields,
+            self.cbas_util.verify_index_created(self.index_name, self.index_fields,
                                       self.cbas_dataset_name)[0])
 
     def _direct_client(self, server, bucket, timeout=30):
@@ -501,7 +502,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
         index_fields = index_fields[:-1]
 
         if binary:
-            self.client.upsert('utf16_doc', not_fit_value.encode('utf16'),  format=FMT_BYTES)
+            self.client.upsert('utf16_doc', not_fit_value.encode('utf16'))
         else:
             if "." in index_fields.split(":")[0]:
                 self.client.upsert(k, {index_fields.split(":")[0].split(".")[0]:{index_fields.split(":")[0].split(".")[1] : not_fit_value}})
@@ -514,15 +515,15 @@ class CBASSecondaryIndexes(CBASBaseTest):
             index_used=True
         create_idx_statement = "create index {0} on {1}({2});".format(
             self.index_name, self.cbas_dataset_name, index_fields)
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             create_idx_statement)
 
         self.assertTrue(status == "success", "Create Index query failed")
 
         self.assertTrue(
-            self.verify_index_created(self.index_name, self.index_fields,
+            self.cbas_util.verify_index_created(self.index_name, self.index_fields,
                                       self.cbas_dataset_name)[0])
-        self.connect_to_bucket(cbas_bucket_name=
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=
                                         self.cbas_bucket_name,
                                         cb_bucket_password=self.cb_bucket_password)
         self.sleep(20)
@@ -532,7 +533,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
         else:
             statement = 'SELECT count(*) FROM `{0}` where {1}={2}'.format(self.cbas_dataset_name,
                                                                             index_fields.split(":")[0], search_by)
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             statement)
         self.assertEquals(status, "success")
         self.assertEquals(errors, None)
@@ -543,7 +544,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
         else:
             statement = 'SELECT count(*) FROM `{0}` where {1}={2}'.format(self.cbas_dataset_name,
                                                                         index_fields.split(":")[0], not_fit_value)
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             statement)
         self.assertEquals(status, expected_status)
         if status == 'success':
@@ -597,15 +598,15 @@ class CBASSecondaryIndexes(CBASBaseTest):
 
         create_idx_statement = "create index {0} on {1}({2});".format(
             self.index_name, self.cbas_dataset_name, index_fields)
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             create_idx_statement)
 
         self.assertTrue(status == "success", "Create Index query failed")
 
         self.assertTrue(
-            self.verify_index_created(self.index_name, self.index_fields,
+            self.cbas_util.verify_index_created(self.index_name, self.index_fields,
                                       self.cbas_dataset_name)[0])
-        self.connect_to_bucket(cbas_bucket_name=
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=
                                self.cbas_bucket_name,
                                cb_bucket_password=self.cb_bucket_password)
         self.sleep(10)
@@ -621,7 +622,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
             else:
                 statement = 'SELECT count(*) FROM `{0}` where {1}={2}'.format(self.cbas_dataset_name,
                                                                               index_fields.split(":")[0], search_by)
-            status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+            status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
                 statement)
             self.assertEquals(status, "success")
             self.assertEquals(errors, None)
@@ -632,7 +633,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
             else:
                 statement = 'SELECT count(*) FROM `{0}` where {1}={2}'.format(self.cbas_dataset_name,
                                                                             index_fields.split(":")[0], not_fit_value)
-            status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+            status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
                 statement)
             self.assertEquals(status, expected_status)
             if status == 'success':
@@ -660,21 +661,21 @@ class CBASSecondaryIndexes(CBASBaseTest):
 
         create_idx_statement = "create index {0} on {1}({2});".format(
             self.index_name, self.cbas_dataset_name, index_fields)
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             create_idx_statement)
 
         self.assertTrue(status == "success", "Create Index query failed")
 
         self.assertTrue(
-            self.verify_index_created(self.index_name, self.index_fields,
+            self.cbas_util.verify_index_created(self.index_name, self.index_fields,
                                       self.cbas_dataset_name)[0])
-        self.connect_to_bucket(cbas_bucket_name=
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=
                                self.cbas_bucket_name,
                                cb_bucket_password=self.cb_bucket_password)
         self.sleep(20)
 
         statement = 'SELECT count(*) FROM `{0}` where {1};'.format(self.cbas_dataset_name, where_statement)
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             statement)
         self.assertEquals(status, "success")
         self.assertEquals(errors, None)
@@ -704,13 +705,13 @@ class CBASSecondaryIndexes(CBASBaseTest):
 
         create_idx_statement = "create index {0} on {1}({2});".format(
             self.index_name, self.cbas_dataset_name, index_fields)
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             create_idx_statement)
 
         self.assertTrue(status == "success", "Create Index query failed")
 
         self.assertTrue(
-            self.verify_index_created(self.index_name, self.index_fields,
+            self.cbas_util.verify_index_created(self.index_name, self.index_fields,
                                       self.cbas_dataset_name)[0])
 
         index_fields2 = ""
@@ -720,21 +721,21 @@ class CBASSecondaryIndexes(CBASBaseTest):
 
         create_idx_statement = "create index {0} on {1}({2});".format(
             self.index_name2, self.cbas_dataset_name, index_fields2)
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             create_idx_statement)
 
         self.assertTrue(status == "success", "Create Index query failed")
 
         self.assertTrue(
-            self.verify_index_created(self.index_name2, self.index_fields2,
+            self.cbas_util.verify_index_created(self.index_name2, self.index_fields2,
                                       self.cbas_dataset_name)[0])
 
-        self.connect_to_bucket(cbas_bucket_name=
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=
                                self.cbas_bucket_name,
                                cb_bucket_password=self.cb_bucket_password)
         self.sleep(20)
 
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             statement)
         self.assertEquals(status, "success")
         self.assertEquals(errors, None)
@@ -751,18 +752,18 @@ class CBASSecondaryIndexes(CBASBaseTest):
         index_fields = index_fields[:-1]
         create_idx_statement = "create index {0} on {1}({2});".format(
             self.index_name, self.cbas_dataset_name, index_fields)
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             create_idx_statement)
 
         self.assertTrue(status == "success", "Create Index query failed")
 
-        self.connect_to_bucket(cbas_bucket_name=
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=
                                self.cbas_bucket_name,
                                cb_bucket_password=self.cb_bucket_password)
         self.wait_for_ingestion_complete([self.cbas_dataset_name], 107303)
         statement = 'SELECT count(*) FROM `{0}`'.format(self.cbas_dataset_name)
 #        
-        _, result = self.verify_index_created(self.index_name, self.index_fields,
+        _, result = self.cbas_util.verify_index_created(self.index_name, self.index_fields,
                                               self.cbas_dataset_name)
 
         self.assertEquals(result[0]['Index']['DatasetName'], self.cbas_dataset_name)
@@ -774,7 +775,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
         self.assertEquals(result[0]['Index']['SearchKey'], [index_field.split(":")[:-1]])
         self.assertEquals(result[0]['Index']['SearchKeyType'], index_field.split(":")[1:])
 
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             statement)
         self.assertEquals(status, "success")
         self.assertEquals(errors, None)
@@ -784,22 +785,22 @@ class CBASSecondaryIndexes(CBASBaseTest):
                                     self.cbas_bucket_name)
 
         drop_idx_statement = "drop index {0}.{1};".format(self.cbas_dataset_name, self.index_name)
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             drop_idx_statement)
 
-        _, result = self.verify_index_created(self.index_name, self.index_fields,
+        _, result = self.cbas_util.verify_index_created(self.index_name, self.index_fields,
                                               self.cbas_dataset_name)
 
         self.assertEquals(result, [])
 
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             statement)
         self.assertEquals(status, "success")
         self.assertEquals(errors, None)
         self.assertEquals(results, [{'$1': 107303}])
         self.drop_dataset(self.cbas_dataset_name)
 
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             statement)
         self.assertEquals(errors, [
             {u'msg': u'Cannot find dataset beer_ds in dataverse Default nor an alias with name beer_ds!', u'code': 1}])

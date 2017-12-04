@@ -6,11 +6,16 @@ Created on Sep 26, 2017
 import copy
 
 from couchbase_cli import CouchbaseCLI
-from membase.api.rest_client import RestConnection
+from membase.api.rest_client import RestConnection, RestHelper
 from remote.remote_util import RemoteMachineShellConnection
-
+from ClusterLib.ClusterOperations import ClusterHelper
+import logger
 
 class cluster_utils():
+    def __init__(self, server):
+        self.rest = RestConnection(server)
+        self.log = logger.Logger.get_logger()
+        
     def get_nodes_in_cluster(self, master_node=None):
         rest = None
         if master_node == None:
@@ -349,3 +354,70 @@ class cluster_utils():
                     initial_list.remove(server)
         return initial_list
 
+    def add_all_nodes_then_rebalance(self, nodes):
+        if len(nodes)>=1:
+            for server in nodes:
+                '''This is the case when master node is running cbas service as well'''
+                if self.master.ip != server.ip:
+                    self.otpNodes.append(self.rest.add_node(user=server.rest_username,
+                                               password=server.rest_password,
+                                               remoteIp=server.ip,
+                                               port=8091,
+                                               services=server.services.split(",")))
+    
+            self.rebalance()
+        else:
+            self.log.info("No Nodes provided to add in cluster")
+
+        return self.otpNodes
+    
+    def rebalance(self, wait_for_completion=True):
+        nodes = self.rest.node_statuses()
+        started = self.rest.rebalance(otpNodes=[node.id for node in nodes])
+        if started and wait_for_completion:
+            result = self.rest.monitorRebalance()
+#             self.assertTrue(result, "Rebalance operation failed after adding %s cbas nodes,"%self.cbas_servers)
+            self.log.info("successfully rebalanced cluster {0}".format(result))
+        else:
+            result = started
+        return result
+#             self.assertTrue(started, "Rebalance operation started and in progress %s,"%self.cbas_servers)
+        
+    def remove_all_nodes_then_rebalance(self,otpnodes=None, rebalance=True ):
+        return self.remove_node(otpnodes,rebalance) 
+        
+    def add_node(self, node=None, services=None, rebalance=True, wait_for_rebalance_completion=True):
+        if not node:
+            self.fail("There is no node to add to cluster.")
+        if not services:
+            services = node.services.split(",")        
+        otpnode = self.rest.add_node(user=node.rest_username,
+                               password=node.rest_password,
+                               remoteIp=node.ip,
+                               port=8091,
+                               services=services
+                               )
+        if rebalance:
+            self.rebalance(wait_for_completion=wait_for_rebalance_completion)
+        return otpnode
+    
+    def remove_node(self,otpnode=None, wait_for_rebalance=True):
+        nodes = self.rest.node_statuses()
+        '''This is the case when master node is running cbas service as well'''
+        if len(nodes) <= len(otpnode):
+            return
+        
+        helper = RestHelper(self.rest)
+        try:
+            removed = helper.remove_nodes(knownNodes=[node.id for node in nodes],
+                                              ejectedNodes=[node.id for node in otpnode],
+                                              wait_for_rebalance=wait_for_rebalance)
+        except Exception as e:
+            self.sleep(5,"First time rebalance failed on Removal. Wait and try again. THIS IS A BUG.")
+            removed = helper.remove_nodes(knownNodes=[node.id for node in nodes],
+                                              ejectedNodes=[node.id for node in otpnode],
+                                              wait_for_rebalance=wait_for_rebalance)
+        if wait_for_rebalance:
+            removed
+#             self.assertTrue(removed, "Rebalance operation failed while removing %s,"%otpnode)
+        

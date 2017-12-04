@@ -20,11 +20,16 @@ from cluster_utils.cluster_ready_functions import cluster_utils
 from failover_utils.failover_ready_functions import failover_utils
 from node_utils.node_ready_functions import node_utils
 from views_utils.view_ready_functions import views_utils
+from BucketLib.BucketOperations import BucketHelper
 
 log = logging.getLogger()
 
 class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_utils, node_utils, views_utils):
     def setUp(self):
+        self.failover_util = failover_utils()
+        self.node_util = node_utils()
+        self.views_util = views_utils()
+        
         self.log = logger.Logger.get_logger()
         self.input = TestInputSingleton.input
         self.primary_index_created = False
@@ -46,6 +51,8 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
         self.bucket_base_params = {}
         self.bucket_base_params['membase'] = {}
         self.master = self.servers[0]
+        self.bucket_util = bucket_utils(self.master)
+        self.cluster_util = cluster_utils(self.master)
         self.indexManager = self.servers[0]
         if not hasattr(self, 'cluster'):
             self.cluster = Cluster()
@@ -159,7 +166,7 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
             # end of bucket parameters spot (this is ongoing)
 
             if self.skip_setup_cleanup:
-                self.buckets = RestConnection(self.master).get_buckets()
+                self.buckets = BucketHelper(self.master).get_buckets()
                 return
             if not self.skip_init_check_cbserver:
                 self.cb_version = None
@@ -219,7 +226,7 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
                     self.case_number -= 1000
                 self.cleanup = True
                 if not self.skip_init_check_cbserver:
-                    self.tearDown()
+                    self.tearDownEverything()
                 self.cluster = Cluster()
             if not self.skip_init_check_cbserver:
                 log.info("initializing cluster")
@@ -345,6 +352,9 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
             log.error("IMPOSSIBLE TO GRAB CBCOLLECT FROM {0}: {1}".format(server.ip, e))
 
     def tearDown(self):
+        self.tearDownEverything()
+        
+    def tearDownEverything(self):
         if self.skip_setup_cleanup:
             return
         try:
@@ -465,7 +475,7 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
             self.assertTrue(stopped, msg="unable to stop rebalance")
         self.delete_all_buckets_or_assert(self.servers)
         ClusterOperationHelper.cleanup_cluster(self.servers, master=self.master)
-        self.sleep(10)
+#         self.sleep(10)
         ClusterOperationHelper.wait_for_ns_servers_or_assert(self.servers, self)
 
     def _initialize_nodes(self, cluster, servers, disabled_consistent_view=None, rebalanceIndexWaitingDisabled=None,

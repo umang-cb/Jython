@@ -38,7 +38,10 @@ from BucketLib.BucketOperations import BucketHelper
 log = logger.Logger.get_logger()
 
 class bucket_utils():
-    
+    def __init__(self, server):
+        self.master = server
+        self.rest = RestConnection(server)
+        
     def _create_bucket_params(self, server, replicas=1, size=0, port=11211, password=None,
                               bucket_type='membase', enable_replica_index=1, eviction_policy='valueOnly',
                               bucket_priority=None, flush_enabled=1, lww=False):
@@ -1145,7 +1148,7 @@ class bucket_utils():
 
     def load_sample_buckets(self, servers=None, bucketName=None, total_items=None):
         """ Load the specified sample bucket in Couchbase """
-        self.assertTrue(self.rest.load_sample(bucketName),"Failure while loading sample bucket: %s"%bucketName)
+        self.assertTrue(BucketHelper(self.master).load_sample(bucketName),"Failure while loading sample bucket: %s"%bucketName)
         
         """ check for load data into travel-sample bucket """
         if total_items:
@@ -1340,3 +1343,24 @@ class bucket_utils():
                 
         client.close()
         return inserted_keys
+
+    def perform_doc_ops_in_all_cb_buckets(self, num_items, operation, start_key=0, end_key=1000):
+        """
+        Create/Update/Delete docs in all cb buckets
+        :param num_items: No. of items to be created/deleted/updated
+        :param operation: String - "create","update","delete"
+        :param start_key: Doc Key to start the operation with
+        :param end_key: Doc Key to end the operation with
+        :return:
+        """
+        age = range(70)
+        first = ['james', 'sharon', 'dave', 'bill', 'mike', 'steve']
+        template = '{{ "number": {0}, "first_name": "{1}" , "mutated":0}}'
+        gen_load = DocumentGenerator('test_docs', template, age, first,
+                                     start=start_key, end=end_key)
+        self.log.info("%s %s documents..." % (operation, num_items))
+        try:
+            self._load_all_buckets(self.master, gen_load, operation, 0)
+            self._verify_stats_all_buckets(self.input.servers)
+        except Exception as e:
+            self.log.info(e.message)

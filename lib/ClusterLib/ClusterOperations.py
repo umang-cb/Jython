@@ -9,11 +9,11 @@ use_rest = False
 use_memcached = True
 
 if java_sdk:
-    from ClusterLib.ClusterOperations_JavaSDK import BucketHelper as bucketlib
+    from ClusterLib.ClusterOperations_JavaSDK import ClusterHelper as clusterlib
 elif use_cli:
-    from ClusterLib.ClusterOperations_CLI import BucketHelper as bucketlib
+    from ClusterLib.ClusterOperations_CLI import ClusterHelper as clusterlib
 elif use_rest:
-    from ClusterLib.ClusterOperations_Rest import BucketHelper as bucketlib
+    from ClusterLib.ClusterOperations_Rest import ClusterHelper as clusterlib
     
-class BucketHelper(bucketlib):
+class ClusterHelper(clusterlib):
     pass

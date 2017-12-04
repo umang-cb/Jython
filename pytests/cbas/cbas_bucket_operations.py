@@ -21,7 +21,8 @@ class CBASBucketOperations(CBASBaseTest):
         
         '''Create default bucket'''
         self.create_default_bucket()
-        
+        self.cbas_util.createConn("default")
+
     def tearDown(self):
         super(CBASBucketOperations, self).tearDown()
 
@@ -32,21 +33,21 @@ class CBASBucketOperations(CBASBaseTest):
                                                    self.num_items)
 
         # Create bucket on CBAS
-        self.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
                                    cb_bucket_name=self.cb_bucket_name,
                                    cb_server_ip=self.cb_server_ip)
 
         # Create dataset on the CBAS bucket
-        self.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                       cbas_dataset_name=self.cbas_dataset_name)
 
         # Connect to Bucket
-        self.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                cb_bucket_password=self.cb_bucket_password)
 
         if not skip_data_loading:
             # Validate no. of items in CBAS dataset
-            if not self.validate_cbas_dataset_items_count(
+            if not self.cbas_util.validate_cbas_dataset_items_count(
                     self.cbas_dataset_name,
                     self.num_items):
                 self.fail(
@@ -64,7 +65,7 @@ class CBASBucketOperations(CBASBaseTest):
                                                self.num_items * 2)
 
         # Validate no. of items in CBAS dataset
-        if not self.validate_cbas_dataset_items_count(self.cbas_dataset_name,
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,
                                                       self.num_items * 2):
             self.fail(
                 "No. of items in CBAS dataset do not match that in the CB bucket")
@@ -77,7 +78,7 @@ class CBASBucketOperations(CBASBaseTest):
                                                self.num_items)
 
         # Validate no. of items in CBAS dataset
-        if not self.validate_cbas_dataset_items_count(self.cbas_dataset_name,
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,
                                                       self.num_items):
             self.fail(
                 "No. of items in CBAS dataset do not match that in the CB bucket")
@@ -90,7 +91,7 @@ class CBASBucketOperations(CBASBaseTest):
                                                self.num_items / 2)
 
         # Validate no. of items in CBAS dataset
-        if not self.validate_cbas_dataset_items_count(self.cbas_dataset_name,
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,
                                                       self.num_items / 2):
             self.fail(
                 "No. of items in CBAS dataset do not match that in the CB bucket")
@@ -103,7 +104,7 @@ class CBASBucketOperations(CBASBaseTest):
                                                self.num_items)
 
         # Validate no. of items in CBAS dataset
-        if not self.validate_cbas_dataset_items_count(self.cbas_dataset_name,
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,
                                                       0):
             self.fail(
                 "No. of items in CBAS dataset do not match that in the CB bucket")
@@ -116,7 +117,7 @@ class CBASBucketOperations(CBASBaseTest):
                                                self.num_items / 10)
 
         # Validate no. of items in CBAS dataset
-        if not self.validate_cbas_dataset_items_count(self.cbas_dataset_name,
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,
                                                       self.num_items,
                                                       self.num_items / 10):
             self.fail(
@@ -130,7 +131,7 @@ class CBASBucketOperations(CBASBaseTest):
                                                self.num_items)
 
         # Validate no. of items in CBAS dataset
-        if not self.validate_cbas_dataset_items_count(self.cbas_dataset_name,
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,
                                                       self.num_items,
                                                       self.num_items):
             self.fail(
@@ -140,7 +141,7 @@ class CBASBucketOperations(CBASBaseTest):
         self.setup_for_test()
 
         # Disconnect from bucket
-        self.disconnect_from_bucket(self.cbas_bucket_name)
+        self.cbas_util.disconnect_from_bucket(self.cbas_bucket_name)
 
         # Perform Create, Update, Delete ops in the CB bucket
         self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create",
@@ -152,11 +153,11 @@ class CBASBucketOperations(CBASBaseTest):
                                                self.num_items / 2)
 
         # Connect to Bucket
-        self.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                cb_bucket_password=self.cb_bucket_password)
 
         # Validate no. of items in CBAS dataset
-        if not self.validate_cbas_dataset_items_count(self.cbas_dataset_name,
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,
                                                       self.num_items * 3 / 2,
                                                       self.num_items / 2):
             self.fail(
@@ -175,7 +176,7 @@ class CBASBucketOperations(CBASBaseTest):
                                                self.num_items / 2)
 
         # Validate no. of items in CBAS dataset
-        if not self.validate_cbas_dataset_items_count(self.cbas_dataset_name,
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,
                                                       self.num_items * 3 / 2,
                                                       self.num_items / 2):
             self.fail(
@@ -189,7 +190,7 @@ class CBASBucketOperations(CBASBaseTest):
                                   bucket=self.cb_bucket_name)
 
         # Validate no. of items in CBAS dataset
-        if not self.validate_cbas_dataset_items_count(self.cbas_dataset_name,
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,
                                                       0):
             self.fail(
                 "No. of items in CBAS dataset do not match that in the CB bucket")
@@ -198,18 +199,18 @@ class CBASBucketOperations(CBASBaseTest):
         self.setup_for_test()
 
         # Disconnect from bucket
-        self.disconnect_from_bucket(self.cbas_bucket_name)
+        self.cbas_util.disconnect_from_bucket(self.cbas_bucket_name)
 
         # Flush the CB bucket
         self.cluster.bucket_flush(server=self.master,
                                   bucket=self.cb_bucket_name)
 
         # Connect to Bucket
-        self.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                cb_bucket_password=self.cb_bucket_password)
 
         # Validate no. of items in CBAS dataset
-        if not self.validate_cbas_dataset_items_count(self.cbas_dataset_name,
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,
                                                       0):
             self.fail(
                 "No. of items in CBAS dataset do not match that in the CB bucket")
@@ -222,7 +223,7 @@ class CBASBucketOperations(CBASBaseTest):
                                    bucket=self.cb_bucket_name)
 
         # Validate no. of items in CBAS dataset
-        if not self.validate_cbas_dataset_items_count(self.cbas_dataset_name,
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,
                                                       0):
             self.fail(
                 "No. of items in CBAS dataset do not match that in the CB bucket")
@@ -231,18 +232,18 @@ class CBASBucketOperations(CBASBaseTest):
         self.setup_for_test()
 
         # Disconnect from bucket
-        self.disconnect_from_bucket(self.cbas_bucket_name)
+        self.cbas_util.disconnect_from_bucket(self.cbas_bucket_name)
 
         # Delete the CB bucket
         self.cluster.bucket_delete(server=self.master,
                                    bucket=self.cb_bucket_name)
 
         # Connect to Bucket
-        self.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                cb_bucket_password=self.cb_bucket_password)
 
         # Validate no. of items in CBAS dataset
-        if not self.validate_cbas_dataset_items_count(self.cbas_dataset_name,
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,
                                                       0):
             self.fail(
                 "No. of items in CBAS dataset do not match that in the CB bucket")
@@ -255,7 +256,7 @@ class CBASBucketOperations(CBASBaseTest):
                                     bucket=self.cb_bucket_name)
 
         # Validate no. of items in CBAS dataset
-        if not self.validate_cbas_dataset_items_count(self.cbas_dataset_name,
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,
                                                       self.num_items):
             self.fail(
                 "No. of items in CBAS dataset do not match that in the CB bucket")
@@ -264,18 +265,18 @@ class CBASBucketOperations(CBASBaseTest):
         self.setup_for_test()
 
         # Disconnect from bucket
-        self.disconnect_from_bucket(self.cbas_bucket_name)
+        self.cbas_util.disconnect_from_bucket(self.cbas_bucket_name)
 
         # Compact the CB bucket
         self.cluster.compact_bucket(server=self.master,
                                     bucket=self.cb_bucket_name)
 
         # Connect to Bucket
-        self.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                cb_bucket_password=self.cb_bucket_password)
 
         # Validate no. of items in CBAS dataset
-        if not self.validate_cbas_dataset_items_count(self.cbas_dataset_name,
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,
                                                       self.num_items):
             self.fail(
                 "No. of items in CBAS dataset do not match that in the CB bucket")
@@ -286,25 +287,25 @@ class CBASBucketOperations(CBASBaseTest):
         self.perform_doc_ops_in_all_cb_buckets(self.num_items, "update", 0,
                                                self.num_items / 4)
 
-        self.validate_cbas_dataset_items_count(self.cbas_dataset_name,
+        self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,
                                                self.num_items,
                                                self.num_items / 4)
 
         # Disconnect from bucket
-        self.disconnect_from_bucket(self.cbas_bucket_name)
+        self.cbas_util.disconnect_from_bucket(self.cbas_bucket_name)
 
         self.perform_doc_ops_in_all_cb_buckets(self.num_items, "update",
                                                self.num_items / 4,
                                                self.num_items / 2)
 
         # Connect to Bucket and sleep for 2s to allow ingestion to start
-        self.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                cb_bucket_password=self.cb_bucket_password)
 
         self.sleep(5)
 
         # Validate no. of items in CBAS dataset
-        count, mutated_count = self.get_num_items_in_cbas_dataset(
+        count, mutated_count = self.cbas_util.get_num_items_in_cbas_dataset(
             self.cbas_dataset_name)
 
         if not (self.num_items / 4 < mutated_count):
@@ -331,7 +332,7 @@ class CBASBucketOperations(CBASBaseTest):
                                                self.num_items / 2)
 
         # Validate no. of items in CBAS dataset
-        if not self.validate_cbas_dataset_items_count(self.cbas_dataset_name,
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,
                                                       self.num_items / 2, 0):
             self.fail(
                 "No. of items in CBAS dataset do not match that in the CB bucket")
@@ -339,7 +340,7 @@ class CBASBucketOperations(CBASBaseTest):
         # Count no. of items in CB & CBAS Buckets
         items_in_cb_bucket = self.get_item_count(self.master,
                                                  self.cb_bucket_name)
-        items_in_cbas_bucket, _ = self.get_num_items_in_cbas_dataset(
+        items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(
             self.cbas_dataset_name)
         self.log.info(
             "Before Rollback --- # docs in CB bucket : %s, # docs in CBAS bucket : %s",
@@ -373,7 +374,7 @@ class CBASBucketOperations(CBASBaseTest):
         # Count no. of items in CB & CBAS Buckets
         items_in_cb_bucket = self.get_item_count(self.master,
                                                  self.cb_bucket_name)
-        items_in_cbas_bucket, _ = self.get_num_items_in_cbas_dataset(
+        items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(
             self.cbas_dataset_name)
         self.log.info(
             "After Rollback --- # docs in CB bucket : %s, # docs in CBAS bucket : %s",

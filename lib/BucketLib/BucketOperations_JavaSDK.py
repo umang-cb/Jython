@@ -3,25 +3,14 @@ Created on Sep 25, 2017
 
 @author: riteshagarwal
 '''
-from com.couchbase.client.java import *;
-from com.couchbase.client.java.transcoder import JsonTranscoder
-from com.couchbase.client.java.document import *;
-from com.couchbase.client.java.document.json import *;
-from com.couchbase.client.java.query import *;
-from com.couchbase.client.java.error import BucketDoesNotExistException
-from com.couchbase.client.core.endpoint.kv import AuthenticationException
-from com.couchbase.client.java.cluster import DefaultBucketSettings
-from com.couchbase.client.java.bucket import BucketType
-import json
-import time
-import urllib
-from bucket import *
-import logger
-from membase.api.rest_client import Node
-from memcached.helper.kvstore import KVStore
 from BucketOperations_Rest import BucketHelper as bucket_helper_rest
-from com.couchbase.client.java import Bucket
 from Java_Connection import SDKClient
+from com.couchbase.client.core.endpoint.kv import AuthenticationException
+from com.couchbase.client.java.bucket import BucketType
+from com.couchbase.client.java.cluster import DefaultBucketSettings
+from com.couchbase.client.java.error import BucketDoesNotExistException
+import logger
+
 
 log = logger.Logger.get_logger()
 
@@ -91,7 +80,7 @@ class BucketHelper(bucket_helper_rest, SDKClient):
                       flushEnabled=1,
                       evictionPolicy='valueOnly',
                       lww=False):
-        
+        log.info("Connecting Cluster")
         self.connectCluster()        
         try:
             bucketSettings = DefaultBucketSettings.builder()
@@ -111,14 +100,16 @@ class BucketHelper(bucket_helper_rest, SDKClient):
             bucketSettings.indexReplicas(replica_index)
             bucketSettings.build()
             self.clusterManager.insertBucket(bucketSettings)
-    
+            log.info("Disconnecting Cluster")
             self.disconnectCluster()
             return True
         except BucketDoesNotExistException as e:
             log.info(e)
+            log.info("Disconnecting Cluster")
             self.disconnectCluster()
             return False
         except AuthenticationException as e:
             log.info(e)
+            log.info("Disconnecting Cluster")
             self.disconnectCluster()
             return False

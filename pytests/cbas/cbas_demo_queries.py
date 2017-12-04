@@ -136,30 +136,29 @@ class CBASDemoQueries(CBASBaseTest):
         if "add_all_cbas_nodes" in self.input.test_params and self.input.test_params["add_all_cbas_nodes"] and len(self.cbas_servers) > 1:
             self.add_all_cbas_node_then_rebalance()
         # Create bucket on CBAS
-        self.create_bucket_on_cbas(
+        self.cbas_util.create_bucket_on_cbas(
             cbas_bucket_name=dataset_record['cbas_bucket_name'],
             cb_bucket_name=dataset_record['cb_bucket_name'],
             cb_server_ip=self.cb_server_ip)
 
         # Create datasets on the CBAS bucket
         for dataset in dataset_record['ds_details']:
-            self.create_dataset_on_bucket(
+            self.cbas_util.create_dataset_on_bucket(
                 cbas_bucket_name=dataset_record['cbas_bucket_name'],
                 cbas_dataset_name=dataset['ds_name'],
                 where_field=dataset['where_field'],
                 where_value=dataset['where_value'])
 
         # Connect to Bucket
-        self.connect_to_bucket(
+        self.cbas_util.connect_to_bucket(
             cbas_bucket_name=dataset_record['cbas_bucket_name'],
             cb_bucket_password=self.cb_bucket_password)
         
         num_items = self.get_item_count(self.master,dataset_record['cb_bucket_name'])
-        self.assertTrue(self.wait_for_ingestion_complete(["beers","breweries"], num_items),"Data ingestion couldn't complete in 300 secs")
+        self.assertTrue(self.cbas_util.wait_for_ingestion_complete(["beers","breweries"], num_items),"Data ingestion couldn't complete in 300 secs")
 
         # Execute Query
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas(
-            query_record['query'], self.master)
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(query_record['query'])
         self.log.info('Actual Status : ' + status)
         self.log.info('Expected Status : ' + query_record['expected_status'])
         self.log.info('Actual # Hits : ' + str(metrics['resultCount']))

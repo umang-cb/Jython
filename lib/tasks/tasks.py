@@ -1525,9 +1525,9 @@ class FailoverTask(Task):
         self.wait_for_pending = wait_for_pending
         self.use_hostnames = use_hostnames
 
-    def execute(self, task_manager):
+    def execute(self):
         try:
-            self._failover_nodes(task_manager)
+            self._failover_nodes(self.task_manager)
             log.info("{0} seconds sleep after failover, for nodes to go pending....".format(self.wait_for_pending))
             time.sleep(self.wait_for_pending)
             self.state = FINISHED

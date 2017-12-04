@@ -7,7 +7,6 @@ import crc32
 import time
 from memcached.helper.old_kvstore import ClientKeyValueStore
 from com.couchbase.client.java import CouchbaseCluster
-from com.couchbase.client.java.auth import ClassicAuthenticator, PasswordAuthenticator
 from com.couchbase.client.java.document import *
 from com.couchbase.client.java.document.json import *
 from com.couchbase.client.java.query import N1qlQueryResult, N1qlQuery
@@ -17,11 +16,13 @@ from mc_bin_client import MemcachedError
 from java.util.concurrent import TimeUnit
 from BucketLib.BucketOperations import BucketHelper
 from com.couchbase.client.java.error.subdoc import DocumentNotJsonException
+import Java_Connection
+import logger
 
 FMT_AUTO = "autoformat"
 
 import json
-
+log = logger.Logger.get_logger()
 
 class SDKClient(object):
     """Java SDK Client Implementation for testrunner - master branch Implementation"""
@@ -36,13 +37,13 @@ class SDKClient(object):
         self.quiet = quiet
         self.transcoder = transcoder
         self.default_timeout = 0
-        self._createConn()
         self.cluster = None
+        self._createConn()
         #couchbase.set_json_converters(json.dumps, json.loads)
 
     def _createConn(self):
         try:
-            self.cluster = CouchbaseCluster.create(self.hosts)
+            self.cluster = CouchbaseCluster.create(Java_Connection.env, self.hosts)
             self.cluster.authenticate("Administrator", self.password)
             self.cb = self.cluster.openBucket(self.bucket)
         except CouchbaseException:
@@ -54,12 +55,13 @@ class SDKClient(object):
         self._createConn()
 
     def close(self):
-#         self.log.info("Closing down the cluster.")
+        log.info("Closing down the cluster.")
         if self.cb:
             self.cb.close()
+            log.info("Closed down Bucket Conection.")
         if self.cluster:
             self.cluster.disconnect()
-
+            log.info("Closed down Cluster Connection.")
     def counter_in(self, key, path, delta, create_parents=True, cas=0, ttl=0, persist_to=0, replicate_to=0):
         try:
             return self.cb.counter_in(key, path, delta, create_parents= create_parents, cas= cas, ttl= ttl, persist_to= persist_to, replicate_to= replicate_to)
@@ -243,7 +245,7 @@ class SDKClient(object):
     def upsert(self, key, value, ttl=0, persist_to=0, replicate_to=0):
         doc = self.__translate_to_json_document(key, value)
         try:
-            return self.cb.upsert(doc)
+            return self.cb.upsert(doc, persist_to, replicate_to, ttl, TimeUnit.SECONDS)
         except CouchbaseException as e:
             try:
                 time.sleep(10)
@@ -256,8 +258,11 @@ class SDKClient(object):
         docs = []
         for key, value in keys.items():
             docs.append(self.__translate_to_json_document(key, value))
-        doc_op().bulkSet(self.cb, docs)
-        
+        try:
+            doc_op().bulkSet(self.cb, docs)
+        except:
+            self.close()
+            
     def upsert_multi(self, keys, ttl=0, persist_to=0, replicate_to=0):
         import bulk_doc_operations.doc_ops as doc_op
         docs = []

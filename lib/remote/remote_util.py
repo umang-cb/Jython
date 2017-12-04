@@ -50,6 +50,7 @@ from testconstants import LINUX_NONROOT_CB_BIN_PATH,\
                           NR_INSTALL_LOCATION_FILE
 
 from membase.api.rest_client import RestConnection, RestHelper
+from com.jcraft.jsch import JSchException
 
 log = logger.Logger.get_logger()
 logging.getLogger("paramiko").setLevel(logging.WARNING)
@@ -2894,31 +2895,32 @@ class RemoteMachineShellConnection:
             output, error = p.communicate()
             
         else:
-            jsch=JSch()
-            session=jsch.getSession(self.username, self.ip, 22);
-            session.setPassword(self.password);
-            session.setConfig("StrictHostKeyChecking", "no");
-            session.connect();
-            self._ssh_client=session.openChannel("exec");
-            self._ssh_client.setInputStream(None);
-            
-            instream=self._ssh_client.getInputStream();
-            errstream=self._ssh_client.getErrStream()
-            self._ssh_client.setCommand(command)
-            self._ssh_client.connect();
-            output=[]
-            error=[]
-            fu = FileUtil.wrap(instream)
-            for line in fu.readlines():
-                output.append(line)
+            try:
+                jsch=JSch()
+                session=jsch.getSession(self.username, self.ip, 22);
+                session.setPassword(self.password);
+                session.setConfig("StrictHostKeyChecking", "no");
+                session.connect();
+                self._ssh_client=session.openChannel("exec");
+                self._ssh_client.setInputStream(None);
                 
-            fu = FileUtil.wrap(errstream)
-            for line in fu.readlines():
-                error.append(line)
-#             stdin.close()
-#             ver, err = stdout.read(), stderro.read()
-            self._ssh_client.disconnect()
-            session.disconnect()
+                instream=self._ssh_client.getInputStream();
+                errstream=self._ssh_client.getErrStream()
+                self._ssh_client.setCommand(command)
+                self._ssh_client.connect();
+                output=[]
+                error=[]
+                fu = FileUtil.wrap(instream)
+                for line in fu.readlines():
+                    output.append(line)
+                    
+                fu = FileUtil.wrap(errstream)
+                for line in fu.readlines():
+                    error.append(line)
+                self._ssh_client.disconnect()
+                session.disconnect()
+            except JSchException as e:
+                log.info("%s: %s"%(self.ip,str(e)))    
         if debug:
             log.info('command executed successfully')
         return output, error
@@ -3024,9 +3026,12 @@ class RemoteMachineShellConnection:
             os_version = ""
             is_linux_distro = False
             
-            etc_issue = self.execute_command_raw_jsch("cat /etc/issue")[0][0]
-            
-            etc_issue = etc_issue.rstrip('\n').rstrip('\\l').rstrip('\\n')
+            etc_issue = self.execute_command_raw_jsch("cat /etc/issue")[0]
+            if etc_issue:
+                etc_issue = etc_issue[0]
+                etc_issue = etc_issue.rstrip('\n').rstrip('\\l').rstrip('\\n')
+            else:
+                etc_issue = ""
             if etc_issue.lower().find('ubuntu') != -1:
                 os_distro = 'Ubuntu'
                 os_version = etc_issue

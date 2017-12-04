@@ -7,7 +7,10 @@ Java based SDK client interface
 '''
 from com.couchbase.client.java import CouchbaseCluster
 from com.couchbase.client.core import CouchbaseException
+from java.util.logging import Logger, Level, ConsoleHandler
+from com.couchbase.client.java.env import DefaultCouchbaseEnvironment
 
+env = DefaultCouchbaseEnvironment.builder().mutationTokensEnabled(True).computationPoolSize(5).build();
 class SDKClient(object):
     """Java SDK Client Implementation for testrunner - master branch Implementation"""
 
@@ -17,10 +20,15 @@ class SDKClient(object):
         self.password = self.server.rest_password
         self.cluster = None
         self.clusterManager = None
-
+        
     def connectCluster(self):
         try:
-            self.cluster = CouchbaseCluster.create(self.server.ip)
+            logger = Logger.getLogger("com.couchbase.client");
+            logger.setLevel(Level.INFO);
+            for h in logger.getParent().getHandlers():
+                if isinstance(h, ConsoleHandler) :
+                    h.setLevel(Level.INFO);
+            self.cluster = CouchbaseCluster.create(env, self.server.ip)
             self.cluster.authenticate(self.username, self.password)
             self.clusterManager = self.cluster.clusterManager()
         except CouchbaseException:

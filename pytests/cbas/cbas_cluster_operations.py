@@ -14,7 +14,7 @@ class CBASClusterOperations(CBASBaseTest):
         super(CBASClusterOperations, self).setUp()
         
         self.create_default_bucket()
-
+#         self.cbas_util.createConn("default")
         if 'nodeType' in self.input.test_params:
             self.nodeType = self.input.test_params['nodeType']
         
@@ -27,31 +27,28 @@ class CBASClusterOperations(CBASBaseTest):
         self.assertTrue(len(self.rebalanceServers)>1, "Not enough %s servers to run tests."%self.rebalanceServers)
         self.log.info("This test will be running in %s context."%self.nodeType)
         
-    def tearDown(self):
-        super(CBASClusterOperations, self).tearDown()
-
     def setup_for_test(self, skip_data_loading=False):
         if not skip_data_loading:
             # Load Couchbase bucket first.
             self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0,
                                                    self.num_items)
-
+        self.cbas_util.createConn(self.cb_bucket_name)
         # Create bucket on CBAS
-        self.assertTrue(self.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
+        self.assertTrue(self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
                                    cb_bucket_name=self.cb_bucket_name,
                                    cb_server_ip=self.cb_server_ip),"bucket creation failed on cbas")
 
         # Create dataset on the CBAS bucket
-        self.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                       cbas_dataset_name=self.cbas_dataset_name)
 
         # Connect to Bucket
-        self.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                cb_bucket_password=self.cb_bucket_password)
 
         if not skip_data_loading:
             # Validate no. of items in CBAS dataset
-            if not self.validate_cbas_dataset_items_count(
+            if not self.cbas_util.validate_cbas_dataset_items_count(
                     self.cbas_dataset_name,
                     self.num_items):
                 self.fail(
@@ -81,11 +78,11 @@ class CBASClusterOperations(CBASBaseTest):
                                                self.num_items * 2)
         
         self.log.info("Rebalance state:%s"%self.rest._rebalance_progress_status())
-        self._run_concurrent_queries(query,"immediate",2000)
+        self.cbas_util._run_concurrent_queries(query,None,2000,batch_size=self.concurrent_batch_size)
         
         self.log.info("Rebalance state:%s"%self.rest._rebalance_progress_status())
         
-        if not self.validate_cbas_dataset_items_count(self.cbas_dataset_name,
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,
                                                       self.num_items * 2,
                                                       0):
             self.fail(
@@ -120,9 +117,9 @@ class CBASClusterOperations(CBASBaseTest):
                                                self.num_items,
                                                self.num_items * 2)
 
-        self._run_concurrent_queries(query,"immediate",2000)
+        self.cbas_util._run_concurrent_queries(query,"immediate",2000,batch_size=self.concurrent_batch_size)
 
-        if not self.validate_cbas_dataset_items_count(self.cbas_dataset_name,
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,
                                                       self.num_items * 2, 0):
             self.fail(
                 "No. of items in CBAS dataset do not match that in the CB bucket")
@@ -158,9 +155,9 @@ class CBASClusterOperations(CBASBaseTest):
                                                self.num_items,
                                                self.num_items * 2)
 
-        self._run_concurrent_queries(query,"immediate",2000)
+        self.cbas_util._run_concurrent_queries(query,"immediate",2000,batch_size=self.concurrent_batch_size)
 
-        if not self.validate_cbas_dataset_items_count(self.cbas_dataset_name,
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,
                                                       self.num_items * 2, 0):
             self.fail(
                 "No. of items in CBAS dataset do not match that in the CB bucket")
@@ -191,16 +188,16 @@ class CBASClusterOperations(CBASBaseTest):
         failover_task = self._cb_cluster.async_failover(self.input.servers,
                                                         [self.rebalanceServers[1]],
                                                         graceful_failover)
-        failover_task.result()
+        failover_task.get_result()
         
         self.rebalance()
         self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create",
                                                self.num_items,
                                                self.num_items * 3 / 2)
 
-        self._run_concurrent_queries(query,"immediate",2000)
+        self.cbas_util._run_concurrent_queries(query,"immediate",2000,batch_size=self.concurrent_batch_size)
 
-        if not self.validate_cbas_dataset_items_count(self.cbas_dataset_name,
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,
                                                       self.num_items * 3 / 2,
                                                       0):
             self.fail(

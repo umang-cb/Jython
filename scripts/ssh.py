@@ -8,6 +8,10 @@ import uuid
 sys.path = [".", "lib"] + sys.path
 from remote.remote_util import RemoteMachineShellConnection
 import TestInput
+import logging.config
+
+logging.config.fileConfig("scripts.logging.conf")
+log = logging.getLogger()
 
 def usage(error=None):
     print """\
@@ -124,3 +128,14 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+def create_log_file(log_config_file_name, log_file_name, level):
+    tmpl_log_file = open("jython.logging.conf")
+    log_file = open(log_config_file_name, "w")
+    log_file.truncate()
+    for line in tmpl_log_file:
+        newline = line.replace("@@LEVEL@@", level)
+        newline = newline.replace("@@FILENAME@@", log_file_name.replace('\\', '/'))
+        log_file.write(newline)
+    log_file.close()
+    tmpl_log_file.close()

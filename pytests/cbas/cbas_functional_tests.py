@@ -29,10 +29,11 @@ class CBASFunctionalTests(CBASBaseTest):
                                               total_items=self.travel_sample_docs_count)
 
         self.assertTrue(result, msg="wait_for_memcached failed while loading sample bucket: travel-sample")
+        self.cbas_util.createConn("travel-sample")
         
     def test_create_bucket_on_cbas(self):
         # Create bucket on CBAS
-        result = self.create_bucket_on_cbas(
+        result = self.cbas_util.create_bucket_on_cbas(
             cbas_bucket_name=self.cbas_bucket_name,
             cb_bucket_name=self.cb_bucket_name,
             cb_server_ip=self.cb_server_ip,
@@ -47,13 +48,13 @@ class CBASFunctionalTests(CBASBaseTest):
         
     def test_create_another_bucket_on_cbas(self):
         # Create first bucket on CBAS
-        result = self.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
+        result = self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
                                    cb_bucket_name=self.cb_bucket_name,
                                    cb_server_ip=self.cb_server_ip)
         self.assertTrue(result, "Not able to create first bucket on cbas. Bucket: %s"%self.cbas_bucket_name)
         
         # Create another bucket on CBAS
-        result = self.create_bucket_on_cbas(
+        result = self.cbas_util.create_bucket_on_cbas(
             cbas_bucket_name=self.cbas_bucket_name,
             cb_bucket_name=self.cb_bucket_name,
             cb_server_ip=self.cb_server_ip,
@@ -68,12 +69,12 @@ class CBASFunctionalTests(CBASBaseTest):
 
     def test_create_dataset_on_bucket(self):
         # Create bucket on CBAS
-        self.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
                                    cb_bucket_name=self.cb_bucket_name,
                                    cb_server_ip=self.cb_server_ip)
 
         # Create dataset on the CBAS bucket
-        result = self.create_dataset_on_bucket(
+        result = self.cbas_util.create_dataset_on_bucket(
             cbas_bucket_name=self.cbas_bucket_name_invalid,
             cbas_dataset_name=self.cbas_dataset_name,
             validate_error_msg=self.validate_error)
@@ -84,16 +85,16 @@ class CBASFunctionalTests(CBASBaseTest):
 
     def test_create_another_dataset_on_bucket(self):
         # Create bucket on CBAS
-        self.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
                                    cb_bucket_name=self.cb_bucket_name,
                                    cb_server_ip=self.cb_server_ip)
 
         # Create first dataset on the CBAS bucket
-        self.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                       cbas_dataset_name=self.cbas_dataset_name)
 
         # Create another dataset on the CBAS bucket
-        result = self.create_dataset_on_bucket(
+        result = self.cbas_util.create_dataset_on_bucket(
             cbas_bucket_name=self.cbas_bucket_name,
             cbas_dataset_name=self.cbas_dataset2_name,
             validate_error_msg=self.validate_error)
@@ -107,18 +108,18 @@ class CBASFunctionalTests(CBASBaseTest):
         if self.cb_bucket_password:
             self.cb_server_ip=self.master.ip
             
-        self.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
                                    cb_bucket_name=self.cb_bucket_name,
                                    cb_server_ip=self.cb_server_ip)
 
         # Create dataset on the CBAS bucket
         if not self.skip_create_dataset:
-            self.create_dataset_on_bucket(
+            self.cbas_util.create_dataset_on_bucket(
                 cbas_bucket_name=self.cbas_bucket_name,
                 cbas_dataset_name=self.cbas_dataset_name)
 
         # Connect to Bucket
-        result = self.connect_to_bucket(cbas_bucket_name=
+        result = self.cbas_util.connect_to_bucket(cbas_bucket_name=
                                         self.cbas_bucket_name_invalid,
                                         cb_bucket_password=self.cb_bucket_password,
                                         validate_error_msg=self.validate_error)
@@ -129,21 +130,21 @@ class CBASFunctionalTests(CBASBaseTest):
 
     def test_connect_bucket_on_a_connected_bucket(self):
         # Create bucket on CBAS
-        self.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
                                    cb_bucket_name=self.cb_bucket_name,
                                    cb_server_ip=self.cb_server_ip)
 
         # Create dataset on the CBAS bucket
-        self.create_dataset_on_bucket(
+        self.cbas_util.create_dataset_on_bucket(
             cbas_bucket_name=self.cbas_bucket_name,
             cbas_dataset_name=self.cbas_dataset_name)
 
         # Connect to Bucket
-        self.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                cb_bucket_password=self.cb_bucket_password)
 
         # Create another connection to bucket
-        result = self.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        result = self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                         cb_bucket_password=self.cb_bucket_password,
                                         validate_error_msg=self.validate_error)
         if not result:
@@ -151,20 +152,20 @@ class CBASFunctionalTests(CBASBaseTest):
 
     def test_disconnect_bucket(self):
         # Create bucket on CBAS
-        self.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
                                    cb_bucket_name=self.cb_bucket_name,
                                    cb_server_ip=self.cb_server_ip)
 
         # Create dataset on the CBAS bucket
-        self.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                       cbas_dataset_name=self.cbas_dataset_name)
 
         # Connect to Bucket
-        self.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                cb_bucket_password=self.cb_bucket_password)
 
         # Disconnect from bucket
-        result = self.disconnect_from_bucket(cbas_bucket_name=
+        result = self.cbas_util.disconnect_from_bucket(cbas_bucket_name=
                                              self.cbas_bucket_name_invalid,
                                              disconnect_if_connected=
                                              self.disconnect_if_connected,
@@ -174,25 +175,25 @@ class CBASFunctionalTests(CBASBaseTest):
 
     def test_disconnect_bucket_already_disconnected(self):
         # Create bucket on CBAS
-        self.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
                                    cb_bucket_name=self.cb_bucket_name,
                                    cb_server_ip=self.cb_server_ip)
 
         # Create dataset on the CBAS bucket
-        self.create_dataset_on_bucket(
+        self.cbas_util.create_dataset_on_bucket(
             cbas_bucket_name=self.cbas_bucket_name,
             cbas_dataset_name=self.cbas_dataset_name)
 
         # Connect to Bucket
-        self.connect_to_bucket(
+        self.cbas_util.connect_to_bucket(
             cbas_bucket_name=self.cbas_bucket_name,
             cb_bucket_password=self.cb_bucket_password)
 
         # Disconnect from Bucket
-        self.disconnect_from_bucket(cbas_bucket_name=self.cbas_bucket_name)
+        self.cbas_util.disconnect_from_bucket(cbas_bucket_name=self.cbas_bucket_name)
 
         # Disconnect again from the same bucket
-        result = self.disconnect_from_bucket(cbas_bucket_name=
+        result = self.cbas_util.disconnect_from_bucket(cbas_bucket_name=
                                              self.cbas_bucket_name,
                                              disconnect_if_connected=
                                              self.disconnect_if_connected,
@@ -202,24 +203,24 @@ class CBASFunctionalTests(CBASBaseTest):
 
     def test_drop_dataset_on_bucket(self):
         # Create bucket on CBAS
-        self.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
                                    cb_bucket_name=self.cb_bucket_name,
                                    cb_server_ip=self.cb_server_ip)
 
         # Create dataset on the CBAS bucket
-        self.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                       cbas_dataset_name=self.cbas_dataset_name)
 
         # Connect to Bucket
-        self.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                cb_bucket_password=self.cb_bucket_password)
 
         # Drop Connection
         if not self.skip_drop_connection:
-            self.disconnect_from_bucket(self.cbas_bucket_name)
+            self.cbas_util.disconnect_from_bucket(self.cbas_bucket_name)
 
         # Drop dataset
-        result = self.drop_dataset(
+        result = self.cbas_util.drop_dataset(
             cbas_dataset_name=self.cbas_dataset_name_invalid,
             validate_error_msg=self.validate_error)
         if not result:
@@ -227,26 +228,26 @@ class CBASFunctionalTests(CBASBaseTest):
 
     def test_drop_cbas_bucket(self):
         # Create bucket on CBAS
-        self.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
                                    cb_bucket_name=self.cb_bucket_name,
                                    cb_server_ip=self.cb_server_ip)
 
         # Create dataset on the CBAS bucket
-        self.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                       cbas_dataset_name=self.cbas_dataset_name)
 
         # Connect to Bucket
-        self.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                cb_bucket_password=self.cb_bucket_password)
 
         # Drop connection and dataset
         if not self.skip_drop_connection:
-            self.disconnect_from_bucket(self.cbas_bucket_name)
+            self.cbas_util.disconnect_from_bucket(self.cbas_bucket_name)
 
         if not self.skip_drop_dataset:
-            self.drop_dataset(self.cbas_dataset_name)
+            self.cbas_util.drop_dataset(self.cbas_dataset_name)
 
-        result = self.drop_cbas_bucket(
+        result = self.cbas_util.drop_cbas_bucket(
             cbas_bucket_name=self.cbas_bucket_name_invalid,
             validate_error_msg=self.validate_error)
         if not result:
@@ -258,12 +259,12 @@ class CBASFunctionalTests(CBASBaseTest):
         self.log.info("predicates = %s", predicates)
 
         # Create bucket on CBAS
-        self.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
                                    cb_bucket_name=self.cb_bucket_name,
                                    cb_server_ip=self.cb_server_ip)
 
         # Create dataset on the CBAS bucket
-        self.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                       cbas_dataset_name=self.cbas_dataset_name)
 
         # Create a dataset on the CBAS bucket with filters
@@ -274,7 +275,7 @@ class CBASFunctionalTests(CBASBaseTest):
         else:
             statement_create_dataset += ";"
 
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             statement_create_dataset, self.master)
         
         self.log.info("Executing Statement on CBAS: %s", statement_create_dataset)
@@ -285,7 +286,7 @@ class CBASFunctionalTests(CBASBaseTest):
             self.fail("Error while creating Dataset with OR predicates")
 
         # Connect to Bucket
-        self.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                cb_bucket_password=self.cb_bucket_password)
 
         # Allow ingestion to complete
@@ -303,13 +304,13 @@ class CBASFunctionalTests(CBASBaseTest):
             ds_name)
 
         # Run query on full dataset with filters applied in the query
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             stmt_count_records_on_full_ds)
         count_full_ds = results[0]["$1"]
         self.log.info("**Count of records in full dataset = %s", count_full_ds)
 
         # Run query on the filtered dataset to retrieve all records
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             stmt_count_records_on_filtered_ds)
         count_filtered_ds = results[0]["$1"]
         self.log.info("**Count of records in filtered dataset ds1 = %s",

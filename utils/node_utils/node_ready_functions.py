@@ -4,39 +4,330 @@ Created on Sep 26, 2017
 @author: riteshagarwal
 '''
 import logger
-import unittest
-import copy
-import datetime
 import time
-import string
-import random
-import logging
-import json
 import commands
-import mc_bin_client
-import traceback
-from memcached.helper.data_helper import VBucketAwareMemcached
-from couchbase_helper.documentgenerator import BlobGenerator
-from couchbase_helper.cluster import Cluster
-from couchbase_helper.document import View
-from couchbase_helper.documentgenerator import DocumentGenerator
-from couchbase_helper.stats_tools import StatsCommon
-from TestInput import TestInputSingleton
-from membase.api.rest_client import RestConnection, Bucket, RestHelper
-from membase.helper.cluster_helper import ClusterOperationHelper
-from membase.helper.rebalance_helper import RebalanceHelper
 from memcached.helper.data_helper import MemcachedClientHelper
-from remote.remote_util import RemoteMachineShellConnection, RemoteUtilHelper
-from membase.api.exception import ServerUnavailableException
-from couchbase_helper.data_analysis_helper import *
-from testconstants import STANDARD_BUCKET_PORT
-from testconstants import MIN_COMPACTION_THRESHOLD
-from testconstants import MAX_COMPACTION_THRESHOLD
+from TestInput import TestInputSingleton
 from membase.helper.cluster_helper import ClusterOperationHelper
-from security.rbac_base import RbacBase
-from couchbase_cli import CouchbaseCLI
-import testconstants
+from remote.remote_util import RemoteUtilHelper, RemoteMachineShellConnection
+from membase.api.rest_client import RestConnection
+from membase.api.exception import ServerUnavailableException
 from scripts.collect_server_info import cbcollectRunner
+
+class OS:
+    WINDOWS = "windows"
+    LINUX = "linux"
+    OSX = "osx"
+
+class COMMAND:
+    SHUTDOWN = "shutdown"
+    REBOOT = "reboot"
+
+def raise_if(cond, ex):
+    """Raise Exception if condition is True
+    """
+    if cond:
+        raise ex
+    
+class NodeHelper:
+    _log = logger.Logger.get_logger()
+
+    @staticmethod
+    def disable_firewall(server):
+        """Disable firewall to put restriction to replicate items in XDCR.
+        @param server: server object to disable firewall
+        @param rep_direction: replication direction unidirection/bidirection
+        """
+        shell = RemoteMachineShellConnection(server)
+        shell.info = shell.extract_remote_info()
+
+        if shell.info.type.lower() == "windows":
+            output, error = shell.execute_command('netsh advfirewall set publicprofile state off')
+            shell.log_command_output(output, error)
+            output, error = shell.execute_command('netsh advfirewall set privateprofile state off')
+            shell.log_command_output(output, error)
+            # for details see RemoteUtilHelper.enable_firewall for windows
+            output, error = shell.execute_command('netsh advfirewall firewall delete rule name="block erl.exe in"')
+            shell.log_command_output(output, error)
+            output, error = shell.execute_command('netsh advfirewall firewall delete rule name="block erl.exe out"')
+            shell.log_command_output(output, error)
+        else:
+            o, r = shell.execute_command("iptables -F")
+            shell.log_command_output(o, r)
+            o, r = shell.execute_command(
+                "/sbin/iptables -A INPUT -p tcp -i eth0 --dport 1000:65535 -j ACCEPT")
+            shell.log_command_output(o, r)
+            o, r = shell.execute_command(
+                "/sbin/iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT")
+            shell.log_command_output(o, r)
+            # self.log.info("enabled firewall on {0}".format(server))
+            o, r = shell.execute_command("/sbin/iptables --list")
+            shell.log_command_output(o, r)
+        shell.disconnect()
+
+    @staticmethod
+    def reboot_server(server, test_case, wait_timeout=120):
+        """Reboot a server and wait for couchbase server to run.
+        @param server: server object, which needs to be rebooted.
+        @param test_case: test case object, since it has assert() function
+                        which is used by wait_for_ns_servers_or_assert
+                        to throw assertion.
+        @param wait_timeout: timeout to whole reboot operation.
+        """
+        # self.log.info("Rebooting server '{0}'....".format(server.ip))
+        shell = RemoteMachineShellConnection(server)
+        if shell.extract_remote_info().type.lower() == OS.WINDOWS:
+            o, r = shell.execute_command(
+                "{0} -r -f -t 0".format(COMMAND.SHUTDOWN))
+        elif shell.extract_remote_info().type.lower() == OS.LINUX:
+            o, r = shell.execute_command(COMMAND.REBOOT)
+        shell.log_command_output(o, r)
+        # wait for restart and warmup on all server
+        if shell.extract_remote_info().type.lower() == OS.WINDOWS:
+            time.sleep(wait_timeout * 5)
+        else:
+            time.sleep(wait_timeout/6)
+        while True:
+            try:
+                # disable firewall on these nodes
+                NodeHelper.disable_firewall(server)
+                break
+            except BaseException:
+                print "Node not reachable yet, will try after 10 secs"
+                time.sleep(10)
+        # wait till server is ready after warmup
+        ClusterOperationHelper.wait_for_ns_servers_or_assert(
+            [server],
+            test_case,
+            wait_if_warmup=True)
+
+    @staticmethod
+    def enable_firewall(server):
+        """Enable firewall
+        @param server: server object to enable firewall
+        @param rep_direction: replication direction unidirection/bidirection
+        """
+        RemoteUtilHelper.enable_firewall(
+            server)
+
+    @staticmethod
+    def do_a_warm_up(server):
+        """Warmp up server
+        """
+        shell = RemoteMachineShellConnection(server)
+        shell.stop_couchbase()
+        time.sleep(5)
+        shell.start_couchbase()
+        shell.disconnect()
+
+    @staticmethod
+    def start_couchbase(server):
+        """Warmp up server
+        """
+        shell = RemoteMachineShellConnection(server)
+        shell.start_couchbase()
+        shell.disconnect()
+
+    @staticmethod
+    def stop_couchbase(server):
+        """Warmp up server
+        """
+        shell = RemoteMachineShellConnection(server)
+        shell.stop_couchbase()
+        shell.disconnect()
+
+    @staticmethod
+    def set_cbft_env_fdb_options(server):
+        shell = RemoteMachineShellConnection(server)
+        shell.stop_couchbase()
+        cmd = "sed -i 's/^export CBFT_ENV_OPTIONS.*$/" \
+              "export CBFT_ENV_OPTIONS=bleveMaxResultWindow=10000000," \
+              "forestdbCompactorSleepDuration={0},forestdbCompactionThreshold={1}/g'\
+              /opt/couchbase/bin/couchbase-server".format(
+            int(TestInputSingleton.input.param("fdb_compact_interval", None)),
+            int(TestInputSingleton.input.param("fdb_compact_threshold", None)))
+        shell.execute_command(cmd)
+        shell.start_couchbase()
+        shell.disconnect()
+
+    @staticmethod
+    def wait_service_started(server, wait_time=120):
+        """Function will wait for Couchbase service to be in
+        running phase.
+        """
+        shell = RemoteMachineShellConnection(server)
+        os_type = shell.extract_remote_info().distribution_type
+        if os_type.lower() == 'windows':
+            cmd = "sc query CouchbaseServer | grep STATE"
+        else:
+            cmd = "service couchbase-server status"
+        now = time.time()
+        while time.time() - now < wait_time:
+            output, _ = shell.execute_command(cmd)
+            if str(output).lower().find("running") != -1:
+                # self.log.info("Couchbase service is running")
+                return
+            time.sleep(10)
+        raise Exception(
+            "Couchbase service is not running after {0} seconds".format(
+                wait_time))
+
+    @staticmethod
+    def wait_warmup_completed(warmupnodes, bucket_names=["default"]):
+        if isinstance(bucket_names, str):
+            bucket_names = [bucket_names]
+        start = time.time()
+        for server in warmupnodes:
+            for bucket in bucket_names:
+                while time.time() - start < 150:
+                    try:
+                        mc = MemcachedClientHelper.direct_client(server, bucket)
+                        if mc.stats()["ep_warmup_thread"] == "complete":
+                            NodeHelper._log.info(
+                                "Warmed up: %s items on %s on %s" %
+                                (mc.stats("warmup")["ep_warmup_key_count"], bucket, server))
+                            time.sleep(10)
+                            break
+                        elif mc.stats()["ep_warmup_thread"] == "running":
+                            NodeHelper._log.info(
+                                "Still warming up .. ep_warmup_key_count : %s" % (
+                                    mc.stats("warmup")["ep_warmup_key_count"]))
+                            continue
+                        else:
+                            NodeHelper._log.info(
+                                "Value of ep_warmup_thread does not exist, exiting from this server")
+                            break
+                    except Exception as e:
+                        NodeHelper._log.info(e)
+                        time.sleep(10)
+                if mc.stats()["ep_warmup_thread"] == "running":
+                    NodeHelper._log.info(
+                        "ERROR: ep_warmup_thread's status not complete")
+                mc.close()
+
+    @staticmethod
+    def wait_node_restarted(
+            server, test_case, wait_time=120, wait_if_warmup=False,
+            check_service=False):
+        """Wait server to be re-started
+        """
+        now = time.time()
+        if check_service:
+            NodeHelper.wait_service_started(server, wait_time)
+            wait_time = now + wait_time - time.time()
+        num = 0
+        while num < wait_time / 10:
+            try:
+                ClusterOperationHelper.wait_for_ns_servers_or_assert(
+                    [server], test_case, wait_time=wait_time - num * 10,
+                    wait_if_warmup=wait_if_warmup)
+                break
+            except ServerUnavailableException:
+                num += 1
+                time.sleep(10)
+
+    @staticmethod
+    def kill_erlang(server):
+        """Kill erlang process running on server.
+        """
+        NodeHelper._log.info("Killing erlang on server: {0}".format(server))
+        shell = RemoteMachineShellConnection(server)
+        os_info = shell.extract_remote_info()
+        shell.kill_erlang(os_info)
+        shell.start_couchbase()
+        shell.disconnect()
+        NodeHelper.wait_warmup_completed([server])
+
+    @staticmethod
+    def kill_memcached(server):
+        """Kill memcached process running on server.
+        """
+        shell = RemoteMachineShellConnection(server)
+        shell.kill_memcached()
+        shell.disconnect()
+
+    @staticmethod
+    def kill_cbft_process(server):
+        NodeHelper._log.info("Killing cbft on server: {0}".format(server))
+        shell = RemoteMachineShellConnection(server)
+        shell.kill_cbft_process()
+        shell.disconnect()
+
+    @staticmethod
+    def get_log_dir(node):
+        """Gets couchbase log directory, even for cluster_run
+        """
+        _, dir = RestConnection(node).diag_eval(
+            'filename:absname(element(2, application:get_env(ns_server,error_logger_mf_dir))).')
+        return str(dir)
+
+    @staticmethod
+    def get_data_dir(node):
+        """Gets couchbase data directory, even for cluster_run
+        """
+        _, dir = RestConnection(node).diag_eval(
+            'filename:absname(element(2, application:get_env(ns_server,path_config_datadir))).')
+
+        return str(dir).replace('\"','')
+
+    @staticmethod
+    def rename_nodes(servers):
+        """Rename server name from ip to their hostname
+        @param servers: list of server objects.
+        @return: dictionary whose key is server and value is hostname
+        """
+        hostnames = {}
+        for server in servers:
+            shell = RemoteMachineShellConnection(server)
+            try:
+                hostname = shell.get_full_hostname()
+                rest = RestConnection(server)
+                renamed, content = rest.rename_node(
+                    hostname, username=server.rest_username,
+                    password=server.rest_password)
+                raise_if(
+                    not renamed,
+                    Exception(
+                        "Server %s is not renamed! Hostname %s. Error %s" % (
+                            server, hostname, content)
+                    )
+                )
+                hostnames[server] = hostname
+                server.hostname = hostname
+            finally:
+                shell.disconnect()
+        return hostnames
+
+    # Returns version like "x.x.x" after removing build number
+    @staticmethod
+    def get_cb_version(node):
+        rest = RestConnection(node)
+        version = rest.get_nodes_self().version
+        return version[:version.rfind('-')]
+
+    @staticmethod
+    def get_cbcollect_info(server):
+        """Collect cbcollectinfo logs for all the servers in the cluster.
+        """
+        path = TestInputSingleton.input.param("logs_folder", "/tmp")
+        print "grabbing cbcollect from {0}".format(server.ip)
+        path = path or "."
+        try:
+            cbcollectRunner(server, path).run()
+            TestInputSingleton.input.test_params[
+                "get-cbcollect-info"] = False
+        except Exception as e:
+            NodeHelper._log.error(
+                "IMPOSSIBLE TO GRAB CBCOLLECT FROM {0}: {1}".format(
+                    server.ip,
+                    e))
+
+    @staticmethod
+    def collect_logs(server):
+        """Grab cbcollect before we cleanup
+        """
+        NodeHelper.get_cbcollect_info(server)
+
 
 class node_utils():
     def kill_server_memcached(self, node):
