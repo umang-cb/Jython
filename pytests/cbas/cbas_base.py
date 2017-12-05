@@ -114,7 +114,7 @@ class CBASBaseTest(BaseTestCase):
                 cmd_get_buckets)
             if (results != None) & (len(results) > 0):
                 for row in results:
-                    self.disconnect_from_bucket(row['Name'],
+                    self.cbas_util.disconnect_from_bucket(row['Name'],
                                                 disconnect_if_connected=True)
                     self.log.info(
                         "********* Disconnected all buckets *********")
@@ -127,7 +127,7 @@ class CBASBaseTest(BaseTestCase):
                 cmd_get_datasets)
             if (results != None) & (len(results) > 0):
                 for row in results:
-                    self.drop_dataset(row['DatasetName'])
+                    self.cbas_util.drop_dataset(row['DatasetName'])
                     self.log.info("********* Dropped all datasets *********")
             else:
                 self.log.info("********* No datasets to drop *********")
@@ -137,7 +137,7 @@ class CBASBaseTest(BaseTestCase):
                 cmd_get_buckets)
             if (results != None) & (len(results) > 0):
                 for row in results:
-                    self.drop_cbas_bucket(row['Name'])
+                    self.cbas_util.drop_cbas_bucket(row['Name'])
                     self.log.info("********* Dropped all buckets *********")
             else:
                 self.log.info("********* No buckets to drop *********")

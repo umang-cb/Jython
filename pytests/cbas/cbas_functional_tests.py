@@ -19,7 +19,7 @@ class CBASFunctionalTests(CBASBaseTest):
         NOTE: Cases pending where there are nodes which are running only cbas. For that service check on nodes is needed.
         '''
         if "add_all_cbas_nodes" in self.input.test_params and self.input.test_params["add_all_cbas_nodes"] and len(self.cbas_servers) >= 1:
-            self.add_all_cbas_node_then_rebalance()
+            self.add_all_nodes_then_rebalance(self.cbas_servers)
             result = self.load_sample_buckets(servers=list(set(self.cbas_servers + [self.master, self.cbas_node])),
                                               bucketName="travel-sample",
                                               total_items=self.travel_sample_docs_count)
@@ -37,7 +37,8 @@ class CBASFunctionalTests(CBASBaseTest):
             cbas_bucket_name=self.cbas_bucket_name,
             cb_bucket_name=self.cb_bucket_name,
             cb_server_ip=self.cb_server_ip,
-            validate_error_msg=self.validate_error)
+            validate_error_msg=self.validate_error,
+            expected_error=self.expected_error)
         
         if self.otpNodes:
             self.cleanup_cbas()
@@ -58,7 +59,8 @@ class CBASFunctionalTests(CBASBaseTest):
             cbas_bucket_name=self.cbas_bucket_name,
             cb_bucket_name=self.cb_bucket_name,
             cb_server_ip=self.cb_server_ip,
-            validate_error_msg=self.validate_error)
+            validate_error_msg=self.validate_error,
+            expected_error=self.expected_error)
         self.assertTrue(result, "Test for second bucket with same name on cbas failed.")
         
 #         if self.otpNodes:
@@ -77,7 +79,8 @@ class CBASFunctionalTests(CBASBaseTest):
         result = self.cbas_util.create_dataset_on_bucket(
             cbas_bucket_name=self.cbas_bucket_name_invalid,
             cbas_dataset_name=self.cbas_dataset_name,
-            validate_error_msg=self.validate_error)
+            validate_error_msg=self.validate_error,
+            expected_error=self.expected_error)
 #         if self.otpNodes:
 #             self.remove_node(otpnode=self.otpNodes)
         if not result:
@@ -97,7 +100,8 @@ class CBASFunctionalTests(CBASBaseTest):
         result = self.cbas_util.create_dataset_on_bucket(
             cbas_bucket_name=self.cbas_bucket_name,
             cbas_dataset_name=self.cbas_dataset2_name,
-            validate_error_msg=self.validate_error)
+            validate_error_msg=self.validate_error,
+            expected_error=self.expected_error)
 #         if self.otpNodes:
 #             self.remove_node(otpnode=self.otpNodes)
         if not result:
@@ -122,7 +126,8 @@ class CBASFunctionalTests(CBASBaseTest):
         result = self.cbas_util.connect_to_bucket(cbas_bucket_name=
                                         self.cbas_bucket_name_invalid,
                                         cb_bucket_password=self.cb_bucket_password,
-                                        validate_error_msg=self.validate_error)
+                                        validate_error_msg=self.validate_error,
+                                        expected_error=self.expected_error)
         if self.otpNodes:
             self.remove_node(otpnode=self.otpNodes)
         if not result:
@@ -146,7 +151,8 @@ class CBASFunctionalTests(CBASBaseTest):
         # Create another connection to bucket
         result = self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                         cb_bucket_password=self.cb_bucket_password,
-                                        validate_error_msg=self.validate_error)
+                                        validate_error_msg=self.validate_error,
+                                        expected_error=self.expected_error)
         if not result:
             self.fail("FAIL : Actual error msg does not match the expected")
 
@@ -169,7 +175,8 @@ class CBASFunctionalTests(CBASBaseTest):
                                              self.cbas_bucket_name_invalid,
                                              disconnect_if_connected=
                                              self.disconnect_if_connected,
-                                             validate_error_msg=self.validate_error)
+                                             validate_error_msg=self.validate_error,
+                                             expected_error=self.expected_error)
         if not result:
             self.fail("FAIL : Actual error msg does not match the expected")
 
@@ -197,7 +204,8 @@ class CBASFunctionalTests(CBASBaseTest):
                                              self.cbas_bucket_name,
                                              disconnect_if_connected=
                                              self.disconnect_if_connected,
-                                             validate_error_msg=self.validate_error)
+                                             validate_error_msg=self.validate_error,
+                                             expected_error=self.expected_error)
         if not result:
             self.fail("FAIL : Actual error msg does not match the expected")
 
@@ -222,7 +230,8 @@ class CBASFunctionalTests(CBASBaseTest):
         # Drop dataset
         result = self.cbas_util.drop_dataset(
             cbas_dataset_name=self.cbas_dataset_name_invalid,
-            validate_error_msg=self.validate_error)
+            validate_error_msg=self.validate_error,
+            expected_error=self.expected_error)
         if not result:
             self.fail("FAIL : Actual error msg does not match the expected")
 
@@ -249,7 +258,8 @@ class CBASFunctionalTests(CBASBaseTest):
 
         result = self.cbas_util.drop_cbas_bucket(
             cbas_bucket_name=self.cbas_bucket_name_invalid,
-            validate_error_msg=self.validate_error)
+            validate_error_msg=self.validate_error,
+            expected_error=self.expected_error)
         if not result:
             self.fail("FAIL : Actual error msg does not match the expected")
 

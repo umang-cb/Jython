@@ -7,6 +7,7 @@ Created on Sep 25, 2017
 from CbasLib.CBASOperations_Rest import CBASHelper as CBAS_helper_rest
 from Java_Connection import SDKClient
 import logger
+import json
 from com.couchbase.client.java.analytics import AnalyticsQuery, AnalyticsParams
 from java.lang import System, RuntimeException
 from java.util.concurrent import TimeoutException, RejectedExecutionException
@@ -63,7 +64,7 @@ class CBASHelper(CBAS_helper_rest, SDKClient):
             output["status"] = result.status()
             output["metrics"] = result.info().asJsonObject()
             output["results"] = str(result.allRows())
-            output["errors"] = result.errors()
+            output["errors"] = json.loads(str(result.errors()))
             
             if str(output['status']) == "fatal":
                 msg = output['errors'][0]['msg']

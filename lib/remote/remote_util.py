@@ -2993,6 +2993,7 @@ class RemoteMachineShellConnection:
         if self._ssh_client:
             self._ssh_client.disconnect()
 
+
     def extract_remote_info(self):
         # initialize params
         os_distro = "linux"

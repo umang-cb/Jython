@@ -108,7 +108,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
         # Create another index with same name
         status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             create_idx_statement)
-        self.assertTrue(self.validate_error_in_response(status, errors),
+        self.assertTrue(self.validate_error_in_response(status, errors, self.expected_error),
                         "Error msg not matching expected error msg")
 
     def test_create_index_with_if_not_exists(self):
@@ -299,7 +299,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
         status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             create_idx_statement)
 
-        self.assertTrue(self.validate_error_in_response(status, errors))
+        self.assertTrue(self.validate_error_in_response(status, errors, self.expected_error))
 
     def test_drop_index(self):
         '''
@@ -358,7 +358,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
         status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             drop_idx_statement)
 
-        self.assertTrue(self.validate_error_in_response(status, errors))
+        self.assertTrue(self.validate_error_in_response(status, errors, self.expected_error))
 
         # Drop non-existing index with IF EXISTS
         drop_idx_statement = "drop index {0}.{1} IF EXISTS;".format(

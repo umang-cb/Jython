@@ -69,7 +69,7 @@ class cbas_utils():
     def create_bucket_on_cbas(self, cbas_bucket_name, cb_bucket_name,
                               cb_server_ip=None,
                               validate_error_msg=False,
-                              username = None, password = None):
+                              username = None, password = None, expected_error=None):
         """
         Creates a bucket on CBAS
         """
@@ -82,7 +82,7 @@ class cbas_utils():
             cmd_create_bucket,username=username, password=password)
 
         if validate_error_msg:
-            return self.validate_error_in_response(status, errors)
+            return self.validate_error_in_response(status, errors, expected_error)
         else:
             if status != "success":
                 return False
@@ -92,7 +92,7 @@ class cbas_utils():
     def create_dataset_on_bucket(self, cbas_bucket_name, cbas_dataset_name,
                                  where_field=None, where_value = None,
                                  validate_error_msg=False, username = None,
-                                 password = None):
+                                 password = None, expected_error=None):
         """
         Creates a shadow dataset on a CBAS bucket
         """
@@ -104,7 +104,7 @@ class cbas_utils():
         status, metrics, errors, results, _ = self.execute_statement_on_cbas_util(
             cmd_create_dataset, username=username, password=password)
         if validate_error_msg:
-            return self.validate_error_in_response(status, errors)
+            return self.validate_error_in_response(status, errors, expected_error)
         else:
             if status != "success":
                 return False
@@ -113,7 +113,7 @@ class cbas_utils():
 
     def connect_to_bucket(self, cbas_bucket_name, cb_bucket_password=None,
                           validate_error_msg=False, cb_bucket_username="Administrator",
-                          username=None, password=None):
+                          username=None, password=None, expected_error=None):
         """
         Connects to a CBAS bucket
         """
@@ -125,7 +125,7 @@ class cbas_utils():
         status, metrics, errors, results, _ = self.execute_statement_on_cbas_util(
             cmd_connect_bucket, username=username, password=password)
         if validate_error_msg:
-            return self.validate_error_in_response(status, errors)
+            return self.validate_error_in_response(status, errors, expected_error)
         else:
             if status != "success":
                 return False
@@ -135,7 +135,7 @@ class cbas_utils():
     def disconnect_from_bucket(self, cbas_bucket_name,
                                disconnect_if_connected=False,
                                validate_error_msg=False, username=None,
-                               password=None):
+                               password=None, expected_error=None):
         """
         Disconnects from a CBAS bucket
         """
@@ -149,7 +149,7 @@ class cbas_utils():
         status, metrics, errors, results, _ = self.execute_statement_on_cbas_util(
             cmd_disconnect_bucket, username=username, password=password)
         if validate_error_msg:
-            return self.validate_error_in_response(status, errors)
+            return self.validate_error_in_response(status, errors, expected_error)
         else:
             if status != "success":
                 return False
@@ -157,7 +157,7 @@ class cbas_utils():
                 return True
 
     def drop_dataset(self, cbas_dataset_name, validate_error_msg=False,
-                     username=None, password=None):
+                     username=None, password=None, expected_error=None):
         """
         Drop dataset from CBAS
         """
@@ -165,14 +165,14 @@ class cbas_utils():
         status, metrics, errors, results, _ = self.execute_statement_on_cbas_util(
             cmd_drop_dataset, username=username, password=password)
         if validate_error_msg:
-            return self.validate_error_in_response(status, errors)
+            return self.validate_error_in_response(status, errors, expected_error)
         else:
             if status != "success":
                 return False
             else:
                 return True
 
-    def drop_cbas_bucket(self, cbas_bucket_name, validate_error_msg=False, username=None, password=None):
+    def drop_cbas_bucket(self, cbas_bucket_name, validate_error_msg=False, username=None, password=None, expected_error=None):
         """
         Drop a CBAS bucket
         """
@@ -180,7 +180,7 @@ class cbas_utils():
         status, metrics, errors, results, _ = self.execute_statement_on_cbas_util(
             cmd_drop_bucket, username=username, password=password)
         if validate_error_msg:
-            return self.validate_error_in_response(status, errors)
+            return self.validate_error_in_response(status, errors, expected_error)
         else:
             if status != "success":
                 return False
@@ -342,13 +342,13 @@ class cbas_utils():
         else:
             return None
         
-    def validate_error_in_response(self, status, errors):
+    def validate_error_in_response(self, status, errors, expected_error):
         """
         Validates if the error message in the response is same as the expected one.
         """
         if status != "success":
             actual_error = errors[0]["msg"]
-            if self.expected_error not in actual_error:
+            if expected_error not in actual_error:
                 return False
             else:
                 return True
