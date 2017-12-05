@@ -42,6 +42,7 @@ class CBASFunctionalTests(CBASBaseTest):
         
         if self.otpNodes:
             self.cleanup_cbas()
+            self.cbas_util.closeConn()
             self.remove_node(otpnode=self.otpNodes)
             
         if not result:
@@ -129,6 +130,7 @@ class CBASFunctionalTests(CBASBaseTest):
                                         validate_error_msg=self.validate_error,
                                         expected_error=self.expected_error)
         if self.otpNodes:
+            self.cbas_util.closeConn()
             self.remove_node(otpnode=self.otpNodes)
         if not result:
             self.fail("FAIL : Actual error msg does not match the expected")

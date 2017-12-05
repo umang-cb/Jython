@@ -349,6 +349,7 @@ class cbas_utils():
         if status != "success":
             actual_error = errors[0]["msg"]
             if expected_error not in actual_error:
+                log.info("Expected: %s, Actual: %s"%(expected_error, actual_error))
                 return False
             else:
                 return True
