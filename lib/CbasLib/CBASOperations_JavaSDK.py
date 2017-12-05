@@ -39,6 +39,7 @@ class CBASHelper(CBAS_helper_rest, SDKClient):
         if self.connectionLive:
             self.bucket.close()
             self.disconnectCluster()
+            self.connectionLive = False
     
     def execute_statement_on_cbas(self, statement, mode, pretty=True, 
         timeout=70, client_context_id=None, 
