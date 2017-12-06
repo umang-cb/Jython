@@ -3,20 +3,17 @@ Created on Sep 26, 2017
 
 @author: riteshagarwal
 '''
-import Queue
+import uuid
 from collections import defaultdict
 import copy
-import ctypes
 import exceptions
 import json
 import random
-import socket
+import time
 import string
 from subprocess import call
-from threading import Thread
-import zlib
-from couchbase_helper.data_analysis_helper import *
-from couchbase_helper.document import View
+from lib.mc_bin_client import MemcachedClient
+from remote.remote_util import RemoteMachineShellConnection
 from couchbase_helper.documentgenerator import BlobGenerator
 from couchbase_helper.documentgenerator import DocumentGenerator
 from couchbase_helper.stats_tools import StatsCommon
@@ -24,7 +21,7 @@ import crc32
 import logger
 import mc_bin_client
 from membase.api.exception import ServerUnavailableException
-from membase.api.rest_client import RestConnection, Bucket, RestHelper
+from membase.api.rest_client import RestConnection, Bucket
 from membase.helper.cluster_helper import ClusterOperationHelper
 from membase.helper.rebalance_helper import RebalanceHelper
 import memcacheConstants
@@ -36,6 +33,7 @@ from testconstants import STANDARD_BUCKET_PORT
 
 from BucketLib.BucketOperations import BucketHelper
 log = logger.Logger.get_logger()
+from TestInput import TestInputSingleton
 
 class bucket_utils():
     def __init__(self, server):

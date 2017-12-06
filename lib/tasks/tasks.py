@@ -48,7 +48,6 @@ import testconstants
 #     from memcached.helper.data_helper import VBucketAwareMemcached,KVStoreAwareSmartClient
 #from sdk_client import SDKSmartClient as VBucketAwareMemcached
 from sdk_client import SDKSmartClient as VBucketAwareMemcached
-from sdk_client import SDKBasedKVStoreAwareSmartClient as KVStoreAwareSmartClient
 
 
 PENDING = 'PENDING'
@@ -1551,19 +1550,19 @@ class FailoverTask(Task):
                     rest.fail_over(node.id, self.graceful)
 
 class BucketFlushTask(Task):
-    def __init__(self, server, bucket="default"):
-        Task.__init__(self, "bucket_flush_task")
+    def __init__(self, server, task_manager, bucket="default"):
+        Task.__init__(self, "bucket_flush_task", task_manager)
         self.server = server
         self.bucket = bucket
         if isinstance(bucket, Bucket):
             self.bucket = bucket.name
 
-    def execute(self, task_manager):
+    def execute(self):
         try:
             rest = BucketHelper(self.server)
             if rest.flush_bucket(self.bucket):
                 self.state = CHECKING
-                task_manager.schedule(self)
+                self.task_manager.schedule(self)
             else:
                 self.state = FINISHED
                 self.set_result(False)
@@ -1576,7 +1575,7 @@ class BucketFlushTask(Task):
             self.state = FINISHED
             self.set_unexpected_exception(e)
 
-    def check(self, task_manager):
+    def check(self):
         try:
             # check if after flush the vbuckets are ready
             if MemcachedHelper.wait_for_vbuckets_ready_state(self.server, self.bucket):
@@ -1595,10 +1594,9 @@ class CompactBucketTask(Task):
         Task.__init__(self, "bucket_compaction_task", task_manager)
         self.server = server
         self.bucket = bucket
-        self.rest = BucketHelper(server)
+        self.rest = RestConnection(server)
         self.retries = 20
         self.statuses = {}
-
         # get the current count of compactions
 
         nodes = self.rest.get_nodes()
@@ -1607,21 +1605,19 @@ class CompactBucketTask(Task):
         for node in nodes:
             self.compaction_count[node.ip] = 0
 
-    def execute(self, task_manager):
+    def execute(self):
 
         try:
-            status = self.rest.compact_bucket(self.bucket)
+            status = BucketHelper(self.server).compact_bucket(self.bucket)
             self.state = CHECKING
-
+            self.call()
         except BucketCompactionException as e:
             log.error("Bucket compaction failed for unknown reason")
             self. set_unexpected_exception(e)
             self.state = FINISHED
             self.set_result(False)
 
-        task_manager.schedule(self)
-
-    def check(self, task_manager):
+    def check(self):
         # check bucket compaction status across all nodes
         nodes = self.rest.get_nodes()
         current_compaction_count = {}
@@ -1652,7 +1648,7 @@ class CompactBucketTask(Task):
             if self.retries > 0:
                 # retry
                 self.retries = self.retries - 1
-                task_manager.schedule(self, 10)
+                self.task_manager.schedule(self, 10)
             else:
                 # never detected a compaction task running
                 self.set_result(False)

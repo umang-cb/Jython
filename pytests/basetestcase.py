@@ -158,8 +158,7 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
 
             # for ephemeral buckets it
             self.sasl_password = self.input.param("sasl_password", 'password')
-            self.lww = self.input.param("lww",
-                                        False)  # only applies to LWW but is here because the bucket is created here
+            self.lww = self.input.param("lww", False)  # only applies to LWW but is here because the bucket is created here
             self.sasl_bucket_name = "bucket"
             self.sasl_bucket_priority = self.input.param("sasl_bucket_priority", None)
             self.standard_bucket_priority = self.input.param("standard_bucket_priority", None)

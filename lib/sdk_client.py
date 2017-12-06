@@ -210,11 +210,11 @@ class SDKClient(object):
 
     def remove(self,key, cas=0, quiet=True, persist_to=0, replicate_to=0):
         try:
-            return self.cb.remove(key, cas=cas, quiet=quiet, persist_to=persist_to, replicate_to=replicate_to)
+            return self.cb.remove(key)
         except CouchbaseException as e:
             try:
                 time.sleep(10)
-                return self.cb.remove(key, cas=cas, quiet=quiet, persist_to=persist_to, replicate_to=replicate_to)
+                return self.cb.remove(key)
             except CouchbaseException as e:
                 raise
 
@@ -632,138 +632,3 @@ class SDKSmartClient(object):
 
     def delete(self, key):
         return self.client.remove(key)
-
-class SDKBasedKVStoreAwareSmartClient(SDKSmartClient):
-    def __init__(self, rest, bucket, kv_store=None, info=None, store_enabled=True):
-        SDKSmartClient.__init__(self, rest, bucket, info)
-        self.kv_store = kv_store or ClientKeyValueStore()
-        self.store_enabled = store_enabled
-        self._rlock = threading.Lock()
-
-    def set(self, key, value, ttl=-1):
-        self._rlock.acquire()
-        try:
-            if ttl >= 0:
-                self.memcached(key).set(key, ttl, 0, value)
-            else:
-                self.memcached(key).set(key, 0, 0, value)
-
-            if self.store_enabled:
-                self.kv_store.write(key, hashlib.md5(value).digest(), ttl)
-        except MemcachedError as e:
-            self._rlock.release()
-            raise MemcachedError(e.status, e.msg)
-        except AssertionError:
-            self._rlock.release()
-            raise AssertionError
-        except:
-            self._rlock.release()
-            raise Exception("General Exception from KVStoreAwareSmartClient.set()")
-
-        self._rlock.release()
-
-    """
-    " retrieve meta data of document from disk
-    """
-    def get_doc_metadata(self, num_vbuckets, key):
-        vid = crc32.crc32_hash(key) & (num_vbuckets - 1)
-
-        mc = self.memcached(key)
-        metadatastats = None
-
-        try:
-            metadatastats = mc.stats("vkey {0} {1}".format(key, vid))
-        except MemcachedError:
-            msg = "key {0} doesn't exist in memcached".format(key)
-            self.log.info(msg)
-
-        return metadatastats
-
-
-    def delete(self, key):
-        try:
-            self._rlock.acquire()
-            opaque, cas, data = self.memcached(key).delete(key)
-            if self.store_enabled:
-                self.kv_store.delete(key)
-            self._rlock.release()
-            if cas == 0:
-                raise MemcachedError(7, "Invalid cas value")
-        except Exception as e:
-            self._rlock.release()
-            raise MemcachedError(7, e.message)
-
-    def get_valid_key(self, key):
-        return self.get_key_check_status(key, "valid")
-
-    def get_deleted_key(self, key):
-        return self.get_key_check_status(key, "deleted")
-
-    def get_expired_key(self, key):
-        return self.get_key_check_status(key, "expired")
-
-    def get_all_keys(self):
-        return self.kv_store.keys()
-
-    def get_all_valid_items(self):
-        return self.kv_store.valid_items()
-
-    def get_all_deleted_items(self):
-        return self.kv_store.deleted_items()
-
-    def get_all_expired_items(self):
-        return self.kv_store.expired_items()
-
-    def get_key_check_status(self, key, status):
-        item = self.kv_get(key)
-        if(item is not None  and item["status"] == status):
-            return item
-        else:
-            msg = "key {0} is not valid".format(key)
-            self.log.info(msg)
-            return None
-
-    # safe kvstore retrieval
-    # return dict of {key,status,value,ttl}
-    # or None if not found
-    def kv_get(self, key):
-        item = None
-        try:
-            item = self.kv_store.read(key)
-        except KeyError:
-            msg = "key {0} doesn't exist in store".format(key)
-            # self.log.info(msg)
-
-        return item
-
-    # safe memcached retrieval
-    # return dict of {key, flags, seq, value}
-    # or None if not found
-    def mc_get(self, key):
-        item = self.mc_get_full(key)
-        if item is not None:
-            item["value"] = hashlib.md5(item["value"]).digest()
-        return item
-
-    # unhashed value
-    def mc_get_full(self, key):
-        item = None
-        try:
-            x, y, value = self.memcached(key).get(key)
-            item = {}
-            item["key"] = key
-            item["flags"] = x
-            item["seq"] = y
-            item["value"] = value
-        except MemcachedError:
-            msg = "key {0} doesn't exist in memcached".format(key)
-
-        return item
-
-    def kv_mc_sync_get(self, key, status):
-        self._rlock.acquire()
-        kv_item = self.get_key_check_status(key, status)
-        mc_item = self.mc_get(key)
-        self._rlock.release()
-
-        return kv_item, mc_item

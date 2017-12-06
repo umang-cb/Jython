@@ -556,7 +556,7 @@ class Cluster(object):
         Returns:
             boolean - Whether or not the bucket was flushed."""
         _task = self.async_bucket_flush(server, bucket)
-        return _task.result(timeout)
+        return _task.get_result(timeout)
 
     def async_compact_bucket(self, server, bucket="default"):
         """Asynchronously starts bucket compaction
@@ -567,7 +567,7 @@ class Cluster(object):
 
         Returns:
             boolean - Whether or not the compaction started successfully"""
-        _task = conc.CompactBucketTask(server, bucket, task_manager=self.task_manager)
+        _task = conc.CompactBucketTask(server, self.task_manager, bucket)
         self.task_manager.schedule(_task)
         return _task
 
@@ -581,5 +581,5 @@ class Cluster(object):
         Returns:
             boolean - Whether or not the cbrecovery completed successfully"""
         _task = self.async_compact_bucket(server, bucket)
-        status = _task.result()
+        status = _task.get_result()
         return status

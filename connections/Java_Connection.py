@@ -10,7 +10,7 @@ from com.couchbase.client.core import CouchbaseException
 from java.util.logging import Logger, Level, ConsoleHandler
 from com.couchbase.client.java.env import DefaultCouchbaseEnvironment
 
-env = DefaultCouchbaseEnvironment.builder().mutationTokensEnabled(True).computationPoolSize(5).build();
+env = DefaultCouchbaseEnvironment.builder().mutationTokensEnabled(True).computationPoolSize(5).socketConnectTimeout(100000).build();
 class SDKClient(object):
     """Java SDK Client Implementation for testrunner - master branch Implementation"""
 
