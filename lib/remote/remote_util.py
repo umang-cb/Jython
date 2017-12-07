@@ -876,7 +876,7 @@ class RemoteMachineShellConnection:
             # binary and then return True if binary is installed
 
 
-    def get_file(self, remotepath, filename, todir):
+    def get_file(self, remotepath, filename, todir="."):
         from com.jcraft.jsch import ChannelSftp
         from com.jcraft.jsch import JSchException,SftpException
         jsch=JSch()
@@ -1209,9 +1209,8 @@ class RemoteMachineShellConnection:
         output, error = self.execute_command("echo '{0}' > {1}".format(file_data, remote_path))
 
     def find_file(self, remote_path, file):
-        sftp = self._ssh_client.open_sftp()
         try:
-            files = sftp.listdir(remote_path)
+            files = self.execute_command_raw_jsch("ls %s"%remote_path)[0]
             for name in files:
                 if name == file:
                     found_it = os.path.join(remote_path, name)
@@ -1224,7 +1223,6 @@ class RemoteMachineShellConnection:
                 log.error('Can not find {0}'.format(file))
         except IOError:
             pass
-        sftp.close()
 
     def find_build_version(self, path_to_version, version_file, product):
         sftp = self._ssh_client.open_sftp()
@@ -2993,8 +2991,203 @@ class RemoteMachineShellConnection:
         if self._ssh_client:
             self._ssh_client.disconnect()
 
-
     def extract_remote_info(self):
+        # initialize params
+        os_distro = "linux"
+        os_version = "default"
+        is_linux_distro = True
+        self.use_sudo = False
+        is_mac = False
+        arch = "local"
+        ext = "local"
+        # use ssh to extract remote machine info
+        # use sftp to if certain types exists or not
+        if getattr(self, "info", None) is not None and isinstance(self.info, RemoteMachineInfo):
+            return self.info
+        mac_check_cmd = "sw_vers | grep ProductVersion | awk '{ print $2 }'"
+        if self.remote:
+            ver, err = self.execute_command_raw_jsch(mac_check_cmd)
+        else:
+            p = Popen(mac_check_cmd , shell=True, stdout=PIPE, stderr=PIPE)
+            ver, err = p.communicate()
+        if not err and ver:
+            os_distro = "Mac"
+            os_version = ver
+            is_linux_distro = True
+            is_mac = True
+            self.use_sudo = False
+        elif self.remote:
+            is_mac = False
+            filenames = self.execute_command_raw_jsch('ls /etc/')[0]
+            os_distro = ""
+            os_version = ""
+            is_linux_distro = False
+            for name in filenames:
+                if name.rstrip('\n') == 'issue':
+                    # it's a linux_distro . let's downlaod this file
+                    # format Ubuntu 10.04 LTS \n \l
+                    filename = 'etc-issue-{0}'.format(uuid.uuid4())
+                    self.get_file('/etc', "issue", "./%s"%filename)
+                    file = open(filename)
+                    etc_issue = ''
+                    # let's only read the first line
+                    for line in file.xreadlines():
+                        # for SuSE that has blank first line
+                        if line.rstrip('\n'):
+                            etc_issue = line
+                            break
+                        # strip all extra characters
+                    etc_issue = etc_issue = etc_issue.rstrip('\n').rstrip(' ').rstrip('\\l').rstrip(' ').rstrip('\\n').rstrip(' ')
+                    if etc_issue.lower().find('ubuntu') != -1:
+                        os_distro = 'Ubuntu'
+                        os_version = etc_issue
+                        tmp_str = etc_issue.split()
+                        if tmp_str and tmp_str[1][:2].isdigit():
+                            os_version = "Ubuntu %s" % tmp_str[1][:5]
+                        is_linux_distro = True
+                    elif etc_issue.lower().find('debian') != -1:
+                        os_distro = 'Ubuntu'
+                        os_version = etc_issue
+                        is_linux_distro = True
+                    elif etc_issue.lower().find('mint') != -1:
+                        os_distro = 'Ubuntu'
+                        os_version = etc_issue
+                        is_linux_distro = True
+                    elif etc_issue.lower().find('amazon linux ami') != -1:
+                        os_distro = 'CentOS'
+                        os_version = etc_issue
+                        is_linux_distro = True
+                    elif etc_issue.lower().find('centos') != -1:
+                        os_distro = 'CentOS'
+                        os_version = etc_issue
+                        is_linux_distro = True
+                    elif etc_issue.lower().find('red hat') != -1:
+                        os_distro = 'Red Hat'
+                        os_version = etc_issue
+                        is_linux_distro = True
+                    elif etc_issue.lower().find('opensuse') != -1:
+                        os_distro = 'openSUSE'
+                        os_version = etc_issue
+                        is_linux_distro = True
+                    elif etc_issue.lower().find('suse linux') != -1:
+                        os_distro = 'SUSE'
+                        os_version = etc_issue
+                        tmp_str = etc_issue.split()
+                        if tmp_str and tmp_str[6].isdigit():
+                            os_version = "SUSE %s" % tmp_str[6]
+                        is_linux_distro = True
+                    elif etc_issue.lower().find('oracle linux') != -1:
+                        os_distro = 'Oracle Linux'
+                        os_version = etc_issue
+                        is_linux_distro = True
+                    else:
+                        log.info("It could be other operating system."
+                                 "  Go to check at other location")
+                    file.close()
+                    # now remove this file
+                    os.remove(filename)
+                    break
+            else:
+                os_distro = "linux"
+                os_version = "default"
+                is_linux_distro = True
+                self.use_sudo = False
+                is_mac = False
+                arch = "local"
+                ext = "local"
+                filenames = []
+            """ for centos 7 only """
+            for name in filenames:
+                if name == "redhat-release":
+                    filename = 'redhat-release-{0}'.format(uuid.uuid4())
+                    if self.remote:
+                        self.get_file('/etc','redhat-release', "./%s"%filename)
+#                         sftp.get(localpath=filename, remotepath='/etc/redhat-release')
+                    else:
+                        p = Popen("cat /etc/redhat-release > {0}".format(filename) , shell=True, stdout=PIPE, stderr=PIPE)
+                        var, err = p.communicate()
+                    file = open(filename)
+                    redhat_release = ''
+                    for line in file.xreadlines():
+                        redhat_release = line
+                        break
+                    redhat_release = redhat_release.rstrip('\n').rstrip('\\l').rstrip('\\n')
+                    """ in ec2: Red Hat Enterprise Linux Server release 7.2 """
+                    if redhat_release.lower().find('centos') != -1 \
+                         or redhat_release.lower().find('linux server') != -1:
+                        if redhat_release.lower().find('release 7') != -1:
+                            os_distro = 'CentOS'
+                            os_version = "CentOS 7"
+                            is_linux_distro = True
+                    else:
+                        log.error("Could not find OS name."
+                                 "It could be unsupport OS")
+                    file.close()
+                    os.remove(filename)
+                    break
+
+        if self.remote:
+            if not is_linux_distro and self.find_file("/cygdrive/c/Windows", "win.ini"):
+                log.info("This is windows server!")
+                is_linux_distro = False
+        if not is_linux_distro:
+            arch = ''
+            os_version = 'unknown windows'
+            win_info = self.find_windows_info()
+            info = RemoteMachineInfo()
+            info.type = win_info['os']
+            info.windows_name = win_info['os_name']
+            info.distribution_type = win_info['os']
+            info.architecture_type = win_info['os_arch']
+            info.ip = self.ip
+            info.distribution_version = win_info['os']
+            info.deliverable_type = 'exe'
+            info.cpu = self.get_cpu_info(win_info)
+            info.disk = self.get_disk_info(win_info)
+            info.ram = self.get_ram_info(win_info)
+            info.hostname = self.get_hostname(win_info)
+            info.domain = self.get_domain(win_info)
+            self.info = info
+            return info
+        else:
+            # now run uname -m to get the architechtre type
+            os_arch = ''
+            if self.remote:
+                text, stderro = self.execute_command_raw_jsch('uname -m')
+            else:
+                p = Popen('uname -m' , shell=True, stdout=PIPE, stderr=PIPE)
+                text, err = p.communicate()
+                os_arch = ''
+            for line in text:
+                os_arch += line
+                # at this point we should know if its a linux or windows ditro
+            ext = { 'Ubuntu' : "deb",
+                   'CentOS'  : "rpm",
+                   'Red Hat' : "rpm",
+                   "Mac"     : "zip",
+                   "Debian"  : "deb",
+                   "openSUSE": "rpm",
+                   "SUSE"    : "rpm",
+                   "Oracle Linux": "rpm"}.get(os_distro, '')
+            arch = {'i686': 'x86',
+                    'i386': 'x86'}.get(os_arch, os_arch)
+
+            info = RemoteMachineInfo()
+            info.type = "Linux"
+            info.distribution_type = os_distro
+            info.architecture_type = arch
+            info.ip = self.ip
+            info.distribution_version = os_version
+            info.deliverable_type = ext
+            info.cpu = self.get_cpu_info(mac=is_mac)
+            info.disk = self.get_disk_info(mac=is_mac)
+            info.ram = self.get_ram_info(mac=is_mac)
+            info.hostname = self.get_hostname()
+            info.domain = self.get_domain()
+            self.info = info
+            return info
+
+    def extract_remote_info_old(self):
         # initialize params
         os_distro = "linux"
         os_version = "default"
