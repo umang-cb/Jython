@@ -288,7 +288,7 @@ class CBASFunctionalTests(CBASBaseTest):
             statement_create_dataset += ";"
 
         status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
-            statement_create_dataset, self.master)
+            statement_create_dataset)
         
         self.log.info("Executing Statement on CBAS: %s", statement_create_dataset)
         
