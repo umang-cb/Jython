@@ -892,7 +892,7 @@ class GenericLoadingTask(Thread, Task):
     def _update_batch(self, partition_keys_dic, key_val):
         try:
             self._process_values_for_update(partition_keys_dic, key_val)
-            self.client.setMulti(self.exp, self.flag, key_val, self.pause, self.timeout, parallel=False)
+            self.client.upsertMulti(self.exp, self.flag, key_val, self.pause, self.timeout, parallel=False)
             log.info("Batch Operation: %s documents are UPSERTED into bucket %s"%(len(key_val), self.bucket))
             self._populate_kvstore(partition_keys_dic, key_val)
         except (MemcachedError, ServerUnavailableException, socket.error, EOFError, AttributeError, RuntimeError) as error:

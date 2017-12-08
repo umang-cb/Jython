@@ -585,6 +585,13 @@ class SDKSmartClient(object):
           finally:
             self.client.cb.timeout = self.client.default_timeout
 
+      def upsertMulti(self, exp, flags, key_val_dic, pause = None, timeout = 5.0, parallel=None, format = FMT_AUTO):
+          try:
+            self.client.cb.timeout = timeout
+            return self.client.upsert_multi(key_val_dic, ttl = exp, format = format)
+          finally:
+            self.client.cb.timeout = self.client.default_timeout
+
       def getMulti(self, keys_lst, pause = None, timeout_sec = 5.0, parallel=None):
           try:
               self.client.cb.timeout = timeout_sec
