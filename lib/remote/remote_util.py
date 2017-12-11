@@ -4215,7 +4215,7 @@ class RemoteMachineShellConnection:
         remote_command = \
             "echo \"{0}\" > /tmp/cmd.bat; chmod u=rwx /tmp/cmd.bat; /tmp/cmd.bat"\
                                                                   .format(command)
-        o, r = self.execute_command_raw(remote_command)
+        o, r = self.execute_command_raw_jsch(remote_command)
         if r and r!=['']:
             log.error("Command didn't run successfully. Error: {0}".format(r))
         return o, r
