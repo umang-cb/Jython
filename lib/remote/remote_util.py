@@ -3098,7 +3098,7 @@ class RemoteMachineShellConnection:
                 filenames = []
             """ for centos 7 only """
             for name in filenames:
-                if name == "redhat-release":
+                if name.rstrip('\n') == "redhat-release":
                     filename = 'redhat-release-{0}'.format(uuid.uuid4())
                     if self.remote:
                         self.get_file('/etc','redhat-release', "./%s"%filename)
