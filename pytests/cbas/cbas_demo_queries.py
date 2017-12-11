@@ -133,6 +133,7 @@ class CBASDemoQueries(CBASBaseTest):
         self.load_sample_buckets(servers=[self.master],
                                  bucketName=dataset_record['cb_bucket_name'],
                                  total_items=self.beer_sample_docs_count)
+        self.cbas_util.createConn(dataset_record['cb_bucket_name'])
         if "add_all_cbas_nodes" in self.input.test_params and self.input.test_params["add_all_cbas_nodes"] and len(self.cbas_servers) > 1:
             self.add_all_cbas_node_then_rebalance()
         # Create bucket on CBAS
