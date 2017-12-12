@@ -1,6 +1,7 @@
 from cbas_base import *
 from threading import Thread
 import threading
+from Rbac_utils.Rbac_ready_functions import rbac_utils
 
 
 class CBASConcurrentQueryMgtTests(CBASBaseTest):
@@ -204,7 +205,7 @@ class CBASConcurrentQueryMgtTests(CBASBaseTest):
                   "expected_status": 200}]
 
         for role in roles:
-            self._create_user_and_grant_role("testuser", role["role"])
+            rbac_utils(self.master)._create_user_and_grant_role("testuser", role["role"])
             self.sleep(5)
 
             client_context_id = "abcd1234"
