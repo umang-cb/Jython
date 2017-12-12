@@ -1,5 +1,6 @@
 from cbas_base import *
 from remote.remote_util import RemoteMachineShellConnection
+from Rbac_utils.Rbac_ready_functions import rbac_utils
 
 
 class CBASRBACTests(CBASBaseTest):
@@ -128,7 +129,7 @@ class CBASRBACTests(CBASBaseTest):
 
         for user in users:
             self.log.info("Creating user %s", user["username"])
-            self._create_user_and_grant_role(user["username"], user["roles"])
+            rbac_utils()._create_user_and_grant_role(user["username"], user["roles"])
             self.sleep(2)
 
         status = True
@@ -299,7 +300,7 @@ class CBASRBACTests(CBASBaseTest):
                  "cluster_admin", "admin"]
 
         for role in roles:
-            self._create_user_and_grant_role("testuser", role)
+            rbac_utils()._create_user_and_grant_role("testuser", role)
 
             output, error = shell.execute_command(
                 """curl -i {0} 2>/dev/null | head -n 1 | cut -d$' ' -f2""".format(
@@ -415,7 +416,7 @@ class CBASRBACTests(CBASBaseTest):
 
         for api in api_authentication:
             for role in api["roles"]:
-                self._create_user_and_grant_role("testuser", role["role"])
+                rbac_utils()._create_user_and_grant_role("testuser", role["role"])
                 self.sleep(5)
 
                 if "method" in api:
@@ -442,7 +443,7 @@ class CBASRBACTests(CBASBaseTest):
                         "Accessing {0} as user with {1} role worked as expected".format(
                         api["api_url"], role["role"]))
 
-                self._drop_user("testuser")
+                rbac_utils()._drop_user("testuser")
 
         shell.disconnect()
 
