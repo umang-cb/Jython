@@ -245,11 +245,11 @@ class SDKClient(object):
     def upsert(self, key, value, ttl=0, persist_to=0, replicate_to=0):
         doc = self.__translate_to_json_document(key, value)
         try:
-            return self.cb.upsert(doc, persist_to, replicate_to, ttl, TimeUnit.SECONDS)
+            return self.cb.upsert(doc)
         except CouchbaseException as e:
             try:
                 time.sleep(10)
-                return self.cb.upsert(doc, persist_to, replicate_to, ttl, TimeUnit.SECONDS)
+                return self.cb.upsert(doc)
             except CouchbaseException as e:
                 raise
 
@@ -504,19 +504,20 @@ class SDKClient(object):
 
     def __translate_to_json_document(self, key, value):
         try:
-            value = json.loads(value)
+            if type(value) != dict:
+                value = json.loads(value)
             js = JsonObject.create()
             for field, val in value.items():
                 js.put(field, val)
             doc = JsonDocument.create(key, js)
             return doc
         except DocumentNotJsonException as e:
-            return StringDocument.create(key,value)
+            return StringDocument.create(key,str(value))
         except Exception as e:
-            return StringDocument.create(key,value)
+            return StringDocument.create(key,str(value))
         except:
             pass
-        return StringDocument.create(key,value)
+        return StringDocument.create(key,str(value))
     
     def __translate_get_multi(self, data):
         map = {}

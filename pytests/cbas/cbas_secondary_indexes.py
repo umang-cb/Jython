@@ -108,7 +108,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
         # Create another index with same name
         status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             create_idx_statement)
-        self.assertTrue(self.validate_error_in_response(status, errors, self.expected_error),
+        self.assertTrue(self.cbas_util.validate_error_in_response(status, errors, self.expected_error),
                         "Error msg not matching expected error msg")
 
     def test_create_index_with_if_not_exists(self):
@@ -251,7 +251,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
         self.sleep(30)
 
         # Disconnect from bucket
-        result = self.disconnect_from_bucket(cbas_bucket_name=
+        result = self.cbas_util.disconnect_from_bucket(cbas_bucket_name=
                                              self.cbas_bucket_name)
 
         # Create Index
@@ -299,7 +299,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
         status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             create_idx_statement)
 
-        self.assertTrue(self.validate_error_in_response(status, errors, self.expected_error))
+        self.assertTrue(self.cbas_util.validate_error_in_response(status, errors, self.expected_error))
 
     def test_drop_index(self):
         '''
@@ -358,7 +358,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
         status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             drop_idx_statement)
 
-        self.assertTrue(self.validate_error_in_response(status, errors, self.expected_error))
+        self.assertTrue(self.cbas_util.validate_error_in_response(status, errors, self.expected_error))
 
         # Drop non-existing index with IF EXISTS
         drop_idx_statement = "drop index {0}.{1} IF EXISTS;".format(
@@ -398,7 +398,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
                                       self.cbas_dataset_name)[0])
 
         # Drop dataset
-        self.drop_dataset(self.cbas_dataset_name)
+        self.cbas_util.drop_dataset(self.cbas_dataset_name)
 
         # Check that the index no longer exists
         self.assertFalse(
@@ -443,7 +443,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
         self.sleep(30)
 
         # Disconnect from bucket
-        self.disconnect_from_bucket(cbas_bucket_name=
+        self.cbas_util.disconnect_from_bucket(cbas_bucket_name=
                                     self.cbas_bucket_name)
 
         drop_idx_statement = "drop index {0}.{1};".format(
@@ -467,7 +467,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
                 if self.master.ip == "127.0.0.1":
                     scheme = "http"
                     host="{0}:{1}".format(self.master.ip,self.master.port)
-                return SDKClient(scheme=scheme,hosts = [host], bucket = bucket)
+                return SDKClient(scheme=scheme,hosts = [host], bucket = bucket, password=self.master.rest_password)
             except Exception, ex:
                 self.log.error("cannot load sdk client due to error {0}".format(str(ex)))
         # USE MC BIN CLIENT WHEN NOT USING SDK CLIENT
@@ -493,7 +493,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
         rolelist = [{'id': self.cb_bucket_name, 'name': self.cb_bucket_name, 'roles': 'admin'}]
         self.add_built_in_server_user(testuser=testuser, rolelist=rolelist)
         self.use_sdk_client =True
-        self.client = self._direct_client(self.master, self.cb_bucket_name).cb
+        self.client = self._direct_client(self.master, self.cb_bucket_name)
         k = 'test_index_population'
 
         index_fields = ""
@@ -508,7 +508,9 @@ class CBASSecondaryIndexes(CBASBaseTest):
                 self.client.upsert(k, {index_fields.split(":")[0].split(".")[0]:{index_fields.split(":")[0].split(".")[1] : not_fit_value}})
             else:
                 self.client.upsert(k, {index_fields.split(":")[0] : not_fit_value})
-            
+        
+        self.client.close()
+        
         if index_fields.split(":")[1] == "string" and isinstance(not_fit_value,str) or \
             index_fields.split(":")[1] == "double" and isinstance(not_fit_value,(float,int)) or \
             index_fields.split(":")[1] == "bigint" and isinstance(not_fit_value,(float,int)):
@@ -558,6 +560,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
     
     def test_index_population_thread(self):
         to_verify = 0
+        index_used = self.input.param("index_used", False)
         def update_data(client, index_fields):
             for _ in xrange(100):
                 if index_fields.split(":")[-1] == 'double':
@@ -588,7 +591,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
         rolelist = [{'id': self.cb_bucket_name, 'name': self.cb_bucket_name, 'roles': 'admin'}]
         self.add_built_in_server_user(testuser=testuser, rolelist=rolelist)
         self.use_sdk_client = True
-        self.client = self._direct_client(self.master, self.cb_bucket_name).cb
+        self.client = self._direct_client(self.master, self.cb_bucket_name)
         k = 'test_index_population_thread'
 
         index_fields = ""
@@ -642,7 +645,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
                 
             self.log.info("Verify whether statement %s used index or not. Indexed: %s"%(statement,index_fields))
             self.verify_index_used(statement, index_used, self.index_name)
-
+        self.client.close()
     def test_index_population_where_statements(self):
         exp_number = self.input.param("exp_number", 0)
         where_statement = self.input.param("where_statement", '').replace('_EQ_', '=')
@@ -651,8 +654,6 @@ class CBASSecondaryIndexes(CBASBaseTest):
         testuser = [{'id': self.cb_bucket_name, 'name': self.cb_bucket_name, 'password': 'password'}]
         rolelist = [{'id': self.cb_bucket_name, 'name': self.cb_bucket_name, 'roles': 'admin'}]
         self.add_built_in_server_user(testuser=testuser, rolelist=rolelist)
-        self.use_sdk_client = True
-        self.client = self._direct_client(self.master, self.cb_bucket_name).cb
 
         index_fields = ""
         for index_field in self.index_fields:
@@ -695,8 +696,6 @@ class CBASSecondaryIndexes(CBASBaseTest):
         testuser = [{'id': self.cb_bucket_name, 'name': self.cb_bucket_name, 'password': 'password'}]
         rolelist = [{'id': self.cb_bucket_name, 'name': self.cb_bucket_name, 'roles': 'admin'}]
         self.add_built_in_server_user(testuser=testuser, rolelist=rolelist)
-        self.use_sdk_client = True
-        self.client = self._direct_client(self.master, self.cb_bucket_name).cb
 
         index_fields = ""
         for index_field in self.index_fields:
@@ -781,7 +780,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
         self.assertEquals(errors, None)
         self.assertEquals(results, [{'$1': 107303}])
 
-        self.disconnect_from_bucket(cbas_bucket_name=
+        self.cbas_util.disconnect_from_bucket(cbas_bucket_name=
                                     self.cbas_bucket_name)
 
         drop_idx_statement = "drop index {0}.{1};".format(self.cbas_dataset_name, self.index_name)
@@ -798,7 +797,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
         self.assertEquals(status, "success")
         self.assertEquals(errors, None)
         self.assertEquals(results, [{'$1': 107303}])
-        self.drop_dataset(self.cbas_dataset_name)
+        self.cbas_util.drop_dataset(self.cbas_dataset_name)
 
         status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
             statement)

@@ -62,7 +62,7 @@ class CBASHelper(CBAS_helper_rest, SDKClient):
         output = {}
         q = AnalyticsQuery.simple(statement, params)
         try:
-            if mode:
+            if mode or "EXPLAIN" in statement:
                 return CBAS_helper_rest.execute_statement_on_cbas(self, statement, mode, pretty, timeout, client_context_id, username, password)
             
             result = self.bucket.query(q)
@@ -77,6 +77,7 @@ class CBASHelper(CBAS_helper_rest, SDKClient):
                 if "Job requirement" in  msg and "exceeds capacity" in msg:
                     raise Exception("Capacity cannot meet job requirement")
             elif str(output['status']) == "success":
+                output["errors"] = None
                 pass
             else:
                 log.error("analytics query %s failed status:{0},content:{1}".format(
