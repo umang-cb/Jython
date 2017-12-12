@@ -9,6 +9,7 @@ class CBASRBACTests(CBASBaseTest):
         if "default_bucket" not in self.input.test_params:
             self.input.test_params.update({"default_bucket": False})
         super(CBASRBACTests, self).setUp()
+        self.rbac_util = rbac_utils(self.master)
 
     def tearDown(self):
         super(CBASRBACTests, self).tearDown()
@@ -129,7 +130,7 @@ class CBASRBACTests(CBASBaseTest):
 
         for user in users:
             self.log.info("Creating user %s", user["username"])
-            rbac_utils()._create_user_and_grant_role(user["username"], user["roles"])
+            self.rbac_util._create_user_and_grant_role(user["username"], user["roles"])
             self.sleep(2)
 
         status = True
@@ -300,7 +301,7 @@ class CBASRBACTests(CBASBaseTest):
                  "cluster_admin", "admin"]
 
         for role in roles:
-            rbac_utils()._create_user_and_grant_role("testuser", role)
+            self.rbac_util._create_user_and_grant_role("testuser", role)
 
             output, error = shell.execute_command(
                 """curl -i {0} 2>/dev/null | head -n 1 | cut -d$' ' -f2""".format(
@@ -416,7 +417,7 @@ class CBASRBACTests(CBASBaseTest):
 
         for api in api_authentication:
             for role in api["roles"]:
-                rbac_utils()._create_user_and_grant_role("testuser", role["role"])
+                self.rbac_util._create_user_and_grant_role("testuser", role["role"])
                 self.sleep(5)
 
                 if "method" in api:
@@ -443,7 +444,7 @@ class CBASRBACTests(CBASBaseTest):
                         "Accessing {0} as user with {1} role worked as expected".format(
                         api["api_url"], role["role"]))
 
-                rbac_utils()._drop_user("testuser")
+                self.rbac_util._drop_user("testuser")
 
         shell.disconnect()
 
