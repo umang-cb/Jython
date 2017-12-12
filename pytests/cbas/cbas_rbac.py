@@ -170,7 +170,7 @@ class CBASRBACTests(CBASBaseTest):
         if operation:
 
             if operation == "create_bucket":
-                status = self.create_bucket_on_cbas(self.cbas_bucket_name,
+                status = self.cbas_util.create_bucket_on_cbas(self.cbas_bucket_name,
                                                     self.cb_bucket_name,
                                                     username=username)
 
@@ -178,9 +178,9 @@ class CBASRBACTests(CBASBaseTest):
                 self.cleanup_cbas()
 
             elif operation == "create_dataset":
-                self.create_bucket_on_cbas(self.cbas_bucket_name,
+                self.cbas_util.create_bucket_on_cbas(self.cbas_bucket_name,
                                            self.cb_bucket_name)
-                status = self.create_dataset_on_bucket(self.cbas_bucket_name,
+                status = self.cbas_util.create_dataset_on_bucket(self.cbas_bucket_name,
                                                        self.cbas_dataset_name,
                                                        username=username)
 
@@ -188,43 +188,43 @@ class CBASRBACTests(CBASBaseTest):
                 self.cleanup_cbas()
 
             elif operation == "connect_bucket":
-                self.create_bucket_on_cbas(self.cbas_bucket_name,
+                self.cbas_util.create_bucket_on_cbas(self.cbas_bucket_name,
                                            self.cb_bucket_name)
-                self.create_dataset_on_bucket(self.cbas_bucket_name,
+                self.cbas_util.create_dataset_on_bucket(self.cbas_bucket_name,
                                               self.cbas_dataset_name)
-                status = self.connect_to_bucket(self.cbas_bucket_name,
+                status = self.cbas_util.connect_to_bucket(self.cbas_bucket_name,
                                                 username=username)
 
                 # Cleanup
                 self.cleanup_cbas()
 
             elif operation == "disconnect_bucket":
-                self.create_bucket_on_cbas(self.cbas_bucket_name,
+                self.cbas_util.create_bucket_on_cbas(self.cbas_bucket_name,
                                            self.cb_bucket_name)
-                self.create_dataset_on_bucket(self.cbas_bucket_name,
+                self.cbas_util.create_dataset_on_bucket(self.cbas_bucket_name,
                                               self.cbas_dataset_name)
-                self.connect_to_bucket(self.cbas_bucket_name)
-                status = self.disconnect_from_bucket(self.cbas_bucket_name,
+                self.cbas_util.connect_to_bucket(self.cbas_bucket_name)
+                status = self.cbas_util.disconnect_from_bucket(self.cbas_bucket_name,
                                                      username=username)
 
                 # Cleanup
                 self.cleanup_cbas()
 
             elif operation == "drop_dataset":
-                self.create_bucket_on_cbas(self.cbas_bucket_name,
+                self.cbas_util.create_bucket_on_cbas(self.cbas_bucket_name,
                                            self.cb_bucket_name)
-                self.create_dataset_on_bucket(self.cbas_bucket_name,
+                self.cbas_util.create_dataset_on_bucket(self.cbas_bucket_name,
                                               self.cbas_dataset_name)
-                status = self.drop_dataset(self.cbas_dataset_name,
+                status = self.cbas_util.drop_dataset(self.cbas_dataset_name,
                                            username=username)
 
                 # Cleanup
                 self.cleanup_cbas()
 
             elif operation == "drop_bucket":
-                self.create_bucket_on_cbas(self.cbas_bucket_name,
+                self.cbas_util.create_bucket_on_cbas(self.cbas_bucket_name,
                                            self.cb_bucket_name)
-                status = self.drop_cbas_bucket(self.cbas_bucket_name,
+                status = self.cbas_util.drop_cbas_bucket(self.cbas_bucket_name,
                                                username=username)
                 self.log.info(
                     "^^^^^^^^^^^^^^ Status of drop bucket for user {0}: {1}".format(
@@ -234,52 +234,52 @@ class CBASRBACTests(CBASBaseTest):
                 self.cleanup_cbas()
 
             elif operation == "create_index":
-                self.create_bucket_on_cbas(self.cbas_bucket_name,
+                self.cbas_util.create_bucket_on_cbas(self.cbas_bucket_name,
                                            self.cb_bucket_name)
-                self.create_dataset_on_bucket(self.cbas_bucket_name,
+                self.cbas_util.create_dataset_on_bucket(self.cbas_bucket_name,
                                               self.cbas_dataset_name)
                 create_idx_statement = "create index idx1 on {0}(city:String);".format(
                     self.cbas_dataset_name)
-                status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+                status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
                     create_idx_statement, username=username)
                 status = False if status != "success" else True
 
                 # Cleanup
                 drop_idx_statement = "drop index {0}.idx1;".format(
                     self.cbas_dataset_name)
-                self.execute_statement_on_cbas_via_rest(drop_idx_statement)
+                self.cbas_util.execute_statement_on_cbas_util(drop_idx_statement)
                 self.cleanup_cbas()
 
             elif operation == "drop_index":
-                self.create_bucket_on_cbas(self.cbas_bucket_name,
+                self.cbas_util.create_bucket_on_cbas(self.cbas_bucket_name,
                                            self.cb_bucket_name)
-                self.create_dataset_on_bucket(self.cbas_bucket_name,
+                self.cbas_util.create_dataset_on_bucket(self.cbas_bucket_name,
                                               self.cbas_dataset_name)
                 create_idx_statement = "create index idx1 on {0}(city:String);".format(
                     self.cbas_dataset_name)
-                self.execute_statement_on_cbas_via_rest(create_idx_statement)
+                self.cbas_util.execute_statement_on_cbas_util(create_idx_statement)
                 self.sleep(10)
                 drop_idx_statement = "drop index {0}.idx1;".format(
                     self.cbas_dataset_name)
-                status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+                status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
                     drop_idx_statement, username=username)
                 status = False if status != "success" else True
 
                 # Cleanup
                 drop_idx_statement = "drop index {0}.idx1;".format(
                     self.cbas_dataset_name)
-                self.execute_statement_on_cbas_via_rest(drop_idx_statement)
+                self.cbas_util.execute_statement_on_cbas_util(drop_idx_statement)
                 self.cleanup_cbas()
 
             elif operation == "execute_query":
-                self.create_bucket_on_cbas(self.cbas_bucket_name,
+                self.cbas_util.create_bucket_on_cbas(self.cbas_bucket_name,
                                            self.cb_bucket_name)
                 self.create_dataset_on_bucket(self.cbas_bucket_name,
                                               self.cbas_dataset_name)
                 self.connect_to_bucket(self.cbas_bucket_name)
                 query_statement = "select count(*) from {0};".format(
                     self.cbas_dataset_name)
-                status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+                status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
                     query_statement, username=username)
 
                 # Cleanup
@@ -288,7 +288,7 @@ class CBASRBACTests(CBASBaseTest):
             elif operation == "execute_metadata_query":
                 query_statement = "select Name from Metadata.`Bucket`;".format(
                     self.cbas_dataset_name)
-                status, metrics, errors, results, _ = self.execute_statement_on_cbas_via_rest(
+                status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
                     query_statement, username=username)
 
         return status
