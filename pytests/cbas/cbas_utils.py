@@ -60,8 +60,14 @@ class cbas_utils():
             else:
                 handle = None
             
-            return response["status"], response[
-                "metrics"], errors, results, handle
+            if "metrics" in response:
+                metrics = response["metrics"]
+                if type(metrics) == str:
+                    metrics = json.loads(metrics)
+            else:
+                metrics = None
+                
+            return response["status"], metrics, errors, results, handle
     
         except Exception,e:
             raise Exception(str(e))

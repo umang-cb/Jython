@@ -41,7 +41,8 @@ class CBASHelper(CBAS_helper_rest, SDKClient):
                 self.bucket.close()
                 self.disconnectCluster()
                 self.connectionLive = False
-            except:
+            except CouchbaseException as e:
+                log.error("%s"%e.print_stack_trace())
                 self.disconnectCluster()
                 self.connectionLive = False
                 
@@ -67,7 +68,7 @@ class CBASHelper(CBAS_helper_rest, SDKClient):
             result = self.bucket.query(q)
             
             output["status"] = result.status()
-            output["metrics"] = result.info().asJsonObject()
+            output["metrics"] = str(result.info().asJsonObject())
             output["results"] = str(result.allRows())
             output["errors"] = json.loads(str(result.errors()))
             
