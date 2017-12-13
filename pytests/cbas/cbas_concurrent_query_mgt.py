@@ -225,7 +225,7 @@ class CBASConcurrentQueryMgtTests(CBASBaseTest):
                     "Cancelling request as user with {0} role worked as expected".format(
                         role["role"]))
 
-            self._drop_user("testuser")
+            rbac_utils(self.master)._drop_user("testuser")
 
         self.assertFalse(validation_failed,
                          "Authentication errors with some APIs. Check the test log above.")

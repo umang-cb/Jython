@@ -168,7 +168,7 @@ class CBASRBACTests(CBASBaseTest):
 
     def _run_operation(self, operation, username):
         if operation:
-
+            self.cbas_util.createConn(self.cb_bucket_name)
             if operation == "create_bucket":
                 status = self.cbas_util.create_bucket_on_cbas(self.cbas_bucket_name,
                                                     self.cb_bucket_name,
