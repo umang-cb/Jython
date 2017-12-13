@@ -20,8 +20,8 @@ class cbas_utils():
         self.cbas_helper = CBASHelper(master, cbas_node)
 #         self.bucket_util = bucket_utils(master)
 
-    def createConn(self, bucket):
-        self.cbas_helper.createConn(bucket)
+    def createConn(self, bucket, username=None, password=None):
+        self.cbas_helper.createConn(bucket,username, password)
     
     def closeConn(self):
         self.cbas_helper.closeConn()
@@ -269,12 +269,12 @@ class cbas_utils():
         else:
             return False
 
-    def delete_request(self, client_context_id):
+    def delete_request(self, client_context_id, username=None, password=None):
         """
         Deletes a request from CBAS
         """
         try:
-            status = self.cbas_helper.delete_active_request_on_cbas(client_context_id)
+            status = self.cbas_helper.delete_active_request_on_cbas(client_context_id,username, password)
             self.log.info (status)
             return status
         except Exception, e:

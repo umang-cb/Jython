@@ -18,7 +18,7 @@ class CBASRBACTests(CBASBaseTest):
         self.load_sample_buckets(servers=[self.master],
                                  bucketName=self.cb_bucket_name,
                                  total_items=self.travel_sample_docs_count)
-
+        
         users = [{"username": "analytics_manager1",
                   "roles": "bucket_full_access[travel-sample]:analytics_manager[travel-sample]"},
                  {"username": "analytics_manager2",
@@ -167,8 +167,13 @@ class CBASRBACTests(CBASBaseTest):
                         "=== Some operations have failed for some users. Pls check the log above.")
 
     def _run_operation(self, operation, username):
+        if username:
+            try:
+                self.cbas_util.createConn(self.cb_bucket_name,username=username)
+            except:
+                self.cbas_util.closeConn()
+                return False
         if operation:
-            self.cbas_util.createConn(self.cb_bucket_name)
             if operation == "create_bucket":
                 status = self.cbas_util.create_bucket_on_cbas(self.cbas_bucket_name,
                                                     self.cb_bucket_name,
@@ -274,9 +279,9 @@ class CBASRBACTests(CBASBaseTest):
             elif operation == "execute_query":
                 self.cbas_util.create_bucket_on_cbas(self.cbas_bucket_name,
                                            self.cb_bucket_name)
-                self.create_dataset_on_bucket(self.cbas_bucket_name,
+                self.cbas_util.create_dataset_on_bucket(self.cbas_bucket_name,
                                               self.cbas_dataset_name)
-                self.connect_to_bucket(self.cbas_bucket_name)
+                self.cbas_util.connect_to_bucket(self.cbas_bucket_name)
                 query_statement = "select count(*) from {0};".format(
                     self.cbas_dataset_name)
                 status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
@@ -290,7 +295,7 @@ class CBASRBACTests(CBASBaseTest):
                     self.cbas_dataset_name)
                 status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
                     query_statement, username=username)
-
+        self.cbas_util.closeConn()
         return status
 
     def test_rest_api_authorization_version_api_no_authentication(self):
@@ -432,7 +437,7 @@ class CBASRBACTests(CBASBaseTest):
                 response = ""
                 for line in output:
                     response = response + line
-                response = json.loads(response)
+                response = json.loads(str(response))
 
                 if response != role["expected_status"]:
                     self.log.info(

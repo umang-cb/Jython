@@ -214,7 +214,7 @@ class CBASConcurrentQueryMgtTests(CBASBaseTest):
             status, metrics, errors, results, handle = self.cbas_util.execute_statement_on_cbas_util(
                 statement, mode="async", client_context_id=client_context_id)
 
-            status = self.cbas_util.delete_request(client_context_id)
+            status = self.cbas_util.delete_request(client_context_id, username="testuser")
             if str(status) != str(role["expected_status"]):
                 self.log.info(
                     "Error cancelling request as user with {0} role. Response = {1}".format(

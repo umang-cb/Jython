@@ -30,7 +30,7 @@ class CBASHelper(CBAS_helper_rest, SDKClient):
         if password:
             self.password = password
 
-        self.connectCluster()
+        self.connectCluster(username, password)
         System.setProperty("com.couchbase.analyticsEnabled", "true");
         self.bucket = self.cluster.openBucket(bucket);
         self.connectionLive = True

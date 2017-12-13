@@ -129,8 +129,9 @@ class RestConnection(object):
             return content, False
         
     def _create_capi_headers(self, username=None, password=None):
-        if username==None and password==None:
+        if username==None:
             username = self.username
+        if password==None:
             password = self.password            
         authorization = base64.encodestring('%s:%s' % (username, password))
         return {'Content-Type': 'application/json',

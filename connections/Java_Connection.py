@@ -21,7 +21,11 @@ class SDKClient(object):
         self.cluster = None
         self.clusterManager = None
         
-    def connectCluster(self):
+    def connectCluster(self, username=None, password=None):
+        if username:
+            self.username = username
+        if password:
+            self.password = password
         try:
             logger = Logger.getLogger("com.couchbase.client");
             logger.setLevel(Level.INFO);
@@ -32,6 +36,7 @@ class SDKClient(object):
             self.cluster.authenticate(self.username, self.password)
             self.clusterManager = self.cluster.clusterManager()
         except CouchbaseException:
+            print "cannot login from user: %s/%s"%(self.username, self.password)
             raise
 
     def reconnectCluster(self):
