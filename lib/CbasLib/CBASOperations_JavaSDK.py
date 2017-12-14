@@ -45,7 +45,8 @@ class CBASHelper(CBAS_helper_rest, SDKClient):
                 self.connectionLive = False
             except CouchbaseException as e:
                 log.error("%s"%e)
-                log.error("%s"%sys.exc_info())
+                import traceback
+                traceback.print_exception(sys.exc_info())
                 self.disconnectCluster()
                 self.connectionLive = False
                 

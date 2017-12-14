@@ -359,8 +359,10 @@ class SDKClient(object):
                 raise
 
     def get_multi(self, keys, ttl=0, quiet=True, replica=False, no_format=False):
+        import bulk_doc_operations.doc_ops as doc_op
         try:
-            data = self.cb.get_multi(keys, ttl=ttl, quiet=quiet, replica=replica, no_format=no_format)
+            data = doc_op().bulkGet(self.cb, keys)
+#             data = self.cb.get_multi(keys, ttl=ttl, quiet=quiet, replica=replica, no_format=no_format)
             return self.__translate_get_multi(data)
         except CouchbaseException as e:
             try:
@@ -523,8 +525,8 @@ class SDKClient(object):
         map = {}
         if data == None:
             return map
-        for key, result in data.items():
-            map[key] = [result.id(), result.cas(), result.content()]
+        for result in data:
+            map[result.id()] = [result.id(), result.cas(), str(result.content())]
         return map
 
     def __translate_get(self, data):

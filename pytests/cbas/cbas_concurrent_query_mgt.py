@@ -52,6 +52,8 @@ class CBASConcurrentQueryMgtTests(CBASBaseTest):
             self.sleep(5)
             total_items, _ = self.cbas_util.get_num_items_in_cbas_dataset(
                 self.cbas_dataset_name)
+        if self.mode is not None:
+            self.cbas_util.closeConn()
 
     def test_concurrent_query_mgmt(self):
         self._setupForTest()

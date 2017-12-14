@@ -12,6 +12,7 @@ from remote.remote_util import RemoteMachineShellConnection
 from basetestcase import BaseTestCase
 from membase.api.exception import CBQError, ReadDocumentException
 from membase.api.rest_client import RestConnection
+from CbasLib.CBASOperations_Rest import CBASHelper
 
 class QueryTests(BaseTestCase):
     def setUp(self):
@@ -258,7 +259,7 @@ class QueryTests(BaseTestCase):
                 query = query + ";"
                 for bucket in self.buckets:
                     query = query.replace(bucket.name,bucket.name+"_shadow")
-                result = RestConnection(self.cbas_node).execute_statement_on_cbas(query, "immediate")
+                result = CBASHelper(self.cbas_node).execute_statement_on_cbas(query, "immediate")
                 result = json.loads(result)
 
             else :

@@ -22,6 +22,7 @@ from couchbase_helper.tuq_generators import TuqGenerators
 #from xdcr.upgradeXDCR import UpgradeTests
 from couchbase_helper.documentgenerator import JSONNonDocGenerator
 from BucketLib.BucketOperations import BucketHelper
+from CbasLib.CBASOperations_Rest import CBASHelper
 
 
 JOIN_INNER = "INNER"
@@ -166,7 +167,7 @@ class QueryTests(BaseTestCase):
             url = 'http://{0}:8095/analytics/service'.format(self.cbas_node.ip)
             cmd = 'curl -s --data pretty=true --data-urlencode "statement@file.txt" ' + url + " -u " + bucket_username + ":" + bucket_password
             os.system(cmd)
-            os.remove(filename)
+#             os.remove(filename)
         self.log.info("==============  QueryTests tearDown has completed ==============")
         super(QueryTests, self).tearDown()
 
@@ -760,7 +761,7 @@ class QueryTests(BaseTestCase):
                 query = query + ";"
                 for bucket in self.buckets:
                     query = query.replace(bucket.name, bucket.name + "_shadow")
-                result = RestConnection(self.cbas_node).execute_statement_on_cbas(query,
+                result = CBASHelper(self.cbas_node).execute_statement_on_cbas(query,
                                                                                   "immediate")
                 result = json.loads(result)
             else:

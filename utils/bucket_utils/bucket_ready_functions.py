@@ -282,7 +282,7 @@ class bucket_utils():
                                        eviction_policy=self.eviction_policy, lww=self.lww))
 
         for task in bucket_tasks:
-            task.result(self.wait_timeout * 10)
+            task.get_result(self.wait_timeout * 10)
 
         if self.enable_time_sync:
             self._set_time_sync_on_buckets(['standard_bucket' + str(i) for i in range(num_buckets)])

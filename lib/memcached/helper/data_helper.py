@@ -319,8 +319,13 @@ class MemcachedClientHelper(object):
             client.sasl_auth_plain(bucket_info.name.encode('ascii'),
                                     bucket_info.saslPassword.encode('ascii'))
         else:
-            if isinstance(bucket,Bucket):
+            print type(bucket)
+            try:
                 bucket = bucket.name
+            except:
+#                 if isinstance(bucket,Bucket):
+#                     bucket = bucket.name
+                pass
             bucket = bucket.encode('ascii')
             client.sasl_auth_plain(admin_user,admin_pass)
             client.bucket_select(bucket)

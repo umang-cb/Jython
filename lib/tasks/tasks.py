@@ -1822,7 +1822,7 @@ class BatchedValidateDataTask(GenericLoadingTask):
                 if self.only_store_hash:
                     if crc32.crc32_hash(d) != int(value):
                         self.state = FINISHED
-                        self.set_exception(Exception('Key: %s Bad hash result: %d != %d' % (key, crc32.crc32_hash(d), int(value))))
+                        self.set_unexpected_exception(Exception('Key: %s Bad hash result: %d != %d' % (key, crc32.crc32_hash(d), int(value))))
                 else:
                     #value = json.dumps(value)
                     if json.loads(d) != json.loads(value):
