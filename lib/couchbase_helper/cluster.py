@@ -542,7 +542,7 @@ class Cluster(object):
 
         Returns:
             BucketFlushTask - A task future that is a handle to the scheduled task."""
-        _task = conc.BucketFlushTask(server, bucket, task_manager=self.task_manager)
+        _task = conc.BucketFlushTask(server,self.task_manager,bucket)
         self.task_manager.schedule(_task)
         return _task
 

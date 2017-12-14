@@ -13,6 +13,8 @@ from java.lang import System, RuntimeException
 from java.util.concurrent import TimeoutException, RejectedExecutionException
 from com.couchbase.client.core import RequestCancelledException,\
     CouchbaseException
+import sys
+from java.util import ArrayList
 
 log = logger.Logger.get_logger()
 
@@ -42,7 +44,8 @@ class CBASHelper(CBAS_helper_rest, SDKClient):
                 self.disconnectCluster()
                 self.connectionLive = False
             except CouchbaseException as e:
-                log.error("%s"%e.print_stack_trace())
+                log.error("%s"%e)
+                log.error("%s"%sys.exc_info())
                 self.disconnectCluster()
                 self.connectionLive = False
                 
@@ -69,7 +72,12 @@ class CBASHelper(CBAS_helper_rest, SDKClient):
             
             output["status"] = result.status()
             output["metrics"] = str(result.info().asJsonObject())
-            output["results"] = str(result.allRows())
+            
+            try:
+                output["results"] = str(result.allRows())
+            except:
+                output["results"] = None
+                
             output["errors"] = json.loads(str(result.errors()))
             
             if str(output['status']) == "fatal":
