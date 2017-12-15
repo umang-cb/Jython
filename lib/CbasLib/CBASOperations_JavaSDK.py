@@ -44,11 +44,19 @@ class CBASHelper(CBAS_helper_rest, SDKClient):
                 self.disconnectCluster()
                 self.connectionLive = False
             except CouchbaseException as e:
-                log.error("%s"%e)
-                import traceback
-                traceback.print_exception(sys.exc_info())
+                import time
+                time.sleep(10)
+                try:
+                    self.bucket.close()
+                    time.sleep(5)
+                except:
+                    pass
                 self.disconnectCluster()
                 self.connectionLive = False
+                log.error("%s"%e)
+                import traceback
+                traceback.print_exception(*sys.exc_info())
+
                 
     def execute_statement_on_cbas(self, statement, mode, pretty=True, 
         timeout=70, client_context_id=None, 
