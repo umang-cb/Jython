@@ -184,6 +184,8 @@ class QueryTests(BaseTestCase):
 ##############################################################################################
 
     def log_config_info(self):
+        if self.analytics:
+            return
         self.log.info("==============  System Config: ==============\n")
         current_indexes = []
         try:
@@ -236,7 +238,7 @@ class QueryTests(BaseTestCase):
         url = 'http://{0}:8095/analytics/service'.format(self.cbas_node.ip)
         cmd = 'curl -s --data pretty=true --data-urlencode "statement@file.txt" ' + url + " -u " + bucket_username + ":" + bucket_password
         os.system(cmd)
-#         os.remove(filename)
+        os.remove("file.txt")
 
     def get_index_storage_stats(self, timeout=120, index_map=None):
         api = self.index_baseUrl + 'stats/storage'
@@ -1008,6 +1010,8 @@ class QueryTests(BaseTestCase):
                         self.log.info(str(ex))
 
     def ensure_primary_indexes_exist(self):
+        if self.analytics:
+            return
         current_indexes = self.get_parsed_indexes()
         index_list = [{'name': '#primary',
                        'bucket': bucket.name,
