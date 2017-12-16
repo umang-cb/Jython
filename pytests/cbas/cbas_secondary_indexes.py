@@ -759,7 +759,7 @@ class CBASSecondaryIndexes(CBASBaseTest):
         self.cbas_util.connect_to_bucket(cbas_bucket_name=
                                self.cbas_bucket_name,
                                cb_bucket_password=self.cb_bucket_password)
-        self.wait_for_ingestion_complete([self.cbas_dataset_name], 107303)
+        self.cbas_util.wait_for_ingestion_complete([self.cbas_dataset_name], 107303)
         statement = 'SELECT count(*) FROM `{0}`'.format(self.cbas_dataset_name)
 #        
         _, result = self.cbas_util.verify_index_created(self.index_name, self.index_fields,
