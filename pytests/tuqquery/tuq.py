@@ -763,6 +763,17 @@ class QueryTests(BaseTestCase):
                 query = query + ";"
                 for bucket in self.buckets:
                     query = query.replace(bucket.name, bucket.name + "_shadow")
+#                 new_query = ""
+#                 for word in query.split(" "):
+#                     if word.find(",") != -1:
+#                         for temp_word in word.split(","):
+#                             if temp_word.startswith("_"):
+#                                 temp_word = "`"+temp_word+"`"
+#                             new_query = new_query + temp_word + " "
+#                     elif word.startswith("_"):
+#                         word = "`"+word+"`"
+#                     new_query = new_query + word + " "
+#                 print new_query
                 result = CBASHelper(self.cbas_node).execute_statement_on_cbas(query,
                                                                                   "immediate")
                 result = json.loads(result)

@@ -13,6 +13,7 @@ import logger
 
 class cluster_utils():
     def __init__(self, server):
+        self.master = server
         self.rest = RestConnection(server)
         self.log = logger.Logger.get_logger()
         
