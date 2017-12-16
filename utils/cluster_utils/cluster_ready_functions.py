@@ -16,6 +16,7 @@ class cluster_utils():
         self.master = server
         self.rest = RestConnection(server)
         self.log = logger.Logger.get_logger()
+        self.otpNodes = []
         
     def get_nodes_in_cluster(self, master_node=None):
         rest = None
