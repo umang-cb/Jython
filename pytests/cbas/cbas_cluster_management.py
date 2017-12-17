@@ -517,6 +517,7 @@ class CBASClusterManagement(CBASBaseTest):
         query = "create bucket " + self.cbas_bucket_name + " with {\"name\":\"" + self.cb_bucket_name + "\",\"nodes\":\"" + self.master.ip + ":" +"8091" +"\"};"
         self.load_sample_buckets(bucketName=self.cb_bucket_name, total_items=self.travel_sample_docs_count)
         self.add_node(self.cbas_servers[0], services=["cbas"])
+        self.cbas_util.createConn(self.cb_bucket_name)
         result = self.cbas_util.execute_statement_on_cbas_util(query, "immediate")[0]
         self.assertTrue(result == "success", "CBAS bucket cannot be created with provided port: %s"%query)
         
