@@ -86,11 +86,11 @@ class CBASConcurrentQueryMgtTests(CBASBaseTest):
         self.cbas_util._run_concurrent_queries(self.statement, self.mode, self.num_concurrent_queries,batch_size=self.concurrent_batch_size)
 
         if self.expect_reject:
-            if self.rejected_count < self.num_concurrent_queries:
-                self.fail("Not all queries rejected")
+            if self.cbas_util.rejected_count < self.num_concurrent_queries:
+                self.fail("Not all queries rejected. Rejected Count: %s, Query Count: %s"%(self.rejected_count, self.num_concurrent_queries))
         else:
-            if self.rejected_count:
-                self.fail("Some queries rejected")
+            if self.cbas_util.rejected_count:
+                self.fail("Some queries rejected. Rejected Count: %s"%self.cbas_util.rejected_count)
 
     def test_cancel_ongoing_request(self):
         self._setupForTest()
