@@ -1092,7 +1092,7 @@ class LoadDocumentsGeneratorsTask(LoadDocumentsTask):
                 self.op_type = self.op_types[iterator]
             if self.buckets:
                 self.bucket = self.buckets[iterator]
-            while self.has_next() and not self.future.done:
+            while self.has_next():
                 self.next()
             iterator += 1
 
@@ -1681,6 +1681,7 @@ class ValidateDataTask(GenericLoadingTask):
             if not self.itr % 50000:
                 log.info("{0} items were verified".format(self.itr))
             return True
+        time.sleep(5)
         log.info("{0} items were verified in {1} sec.the average number of ops\
             - {2} per second ".format(self.itr, time.time() - self.start_time,
                 self.itr / (time.time() - self.start_time)).rstrip())
