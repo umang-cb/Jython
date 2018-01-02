@@ -118,15 +118,15 @@ class CBASConcurrentQueryMgtTests(CBASBaseTest):
         if str(status) != "200":
             self.fail("Status is not 200")
 
-        status = self.cbas_util.delete_request(client_context_id)
-        if str(status) != "404":
-            self.fail("Status is not 404")
+#         status = self.cbas_util.delete_request(client_context_id)
+#         if str(status) != "404":
+#             self.fail("Status is not 404")
 
     def test_cancel_invalid_context(self):
         client_context_id = "abcd1235"
         status = self.cbas_util.delete_request(client_context_id)
-        if str(status) != "404":
-            self.fail ("Status is not 404")
+        if str(status) != "200":
+            self.fail("Status is not 200")
 
     def test_cancel_completed_request(self):
         self._setupForTest()
@@ -138,8 +138,8 @@ class CBASConcurrentQueryMgtTests(CBASBaseTest):
             statement, mode="immediate", client_context_id=client_context_id)
 
         status = self.cbas_util.delete_request(client_context_id)
-        if str(status) != "404":
-            self.fail ("Status is not 404")
+        if str(status) != "200":
+            self.fail("Status is not 200")
 
     def test_cancel_request_in_queue(self):
         client_context_id = "query_thread_{0}".format(int(self.num_concurrent_queries)-1)
@@ -159,8 +159,8 @@ class CBASConcurrentQueryMgtTests(CBASBaseTest):
             statement, mode="async", client_context_id=client_context_id)
 
         status = self.cbas_util.delete_request(client_context_id)
-        if str(status) != "404":
-            self.fail("Status is not 404")
+        if str(status) != "200":
+            self.fail("Status is not 200")
 
     def test_cancel_ongoing_request_empty_contextid(self):
         self._setupForTest()
