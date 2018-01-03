@@ -13,8 +13,7 @@ from java.lang import System, RuntimeException
 from java.util.concurrent import TimeoutException, RejectedExecutionException
 from com.couchbase.client.core import RequestCancelledException,\
     CouchbaseException
-import sys
-from java.util import ArrayList
+import sys, time, traceback
 
 log = logger.Logger.get_logger()
 
@@ -44,7 +43,6 @@ class CBASHelper(CBAS_helper_rest, SDKClient):
                 self.disconnectCluster()
                 self.connectionLive = False
             except CouchbaseException as e:
-                import time
                 time.sleep(10)
                 try:
                     self.bucket.close()
@@ -54,9 +52,18 @@ class CBASHelper(CBAS_helper_rest, SDKClient):
                 self.disconnectCluster()
                 self.connectionLive = False
                 log.error("%s"%e)
-                import traceback
                 traceback.print_exception(*sys.exc_info())
-
+            except TimeoutException as e:
+                time.sleep(10)
+                try:
+                    self.bucket.close()
+                    time.sleep(5)
+                except:
+                    pass
+                self.disconnectCluster()
+                self.connectionLive = False
+                log.error("%s"%e)
+                traceback.print_exception(*sys.exc_info())
                 
     def execute_statement_on_cbas(self, statement, mode, pretty=True, 
         timeout=70, client_context_id=None, 
