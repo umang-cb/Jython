@@ -64,6 +64,18 @@ class CBASHelper(CBAS_helper_rest, SDKClient):
                 self.connectionLive = False
                 log.error("%s"%e)
                 traceback.print_exception(*sys.exc_info())
+            except RuntimeException as e:
+                log.info("RuntimeException from Java SDK. %s"%str(e))
+                time.sleep(10)
+                try:
+                    self.bucket.close()
+                    time.sleep(5)
+                except:
+                    pass
+                self.disconnectCluster()
+                self.connectionLive = False
+                log.error("%s"%e)
+                traceback.print_exception(*sys.exc_info())
                 
     def execute_statement_on_cbas(self, statement, mode, pretty=True, 
         timeout=70, client_context_id=None, 
