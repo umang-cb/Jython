@@ -190,7 +190,7 @@ class PartialRollback_CBAS(CBASBaseTest):
         self.log.info("Kill Memcached process on NodeA")
         shell = RemoteMachineShellConnection(self.master)
         shell.kill_memcached()
-        self.sleep(5,"Wait for 5 secs for memcached restarts.")
+        self.sleep(10,"Wait for 10 secs for memcached restarts.")
         
         items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
         self.assertTrue(items_in_cbas_bucket>0, "Ingestion starting from 0 after rollback.")
