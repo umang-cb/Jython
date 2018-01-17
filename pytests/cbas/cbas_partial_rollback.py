@@ -103,6 +103,9 @@ class PartialRollback_CBAS(CBASBaseTest):
         
         self.log.info("Items in CB bucket after rollback: %s"%items_in_cb_bucket)
         
+        items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+        self.assertTrue(items_in_cbas_bucket>0, "Ingestion starting from 0 after rollback.")
+        
         self.cbas_util.wait_for_ingestion_complete([self.cbas_dataset_name], items_in_cb_bucket)
         # Count no. of items in CB & CBAS Buckets
         items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
@@ -157,6 +160,9 @@ class PartialRollback_CBAS(CBASBaseTest):
         
         self.log.info("Items in CB bucket after rollback: %s"%items_in_cb_bucket)
         
+        items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+        self.assertTrue(items_in_cbas_bucket>0, "Ingestion starting from 0 after rollback.")
+        
         self.cbas_util.wait_for_ingestion_complete([self.cbas_dataset_name], items_in_cb_bucket)
         # Count no. of items in CB & CBAS Buckets
         items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
@@ -192,16 +198,16 @@ class PartialRollback_CBAS(CBASBaseTest):
         shell.kill_memcached()
         self.sleep(10,"Wait for 10 secs for memcached restarts.")
         
-        items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
-        self.assertTrue(items_in_cbas_bucket>0, "Ingestion starting from 0 after rollback.")
-        
-        self.cbas_util.connect_to_bucket(self.cbas_bucket_name)
-        self.cbas_util.wait_for_ingestion_complete([self.cbas_dataset_name], self.num_items/2)
-        # Count no. of items in CB & CBAS Buckets
         items_in_cb_bucket = 0
         for node in kv_nodes:
             items_in_cb_bucket += self.get_item_count(node,self.cb_bucket_name)
             
+        items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+        self.assertTrue(items_in_cbas_bucket>0, "Ingestion starting from 0 after rollback.")
+        
+        self.cbas_util.connect_to_bucket(self.cbas_bucket_name)
+        self.cbas_util.wait_for_ingestion_complete([self.cbas_dataset_name], items_in_cb_bucket)
+        # Count no. of items in CB & CBAS Buckets
         items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
         
         self.log.info("After Rollback --- # docs in CB bucket : %s, # docs in CBAS bucket : %s",
