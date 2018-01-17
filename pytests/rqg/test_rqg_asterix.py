@@ -1,5 +1,4 @@
 import sys
-import paramiko
 import re
 from basetestcase import BaseTestCase
 import json
@@ -18,6 +17,7 @@ from couchbase_helper.analytics_helper import AnalyticsHelper
 from couchbase_helper.query_helper import QueryHelper
 from remote.remote_util import RemoteMachineShellConnection
 from lib.membase.helper.bucket_helper import BucketOperationHelper
+from BucketLib.BucketOperations import BucketHelper
 
 
 class RQGASTERIXTests(BaseTestCase):
@@ -79,16 +79,6 @@ class RQGASTERIXTests(BaseTestCase):
         self.indexer_memQuota = self.input.param("indexer_memQuota",1024)
         if self.initial_loading_to_cb:
             self._initialize_cluster_setup()
-        if not(self.use_rest):
-            self._ssh_client = paramiko.SSHClient()
-            self._ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            try:
-                self.os = self.shell.extract_remote_info().type.lower()
-            except Exception, ex:
-                self.log.error('SETUP FAILED')
-                self.tearDown()
-
-
 
     def tearDown(self):
         super(RQGASTERIXTests, self).tearDown()
@@ -178,7 +168,7 @@ class RQGASTERIXTests(BaseTestCase):
         #rest = RestConnection(self.master)
         if (self.skip_setup_cleanup):
             for bucket in self.buckets:
-                self.rest.delete_bucket(bucket.name)
+                BucketHelper(self.master).delete_bucket(bucket.name)
         self.buckets = []
         if self.change_bucket_properties or self.gsi_type == "memory_optimized":
             bucket_size = 100

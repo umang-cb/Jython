@@ -116,6 +116,47 @@ class cbas_utils():
                 return False
             else:
                 return True
+    
+    def create_dataset_on_bucket_merge_policy(self, cbas_bucket_name, cbas_dataset_name,
+                                 where_field=None, where_value = None,
+                                 validate_error_msg=False, username = None,
+                                 password = None, expected_error=None, merge_policy="no-merge",
+                                 max_mergable_component_size=16384, max_tolerance_component_count=2
+                                 ):
+        """
+        Creates a shadow dataset on a CBAS bucket
+        """
+        if merge_policy == "no-merge":
+            cmd_create_dataset = 'create shadow dataset %s with { "merge-policy": {"name": "%s"}} on %s;'\
+            %(cbas_dataset_name, merge_policy, cbas_bucket_name)
+            if where_field and where_value:
+                cmd_create_dataset = "create shadow dataset {0} with \
+                                    { merge-policy: {name: {1} }} \
+                                    on {2} WHERE `{3}`=\"{4}\";".format(
+                                        cbas_dataset_name, merge_policy, 
+                                        cbas_bucket_name, where_field, where_value)
+        else:
+            cmd_create_dataset = 'create shadow dataset %s with { "merge-policy": {"name": "%s", "parameters": {"max-mergable-component-size": %s, "max-tolerance-component-count": %s}}} on %s;'\
+            %(cbas_dataset_name, merge_policy, max_mergable_component_size, max_tolerance_component_count, cbas_bucket_name)
+            if where_field and where_value:
+                cmd_create_dataset = "create shadow dataset {0} with \
+                                    { merge-policy: {name: {1}, parameters: \
+                                    {max-mergable-component-size: {2}, \
+                                    max-tolerance-component-count: {3}}}} \
+                                    on {4} WHERE `{5}`=\"{6}\";".format(
+                                        cbas_dataset_name, merge_policy, 
+                                        max_mergable_component_size, max_tolerance_component_count, 
+                                        cbas_bucket_name, where_field, where_value)
+                                    
+        status, metrics, errors, results, _ = self.execute_statement_on_cbas_util(
+            cmd_create_dataset, username=username, password=password)
+        if validate_error_msg:
+            return self.validate_error_in_response(status, errors, expected_error)
+        else:
+            if status != "success":
+                return False
+            else:
+                return True
 
     def connect_to_bucket(self, cbas_bucket_name, cb_bucket_password=None,
                           validate_error_msg=False, cb_bucket_username="Administrator",
@@ -202,7 +243,7 @@ class cbas_utils():
         counter = 0
         while (timeout > counter):
             self.log.info("Total items in CB Bucket to be ingested in CBAS datasets %s"%num_items)
-            if num_items <= total_items:
+            if num_items == total_items:
                 self.log.info("Data ingestion completed in %s seconds."%counter)
                 return True
             else:

@@ -47,12 +47,6 @@ class CBASConcurrentQueryMgtTests(CBASBaseTest):
 
         # Wait while ingestion is completed
         self.cbas_util.wait_for_ingestion_complete([self.cbas_dataset_name],self.num_items)
-#         total_items, _ = self.cbas_util.get_num_items_in_cbas_dataset(
-#             self.cbas_dataset_name)
-#         while (self.num_items > total_items):
-#             self.sleep(5)
-#             total_items, _ = self.cbas_util.get_num_items_in_cbas_dataset(
-#                 self.cbas_dataset_name)
         if self.mode is not None:
             self.cbas_util.closeConn()
 
