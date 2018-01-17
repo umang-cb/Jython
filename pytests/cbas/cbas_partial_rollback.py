@@ -95,7 +95,7 @@ class PartialRollback_CBAS(CBASBaseTest):
         self.log.info("Kill Memcached process on NodeA")
         shell = RemoteMachineShellConnection(self.master)
         shell.kill_memcached()
-        self.sleep(5,"Wait for 5 secs for memcached restarts.")
+        self.sleep(10,"Wait for 10 secs for memcached restarts.")
         
         items_in_cb_bucket = 0
         for node in kv_nodes:
@@ -149,7 +149,7 @@ class PartialRollback_CBAS(CBASBaseTest):
         self.log.info("Kill Memcached process on NodeA")
         shell = RemoteMachineShellConnection(self.master)
         shell.kill_memcached()
-        self.sleep(5,"Wait for 5 secs for memcached restarts.")
+        self.sleep(10,"Wait for 10 secs for memcached restarts.")
         
         items_in_cb_bucket = 0
         for node in kv_nodes:
