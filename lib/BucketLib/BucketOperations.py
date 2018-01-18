@@ -9,7 +9,7 @@ if mode.java:
     from BucketOperations_JavaSDK import BucketHelper as bucketlib
 elif mode.cli:
     from BucketOperations_CLI import BucketHelper as bucketlib
-elif mode.rest:
+else:
     from BucketOperations_Rest import BucketHelper as bucketlib
     
 class BucketHelper(bucketlib):
