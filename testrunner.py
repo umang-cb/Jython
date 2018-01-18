@@ -54,6 +54,8 @@ def parse_args(argv):
                       help="Config file name (located in the conf subdirectory), e.g -c py-view.conf")
     tgroup.add_option("-t", "--test",
                       dest="testcase", help="Test name (multiple -t options add more tests) e.g -t performance.perf.DiskDrainRate")
+    tgroup.add_option("-m", "--mode",
+                      dest="mode", help="Use java for Java SDK, rest for rest APIs.")
     parser.add_option_group(tgroup)
 
     parser.add_option("-p", "--params",
@@ -311,7 +313,13 @@ def main():
     TestInputSingleton.input.test_params = runtime_test_params
     print "Global Test input params:"
     pprint(TestInputSingleton.input.test_params)
-
+    import mode
+    if options.mode == "java":
+        mode.java = True
+    elif options.mode == "rest":
+        mode.rest = True
+    else:
+        mode.cli = True
     xunit = XUnitTestResult()
     # Create root logs directory
     abs_path = os.path.dirname(os.path.abspath(sys.argv[0]))

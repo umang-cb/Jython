@@ -15,11 +15,11 @@ log = logger.Logger.get_logger()
 
 class CBASHelper(RestConnection):
     
-    def __init__(self,serverInfo):
-        super(CBASHelper, self).__init__(serverInfo)
+    def __init__(self, master, cbas_node):
+        super(CBASHelper, self).__init__(cbas_node)
         self.cbas_base_url = "http://{0}:{1}".format(self.ip, 8095)
 
-    def createConn(self, bucket):
+    def createConn(self, bucket, username, password):
         pass
     
     def closeConn(self):

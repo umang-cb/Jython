@@ -3,16 +3,13 @@ Created on Oct 24, 2017
 
 @author: riteshagarwal
 '''
-java_sdk = True
-use_cli = False
-use_rest = False
-use_memcached = True
+import mode
 
-if java_sdk:
+if mode.java:
     from ClusterLib.ClusterOperations_JavaSDK import ClusterHelper as clusterlib
-elif use_cli:
+elif mode.cli:
     from ClusterLib.ClusterOperations_CLI import ClusterHelper as clusterlib
-elif use_rest:
+elif mode.rest:
     from ClusterLib.ClusterOperations_Rest import ClusterHelper as clusterlib
     
 class ClusterHelper(clusterlib):

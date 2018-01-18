@@ -3,14 +3,12 @@ Created on Oct 24, 2017
 
 @author: riteshagarwal
 '''
-java_sdk = True
-use_cli = False
-use_rest = False
-use_memcached = True
 
-if java_sdk:
+import mode
+
+if mode.java:
     from CbasLib.CBASOperations_JavaSDK import CBASHelper as cbaslib
-elif use_cli:
+elif mode.cli:
     from CbasLib.CBASOperations_CLI import CBASHelper as cbaslib
 else:
     from CbasLib.CBASOperations_Rest import CBASHelper as cbaslib
