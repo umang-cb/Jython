@@ -778,7 +778,7 @@ class QueryTests(BaseTestCase):
                     else:
                         new_query = new_query + word + " "
                 self.log.info('RUN CBAS QUERY %s' % new_query)
-                result = CBASHelper(self.cbas_node).execute_statement_on_cbas(new_query,
+                result = CBASHelper(self.master,self.cbas_node).execute_statement_on_cbas(new_query,
                                                                                   "immediate")
                 result = json.loads(result)
             else:
