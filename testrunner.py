@@ -316,10 +316,10 @@ def main():
     import mode
     if options.mode == "java":
         mode.java = True
-    elif options.mode == "rest":
-        mode.rest = True
-    else:
+    elif options.mode == "cli":
         mode.cli = True
+    else:
+        mode.rest = True
     xunit = XUnitTestResult()
     # Create root logs directory
     abs_path = os.path.dirname(os.path.abspath(sys.argv[0]))
