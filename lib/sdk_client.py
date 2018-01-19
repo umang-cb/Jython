@@ -18,6 +18,7 @@ from BucketLib.BucketOperations import BucketHelper
 from com.couchbase.client.java.error.subdoc import DocumentNotJsonException
 import Java_Connection
 import logger
+from java.util.logging import Logger, Level, ConsoleHandler
 
 FMT_AUTO = "autoformat"
 
@@ -43,6 +44,11 @@ class SDKClient(object):
 
     def _createConn(self):
         try:
+            logger = Logger.getLogger("com.couchbase.client");
+            logger.setLevel(Level.SEVERE);
+            for h in logger.getParent().getHandlers():
+                if isinstance(h, ConsoleHandler) :
+                    h.setLevel(Level.SEVERE);
             self.cluster = CouchbaseCluster.create(Java_Connection.env, self.hosts)
             self.cluster.authenticate("Administrator", self.password)
             self.cb = self.cluster.openBucket(self.bucket)

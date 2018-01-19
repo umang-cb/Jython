@@ -28,10 +28,10 @@ class SDKClient(object):
             self.password = password
         try:
             logger = Logger.getLogger("com.couchbase.client");
-            logger.setLevel(Level.INFO);
+            logger.setLevel(Level.SEVERE);
             for h in logger.getParent().getHandlers():
                 if isinstance(h, ConsoleHandler) :
-                    h.setLevel(Level.INFO);
+                    h.setLevel(Level.SEVERE);
             self.cluster = CouchbaseCluster.create(env, self.server.ip)
             self.cluster.authenticate(self.username, self.password)
             self.clusterManager = self.cluster.clusterManager()
