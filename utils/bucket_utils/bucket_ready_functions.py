@@ -1353,8 +1353,9 @@ class bucket_utils():
         """
         age = range(70)
         first = ['james', 'sharon', 'dave', 'bill', 'mike', 'steve']
-        template = '{{ "number": {0}, "first_name": "{1}" , "mutated":0}}'
-        gen_load = DocumentGenerator('test_docs', template, age, first,
+        profession = ['doctor','lawyer']
+        template = '{{ "number": {0}, "first_name": "{1}" , "profession":"{2}", "mutated":0}}'
+        gen_load = DocumentGenerator('test_docs', template, age, first,profession,
                                      start=start_key, end=end_key)
         self.log.info("%s %s documents..." % (operation, num_items))
         try:

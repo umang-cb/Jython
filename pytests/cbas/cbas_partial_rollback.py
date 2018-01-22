@@ -7,6 +7,7 @@ Created on Jan 4, 2018
 from cbas_base import CBASBaseTest, TestInputSingleton
 from lib.memcached.helper.data_helper import MemcachedClientHelper
 from remote.remote_util import RemoteMachineShellConnection
+from membase.api.rest_client import RestConnection
 
 class PartialRollback_CBAS(CBASBaseTest):
 
@@ -28,8 +29,16 @@ class PartialRollback_CBAS(CBASBaseTest):
         '''Create default bucket'''
         self.create_default_bucket()
         self.cbas_util.createConn("default")
-
+        
+        self.merge_policy = self.input.param('merge_policy', None)
+        self.max_mergable_component_size = self.input.param('max_mergable_component_size', 16384)
+        self.max_tolerance_component_count = self.input.param('max_tolerance_component_count', 2)
+        self.create_index = self.input.param('create_index', None)
+        self.where_field = self.input.param('where_field',None)
+        self.where_value = self.input.param('where_value',None)
+        
     def setup_for_test(self, skip_data_loading=False):
+        
         if not skip_data_loading:
             # Load Couchbase bucket first.
             self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0,
@@ -41,18 +50,37 @@ class PartialRollback_CBAS(CBASBaseTest):
                                    cb_server_ip=self.cb_server_ip)
 
         # Create dataset on the CBAS bucket
-        self.cbas_util.create_dataset_on_bucket_merge_policy(cbas_bucket_name=self.cbas_bucket_name,
-                                      cbas_dataset_name=self.cbas_dataset_name)
-
+        if self.merge_policy == None:
+            self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+                                                    where_field=self.where_field, where_value=self.where_value,
+                                                    cbas_dataset_name=self.cbas_dataset_name)
+        else:
+            self.cbas_util.create_dataset_on_bucket_merge_policy(cbas_bucket_name=self.cbas_bucket_name,
+                                                                 where_field=self.where_field, where_value=self.where_value,
+                                                                 cbas_dataset_name=self.cbas_dataset_name,merge_policy=self.merge_policy,
+                                                                 max_mergable_component_size=self.max_mergable_component_size,
+                                                                 max_tolerance_component_count=self.max_tolerance_component_count)
+        if self.create_index:
+            create_idx_statement = "create index {0} on {1}({2});".format(
+                self.index_name, self.cbas_dataset_name, "profession:string")
+            status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
+                create_idx_statement)
         # Connect to Bucket
         self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                cb_bucket_password=self.cb_bucket_password)
 
         if not skip_data_loading:
+            result = RestConnection(self.master).query_tool("CREATE PRIMARY INDEX `index` ON `%s` USING GSI;"%(self.cb_bucket_name))
+            self.sleep(20, "wait for index creation.")
+            self.assertTrue(result['status'] == "success")
+            if self.where_field and self.where_value:
+                items = RestConnection(self.master).query_tool('select count(*) from %s where %s = "%s"'%(self.cb_bucket_name,self.where_field,self.where_value))['results'][0]['$1']
+            else:
+                items = self.num_items
             # Validate no. of items in CBAS dataset
             if not self.cbas_util.validate_cbas_dataset_items_count(
                     self.cbas_dataset_name,
-                    self.num_items):
+                    items):
                 self.fail(
                     "No. of items in CBAS dataset do not match that in the CB bucket")
 
@@ -62,7 +90,6 @@ class PartialRollback_CBAS(CBASBaseTest):
 
     def test_ingestion_after_kv_rollback_create_ops(self):
         self.setup_for_test()
-
         # Stop Persistence on Node A & Node B
         self.log.info("Stopping persistence on NodeA")
         mem_client = MemcachedClientHelper.direct_client(self.master,
@@ -76,8 +103,11 @@ class PartialRollback_CBAS(CBASBaseTest):
         
         kv_nodes = self.get_kv_nodes(self.servers, self.master)
         items_in_cb_bucket = 0
-        for node in kv_nodes:
-            items_in_cb_bucket += self.get_item_count(node,self.cb_bucket_name)
+        if self.where_field and self.where_value:
+            items_in_cb_bucket = RestConnection(self.master).query_tool('select count(*) from %s where %s = "%s"'%(self.cb_bucket_name,self.where_field,self.where_value))['results'][0]['$1']
+        else:
+            for node in kv_nodes:
+                items_in_cb_bucket += self.get_item_count(node,self.cb_bucket_name)
         # Validate no. of items in CBAS dataset
         self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, items_in_cb_bucket, 0),
                         "No. of items in CBAS dataset do not match that in the CB bucket")
@@ -95,16 +125,20 @@ class PartialRollback_CBAS(CBASBaseTest):
         self.log.info("Kill Memcached process on NodeA")
         shell = RemoteMachineShellConnection(self.master)
         shell.kill_memcached()
-        self.sleep(10,"Wait for 10 secs for memcached restarts.")
-        
-        items_in_cb_bucket = 0
-        for node in kv_nodes:
-            items_in_cb_bucket += self.get_item_count(node,self.cb_bucket_name)
-        
-        self.log.info("Items in CB bucket after rollback: %s"%items_in_cb_bucket)
+        self.sleep(2,"Wait for 2 secs for DCP rollback sent to CBAS.")
         
         items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
         self.assertTrue(items_in_cbas_bucket>0, "Ingestion starting from 0 after rollback.")
+
+        self.sleep(10,"Wait for 10 secs for memcached restarts.")
+        items_in_cb_bucket = 0
+        if self.where_field and self.where_value:
+            items_in_cb_bucket = RestConnection(self.master).query_tool('select count(*) from %s where %s = "%s"'%(self.cb_bucket_name,self.where_field,self.where_value))['results'][0]['$1']
+        else:
+            for node in kv_nodes:
+                items_in_cb_bucket += self.get_item_count(node,self.cb_bucket_name)
+        
+        self.log.info("Items in CB bucket after rollback: %s"%items_in_cb_bucket)
         
         self.cbas_util.wait_for_ingestion_complete([self.cbas_dataset_name], items_in_cb_bucket)
         # Count no. of items in CB & CBAS Buckets
@@ -115,7 +149,7 @@ class PartialRollback_CBAS(CBASBaseTest):
 
         self.assertTrue(items_in_cb_bucket == items_in_cbas_bucket,
                         "After Rollback : # Items in CBAS bucket does not match that in the CB bucket")
-        
+
     def test_ingestion_after_kv_rollback_delete_ops(self):
         self.setup_for_test()
 
