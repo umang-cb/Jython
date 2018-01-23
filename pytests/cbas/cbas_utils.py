@@ -130,20 +130,13 @@ class cbas_utils():
             cmd_create_dataset = 'create shadow dataset %s with { "merge-policy": {"name": "%s"}} on %s;'\
             %(cbas_dataset_name, merge_policy, cbas_bucket_name)
             if where_field and where_value:
-                cmd_create_dataset = "create shadow dataset {0} with \
-                                    { merge-policy: {name: {1} }} \
-                                    on {2} WHERE `{3}`=\"{4}\";".format(
-                                        cbas_dataset_name, merge_policy, 
-                                        cbas_bucket_name, where_field, where_value)
+                cmd_create_dataset = 'create shadow dataset %s with { "merge-policy": {"name": "%s" }} on %s WHERE `%s`=\"%s\";'%(
+                    cbas_dataset_name, merge_policy, cbas_bucket_name, where_field, where_value)
         else:
             cmd_create_dataset = 'create shadow dataset %s with { "merge-policy": {"name": "%s", "parameters": {"max-mergable-component-size": %s, "max-tolerance-component-count": %s}}} on %s;'\
             %(cbas_dataset_name, merge_policy, max_mergable_component_size, max_tolerance_component_count, cbas_bucket_name)
             if where_field and where_value:
-                cmd_create_dataset = "create shadow dataset {0} with \
-                                    { merge-policy: {name: {1}, parameters: \
-                                    {max-mergable-component-size: {2}, \
-                                    max-tolerance-component-count: {3}}}} \
-                                    on {4} WHERE `{5}`=\"{6}\";".format(
+                cmd_create_dataset = 'create shadow dataset %s with { "merge-policy": {"name": "%s", "parameters": {"max-mergable-component-size": %s,"max-tolerance-component-count": %s}}} on %s WHERE `%s`=\"%s\";'%(
                                         cbas_dataset_name, merge_policy, 
                                         max_mergable_component_size, max_tolerance_component_count, 
                                         cbas_bucket_name, where_field, where_value)

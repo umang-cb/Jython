@@ -8,6 +8,7 @@ from cbas_base import CBASBaseTest, TestInputSingleton
 from lib.memcached.helper.data_helper import MemcachedClientHelper
 from remote.remote_util import RemoteMachineShellConnection
 from membase.api.rest_client import RestConnection
+import time
 
 class PartialRollback_CBAS(CBASBaseTest):
 
@@ -70,7 +71,7 @@ class PartialRollback_CBAS(CBASBaseTest):
                                cb_bucket_password=self.cb_bucket_password)
 
         if not skip_data_loading:
-            result = RestConnection(self.master).query_tool("CREATE PRIMARY INDEX `index` ON `%s` USING GSI;"%(self.cb_bucket_name))
+            result = RestConnection(self.master).query_tool("CREATE INDEX {0} ON {1}({2})".format(self.index_name, self.cb_bucket_name, "profession"))
             self.sleep(20, "wait for index creation.")
             self.assertTrue(result['status'] == "success")
             if self.where_field and self.where_value:
@@ -90,6 +91,8 @@ class PartialRollback_CBAS(CBASBaseTest):
 
     def test_ingestion_after_kv_rollback_create_ops(self):
         self.setup_for_test()
+        items_before_persistence_stop = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)[0]
+        self.log.info("Items in CBAS before persistence stop: %s"%items_before_persistence_stop)
         # Stop Persistence on Node A & Node B
         self.log.info("Stopping persistence on NodeA")
         mem_client = MemcachedClientHelper.direct_client(self.master,
@@ -126,24 +129,32 @@ class PartialRollback_CBAS(CBASBaseTest):
         shell = RemoteMachineShellConnection(self.master)
         shell.kill_memcached()
         self.sleep(2,"Wait for 2 secs for DCP rollback sent to CBAS.")
+        curr = time.time()
+        while items_in_cbas_bucket != 0 and items_in_cbas_bucket >= items_before_persistence_stop:
+            items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+            if curr+120 < time.time():
+                break
+        self.assertTrue(items_in_cbas_bucket<items_before_persistence_stop, "Roll-back did not happen.")
+        self.log.info("#######BINGO########\nROLLBACK HAPPENED")
         
-        items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
-        self.assertTrue(items_in_cbas_bucket>0, "Ingestion starting from 0 after rollback.")
-
-        self.sleep(10,"Wait for 10 secs for memcached restarts.")
         items_in_cb_bucket = 0
-        if self.where_field and self.where_value:
-            items_in_cb_bucket = RestConnection(self.master).query_tool('select count(*) from %s where %s = "%s"'%(self.cb_bucket_name,self.where_field,self.where_value))['results'][0]['$1']
-        else:
-            for node in kv_nodes:
-                items_in_cb_bucket += self.get_item_count(node,self.cb_bucket_name)
+        curr = time.time()
+        while items_in_cb_bucket != items_in_cbas_bucket:
+            if self.where_field and self.where_value:
+                try:
+                    items_in_cb_bucket = RestConnection(self.master).query_tool('select count(*) from %s where %s = "%s"'%(self.cb_bucket_name,self.where_field,self.where_value))['results'][0]['$1']
+                except:
+                    self.log.info("Indexer in rollback state. Query failed. Pass and move ahead.")
+                    pass
+            else:
+                for node in kv_nodes:
+                    items_in_cb_bucket += self.get_item_count(node,self.cb_bucket_name)
         
-        self.log.info("Items in CB bucket after rollback: %s"%items_in_cb_bucket)
-        
-        self.cbas_util.wait_for_ingestion_complete([self.cbas_dataset_name], items_in_cb_bucket)
-        # Count no. of items in CB & CBAS Buckets
-        items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
-        
+            self.log.info("Items in CB bucket after rollback: %s"%items_in_cb_bucket)
+            items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+            if curr+120 < time.time():
+                break
+            
         self.log.info("After Rollback --- # docs in CB bucket : %s, # docs in CBAS bucket : %s",
                       items_in_cb_bucket, items_in_cbas_bucket)
 
