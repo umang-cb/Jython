@@ -140,6 +140,8 @@ class PartialRollback_CBAS(CBASBaseTest):
         items_in_cb_bucket = 0
         curr = time.time()
         while items_in_cb_bucket != items_in_cbas_bucket:
+            items_in_cb_bucket = 0
+            items_in_cbas_bucket = 0
             if self.where_field and self.where_value:
                 try:
                     items_in_cb_bucket = RestConnection(self.master).query_tool('select count(*) from %s where %s = "%s"'%(self.cb_bucket_name,self.where_field,self.where_value))['results'][0]['$1']
