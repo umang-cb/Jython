@@ -512,8 +512,10 @@ class RemoteMachineShellConnection:
             o, r = self.execute_command("taskkill /F /T /IM memcached*")
             self.log_command_output(o, r)
         else:
+            self.log.info(self.execute_command("pgrep -l memcached"))
             o, r = self.execute_command("kill -9 $(ps aux | grep '/opt/couchbase/bin/memcached' | awk '{print $2}')")
             self.log_command_output(o, r)
+            self.log.info(self.execute_command("pgrep -l memcached"))
         return o, r
 
     def stop_memcached(self):
