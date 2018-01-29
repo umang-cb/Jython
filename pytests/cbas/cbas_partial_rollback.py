@@ -73,7 +73,7 @@ class PartialRollback_CBAS(CBASBaseTest):
 
         if not skip_data_loading:
             result = RestConnection(self.master).query_tool("CREATE INDEX {0} ON {1}({2})".format(self.index_name, self.cb_bucket_name, "profession"))
-            self.sleep(20, "wait for index creation.")
+            self.sleep(10, "wait for index creation.")
             self.assertTrue(result['status'] == "success")
             if self.where_field and self.where_value:
                 items = RestConnection(self.master).query_tool('select count(*) from %s where %s = "%s"'%(self.cb_bucket_name,self.where_field,self.where_value))['results'][0]['$1']
