@@ -337,7 +337,10 @@ class BuildQuery(object):
                             else:
                                 os_name = "centos6"
                         elif "suse" in os_version.lower():
-                            os_name = "suse11"
+                            if "11" in os_version.lower():
+                                os_name = "suse11"
+                            elif "12" in os_version.lower():
+                                os_name = "suse12"
                         elif "oracle linux" in os_version.lower():
                             os_name = "oel6"
                         else:
@@ -389,7 +392,10 @@ class BuildQuery(object):
                             else:
                                 os_name = "centos6"
                         elif "suse" in os_version.lower():
-                            os_name = "suse11"
+                            if "11" in os_version.lower():
+                                os_name = "suse11"
+                            elif "12" in os_version.lower():
+                                os_name = "suse12"
                         elif "oracle linux" in os_version.lower():
                             os_name = "oel6"
                         else:
@@ -622,9 +628,9 @@ class BuildQuery(object):
                 elif "-amd64" in build_info:
                     build.architecture_type = "x86_64"
                     build_info = build_info.replace("-amd64", "")
-                del_words = ["centos6", "debian7", "debian8", "ubuntu12.04",
-                             "ubuntu14.04", "ubuntu16.04", "windows", "macos",
-                             "centos7", "suse11", "suse12"]
+                del_words = ["centos6", "debian7", "debian8", "debian9",
+                             "ubuntu12.04", "ubuntu14.04", "ubuntu16.04",
+                             "windows", "macos", "centos7", "suse11", "suse12"]
                 if build_info.startswith("couchbase-server"):
                     build.product = build_info.split("-")
                     build.product = "-".join([i for i in build.product \
@@ -817,6 +823,9 @@ class BuildQuery(object):
                 elif "debian gnu/linux 8" in distribution_version:
                     build.distribution_version = "debian8"
                     os_name = "debian8"
+                elif "debian gnu/linux 9" in distribution_version:
+                    build.distribution_version = "debian9"
+                    os_name = "debian9"
                 elif "windows" in distribution_version:
                     os_name = "windows"
                     if "x86_64" not in architecture_type:
