@@ -204,13 +204,13 @@ def get_server_logs(input, path):
             filename = "{0}/{1}-diag.txt".format(path, server.ip)
             page = urllib2.urlopen(req)
             with open(filename, 'wb') as output:
-                os.write(1, "downloading {0} ...".format(server.ip))
+                sys.stdout.write("downloading {0} ...".format(server.ip))
                 while True:
                     buffer = page.read(65536)
                     if not buffer:
                         break
                     output.write(buffer)
-                    os.write(1, ".")
+                    sys.stdout.write(".")
             file_input = open('{0}'.format(filename), 'rb')
             zipped = gzip.open("{0}.gz".format(filename), 'wb')
             zipped.writelines(file_input)
