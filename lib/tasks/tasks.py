@@ -48,6 +48,7 @@ import testconstants
 #     from memcached.helper.data_helper import VBucketAwareMemcached,KVStoreAwareSmartClient
 #from sdk_client import SDKSmartClient as VBucketAwareMemcached
 from sdk_client import SDKSmartClient as VBucketAwareMemcached
+from CbasLib.CBASOperations import CBASHelper
 
 
 PENDING = 'PENDING'
@@ -1659,6 +1660,84 @@ class CompactBucketTask(Task):
         total_disk_size = stats["op"]["samples"]["couch_total_disk_size"][-1]
         log.info("Disk size is = %d" % total_disk_size)
         return total_disk_size
+
+class CBASQueryExecuteTask(Task):
+    def __init__(self, master, cbas_server, task_manager, cbas_endpoint, statement, mode=None, pretty=True):
+        Task.__init__(self, "cbas_query_execute_task", task_manager)
+        self.server = cbas_server
+        self.master = master
+        self.cbas_endpoint = cbas_endpoint
+        self.statement = statement
+        self.mode = mode
+        self.pretty = pretty
+        self.response = {}
+        self.passed = True
+
+    def execute(self):
+        try:
+            rest = CBASHelper(self.master,self.server)
+            self.response = json.loads(rest.execute_statement_on_cbas(self.statement,
+                                           self.mode, self.pretty, 70))
+            if self.response:
+                self.state = CHECKING
+                self.call()
+            else:
+                log.info("Some error")
+                self.state = FINISHED
+                self.passed = False
+                self.set_result(False)
+        # catch and set all unexpected exceptions
+
+        except Exception as e:
+            self.state = FINISHED
+            self.passed = False
+            self.set_unexpected_exception(e)
+
+    def check(self):
+        try:
+            if "errors" in self.response:
+                errors = self.response["errors"]
+            else:
+                errors = None
+
+            if "results" in self.response:
+                results = self.response["results"]
+            else:
+                results = None
+
+            if "handle" in self.response:
+                handle = self.response["handle"]
+            else:
+                handle = None
+
+            if self.mode != "async":
+                print self.response
+                if self.response["status"] == "success":
+                    self.set_result(True)
+                    self.passed = True
+                else:
+                    log.info(errors)
+                    self.passed = False
+                    self.set_result(False)
+            else:
+                print self.response
+                if self.response["status"] == "started":
+                    self.set_result(True)
+                    self.passed = True
+                elif self.response["status"] == "running":
+                    self.set_result(True)
+                    self.passed = True
+                else:
+                    log.info(self.response["status"])
+                    log.info(errors)
+                    self.passed = False
+                    self.set_result(False)
+            self.state = FINISHED
+        # catch and set all unexpected exceptions
+        except Exception as e:
+            self.state = FINISHED
+            self.set_unexpected_exception(e)
+
 
 class ValidateDataTask(GenericLoadingTask):
     def __init__(self, server, bucket, kv_store, max_verify=None, only_store_hash=True, replica_to_read=None, task_manager=None):

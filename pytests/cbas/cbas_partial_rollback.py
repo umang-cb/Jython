@@ -86,7 +86,6 @@ class PartialRollback_CBAS(CBASBaseTest):
                 self.fail(
                     "No. of items in CBAS dataset do not match that in the CB bucket")
 
-
     def tearDown(self):
         super(PartialRollback_CBAS, self).tearDown()
 
@@ -235,7 +234,6 @@ class PartialRollback_CBAS(CBASBaseTest):
 
         self.assertTrue(items_in_cb_bucket == items_in_cbas_bucket,
                         "After Rollback : # Items in CBAS bucket does not match that in the CB bucket")
-
 
     def test_ingestion_after_kv_rollback_cbas_disconnected(self):
         self.setup_for_test()

@@ -11,13 +11,16 @@ from threading import Thread
 import threading
 # from bucket_utils.bucket_ready_functions import bucket_utils
 import time
+from couchbase_helper.cluster import Cluster
 log = logger.Logger.get_logger()
 
 class cbas_utils():
     def __init__(self, master, cbas_node):
         self.log = logger.Logger.get_logger()
         self.cbas_node = cbas_node
+        self.master = master
         self.cbas_helper = CBASHelper(master, cbas_node)
+        self.cluster = Cluster() 
 #         self.bucket_util = bucket_utils(master)
 
     def createConn(self, bucket, username=None, password=None):
@@ -314,11 +317,12 @@ class cbas_utils():
         except Exception, e:
             raise Exception(str(e))
 
-    def retrieve_request_status_using_handle(self, server, handle):
+    def retrieve_request_status_using_handle(self, server, handle, shell = None):
         """
         Retrieves status of a request from /analytics/status endpoint
         """
-        shell = RemoteMachineShellConnection(server)
+        if not shell:
+            shell = RemoteMachineShellConnection(server)
 
         output, error = shell.execute_command(
             """curl -v {0} -u {1}:{2}""".format(handle,
@@ -330,7 +334,9 @@ class cbas_utils():
             response = response + line
         if response:
             response = json.loads(response)
-        shell.disconnect()
+        
+        if not shell:
+            shell.disconnect()
 
         status = ""
         handle = ""
@@ -409,19 +415,19 @@ class cbas_utils():
         fail_count = 0
         failed_queries = []
         for count in range(0, num_queries):
-            tasks.append(self._cb_cluster.async_cbas_query_execute(self.cbas_node,
+            tasks.append(self.cluster.async_cbas_query_execute(self.master, self.cbas_node,
                                                                    cbas_base_url,
                                                                    statement,
                                                                    mode,
                                                                    pretty))
 
         for task in tasks:
-            task.result()
+            task.get_result()
             if not task.passed:
                 fail_count += 1
 
         if fail_count:
-            self.fail("%s out of %s queries failed!" % (fail_count, num_queries))
+            self.log.info("%s out of %s queries failed!" % (fail_count, num_queries))
         else:
             self.log.info("SUCCESS: %s out of %s queries passed"
                           % (num_queries - fail_count, num_queries))
@@ -433,6 +439,7 @@ class cbas_utils():
         self.error_count = 0
         self.cancel_count = 0
         self.timeout_count = 0
+        self.handles = []
         self.concurrent_batch_size = batch_size
         # Run queries concurrently
         self.log.info("Running queries concurrently now...")
@@ -458,7 +465,8 @@ class cbas_utils():
                 num_queries, self.failed_count, self.success_count, self.rejected_count, self.cancel_count, self.timeout_count))
         if self.failed_count+self.error_count != 0:
             raise Exception("Queries Failed:%s , Queries Error Out:%s"%(self.failed_count,self.error_count))
-
+        return self.handles
+    
     def _run_query(self, query, mode, rest=None, validate_item_count=False, expected_count=0):
         # Execute query (with sleep induced)
         name = threading.currentThread().getName();
@@ -496,6 +504,8 @@ class cbas_utils():
             elif mode == "async":
                 if status == "running" and handle:
                     self.log.info("--------Thread %s : success----------", name)
+                    print handle
+                    self.handles.append(handle)
                     self.success_count += 1
                 else:
                     self.log.info("Status = %s", status)
@@ -505,6 +515,7 @@ class cbas_utils():
             elif mode == "deferred":
                 if status == "success" and handle:
                     self.log.info("--------Thread %s : success----------", name)
+                    self.handles.append(handle)
                     self.success_count += 1
                 else:
                     self.log.info("Status = %s", status)
