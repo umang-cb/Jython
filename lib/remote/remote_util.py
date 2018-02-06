@@ -333,29 +333,6 @@ class RemoteMachineShellConnection:
             output, error = self.execute_command(command.format(stop_time))
             self.log_command_output(output, error)
 
-    def stop_network(self, stop_time):
-        """
-        Stop the network for given time period and then restart the network
-        on the machine.
-        :param stop_time: Time duration for which the network service needs
-        to be down in the machine
-        :return: Nothing
-        """
-        self.extract_remote_info()
-        os_type = self.info.type.lower()
-        if os_type == "unix" or os_type == "linux":
-            if self.info.distribution_type.lower() == "ubuntu":
-                command = "ifdown -a && sleep {} && ifup -a"
-            else:
-                command = "nohup service network stop && sleep {} && service network " \
-                          "start &"
-            output, error = self.execute_command(command.format(stop_time))
-            self.log_command_output(output, error)
-        elif os_type == "windows":
-            command = "net stop Netman && timeout {} && net start Netman"
-            output, error = self.execute_command(command.format(stop_time))
-            self.log_command_output(output, error)
-
     def stop_membase(self):
         self.extract_remote_info()
         if self.info.type.lower() == 'windows':
@@ -506,6 +483,30 @@ class RemoteMachineShellConnection:
             self.log_command_output(o, r)
         return o, r
 
+    def kill_java(self):
+        self.extract_remote_info()
+        if self.info.type.lower() == 'windows':
+            o, r = self.execute_command("taskkill /F /T /IM java*")
+            self.log_command_output(o, r)
+        else:
+            log.info(self.execute_command("pgrep -l java"))
+            o, r = self.execute_command("kill -9 $(ps aux | grep '/opt/couchbase/lib/cbas/runtime/bin/java' | awk '{print $2}')")
+            self.log_command_output(o, r)
+            log.info(self.execute_command("pgrep -l java"))
+        return o, r
+    
+    def kill_process(self, process_name, service_name):
+        self.extract_remote_info()
+        if self.info.type.lower() == 'windows':
+            o, r = self.execute_command("taskkill /F /T /IM %s*"%process_name)
+            self.log_command_output(o, r)
+        else:
+            log.info(self.execute_command("pgrep -l %s"%process_name))
+            o, r = self.execute_command("kill -9 $(ps aux | grep '%s' | awk '{print $2}')"%service_name)
+            self.log_command_output(o, r)
+            log.info(self.execute_command("pgrep -l %s"%process_name))
+        return o, r
+    
     def kill_memcached(self):
         self.extract_remote_info()
         if self.info.type.lower() == 'windows':
@@ -513,7 +514,7 @@ class RemoteMachineShellConnection:
             self.log_command_output(o, r)
         else:
             log.info(self.execute_command("pgrep -l memcached"))
-            o, r = self.execute_command("kill -9 $(ps aux | grep '/opt/couchbase/bin/memcached' | awk '{print $2}')")
+            o, r = self.execute_command("kill -9 $(pgrep memcached)")
             self.log_command_output(o, r)
             log.info(self.execute_command("pgrep -l memcached"))
         return o, r
