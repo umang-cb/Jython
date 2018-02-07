@@ -397,7 +397,7 @@ class MembaseServerInstaller(Installer):
                     # Make sure that data_path is writable by membase user
                     remote_client.execute_command("chown -R membase.membase {0}".format(server.data_path))
                     remote_client.disconnect()
-                    rest.set_data_path(data_path=server.data_path)
+                    rest.set_data_path(data_path=server.data_path,index_path=server.index_path,cbas_path=server.cbas_path)
                 rest.init_cluster(username=server.rest_username, password=server.rest_password)
                 rest.init_cluster_memoryQuota(memoryQuota=rest.get_nodes_self().mcdMemoryReserved)
                 cluster_initialized = True
@@ -487,7 +487,7 @@ class CouchbaseServerInstaller(Installer):
                                 "chown -R couchbase:couchbase {0}".format(path)):
                         remote_client.execute_command(cmd)
                 rest.set_data_path(data_path=server.data_path,
-                                       index_path=server.index_path)
+                                       index_path=server.index_path,cbas_path=server.cbas_path)
                 time.sleep(3)
 
                 # Initialize cluster

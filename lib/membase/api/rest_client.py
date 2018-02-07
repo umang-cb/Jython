@@ -1898,21 +1898,32 @@ class RestConnection(object):
             log.error("Rebalance is not stopped due to {0}".format(content))
         return status
 
-    def set_data_path(self, data_path=None, index_path=None):
+    def set_data_path(self, data_path=None, index_path=None, cbas_path=[]):
         api = self.baseUrl + '/nodes/self/controller/settings'
+        from urllib3._collections import HTTPHeaderDict
+        data = HTTPHeaderDict()
+        
         paths = {}
         if data_path:
+            data.add('path', data_path)
             paths['path'] = data_path
         if index_path:
+            data.add('index_path', index_path)
             paths['index_path'] = index_path
+        if cbas_path:
+            import ast
+            cbas_path = ast.literal_eval(cbas_path)
+            for cbas in cbas_path:
+                data.add('cbas_path', cbas)
+            paths['cbas_path'] = cbas_path
         if paths:
             params = urllib.urlencode(paths)
-            log.info('/nodes/self/controller/settings params : {0}'.format(params))
-            status, content, header = self._http_request(api, 'POST', params)
+            log.info('/nodes/self/controller/settings params : {0}'.format(urllib.urlencode(data)))
+            status, content, header = self._http_request(api, 'POST', urllib.urlencode(data))
             if status:
-                log.info("Setting data_path: {0}: status {1}".format(data_path, status))
+                log.info("Setting data_path: {0}: status {1}".format(data, status))
             else:
-                log.error("Unable to set data_path {0} : {1}".format(data_path, content))
+                log.error("Unable to set data_path {0} : {1}".format(data, content))
             return status
 
     def get_database_disk_size(self, bucket='default'):
@@ -3433,6 +3444,8 @@ class NodeDataStorage(object):
         self.type = ''  # hdd or ssd
         self.path = ''
         self.index_path = ''
+        self.cbas_path = ''
+        self.data_path = ''
         self.quotaMb = ''
         self.state = ''  # ok
 
