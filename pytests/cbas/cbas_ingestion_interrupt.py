@@ -82,17 +82,20 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
             self.log.info("Gracefully re-starting service on node %s"%node_in_test)
             NodeHelper.do_a_warm_up(node_in_test)
             NodeHelper.wait_service_started(node_in_test)
-            self.sleep(10, "wait for service to come up.")
-            items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
-            self.log.info("After graceful service restart docs in CBAS bucket : %s"%items_in_cbas_bucket)
         else:
             self.log.info("Kill Memcached process on node %s"%node_in_test)
             shell = RemoteMachineShellConnection(node_in_test)
             shell.kill_memcached()
-            self.sleep(10, "wait for memcached to come up.")
-            items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
-            self.log.info("After memcached kill, docs in CBAS bucket : %s"%items_in_cbas_bucket)
         
+        items_in_cbas_bucket = 0
+        start_time=time.time()
+        while items_in_cbas_bucket == 0 and time.time()<start_time+60:
+            try:
+                items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+            except:
+                pass
+            
+        self.log.info("After graceful service restart docs in CBAS bucket : %s"%items_in_cbas_bucket)
         if items_in_cbas_bucket < self.num_items*3 and items_in_cbas_bucket>self.num_items:
             self.log.info("Data Ingestion Interrupted successfully")
         elif items_in_cbas_bucket < self.num_items:
@@ -155,16 +158,21 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         self.log.info("Kill %s process on node %s"%(process_name, node_in_test))
         shell = RemoteMachineShellConnection(node_in_test)
         shell.kill_process(process_name, service_name)
-        self.sleep(10, "wait for %s to come up."%process_name)
+        
         items_in_cbas_bucket = 0
-        
-        start_time = time.time()
-        
-        while items_in_cbas_bucket <=0 and time.time()<start_time+120:
-            items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
-            self.sleep(1)
+        start_time=time.time()
+        while items_in_cbas_bucket == 0 and time.time()<start_time+60:
+            try:
+                items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+            except:
+                pass
             
-        items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+#         start_time = time.time()
+#         while items_in_cbas_bucket <=0 and time.time()<start_time+120:
+#             items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+#             self.sleep(1)
+            
+#         items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
         self.log.info("After %s kill, docs in CBAS bucket : %s"%(process_name, items_in_cbas_bucket))
         
         if items_in_cbas_bucket < self.num_items*3 and items_in_cbas_bucket>self.num_items:
@@ -229,16 +237,23 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         NodeHelper.stop_couchbase(node_in_test)
         NodeHelper.start_couchbase(node_in_test)
         NodeHelper.wait_service_started(node_in_test)
-        self.sleep(10, "wait for service to come up.")
-        
-        items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
-        self.log.info("After graceful STOPPING/STARTING service docs in CBAS bucket : %s"%items_in_cbas_bucket)
-        
-        start_time = time.time()
-        while items_in_cbas_bucket <=0 and time.time()<start_time+60:
-            items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
-            self.sleep(1)
-        
+#         self.sleep(10, "wait for service to come up.")
+#         
+#         items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+#         self.log.info("After graceful STOPPING/STARTING service docs in CBAS bucket : %s"%items_in_cbas_bucket)
+#         
+#         start_time = time.time()
+#         while items_in_cbas_bucket <=0 and time.time()<start_time+60:
+#             items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+#             self.sleep(1)
+        items_in_cbas_bucket = 0
+        start_time=time.time()
+        while items_in_cbas_bucket == 0 and time.time()<start_time+60:
+            try:
+                items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+            except:
+                pass
+                    
         if items_in_cbas_bucket < self.num_items*3 and items_in_cbas_bucket>self.num_items:
             self.log.info("Data Ingestion Interrupted successfully")
         elif items_in_cbas_bucket < self.num_items:
@@ -387,15 +402,22 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         items_in_cbas_bucket_before, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
         self.log.info("Intems before network down: %s"%items_in_cbas_bucket_before)
         RemoteMachineShellConnection(node_in_test).stop_network("30")
-        self.sleep(40, "Wait for network to come up.")
-        
-        items_in_cbas_bucket_after, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
-        self.log.info("Items after network is up: %s"%items_in_cbas_bucket_after)
-        start_time = time.time()
-        while items_in_cbas_bucket_after <=0 and time.time()<start_time+60:
-            items_in_cbas_bucket_after, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
-            self.sleep(1)
-        items_in_cbas_bucket = items_in_cbas_bucket_after
+#         self.sleep(40, "Wait for network to come up.")
+
+        items_in_cbas_bucket = 0
+        start_time=time.time()
+        while items_in_cbas_bucket == 0 and time.time()<start_time+60:
+            try:
+                items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+            except:
+                pass        
+#         items_in_cbas_bucket_after, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+        self.log.info("Items after network is up: %s"%items_in_cbas_bucket)
+#         start_time = time.time()
+#         while items_in_cbas_bucket_after <=0 and time.time()<start_time+60:
+#             items_in_cbas_bucket_after, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+#             self.sleep(1)
+#         items_in_cbas_bucket = items_in_cbas_bucket_after
         if items_in_cbas_bucket < self.num_items*3 and items_in_cbas_bucket>self.num_items:
             self.log.info("Data Ingestion Interrupted successfully")
         elif items_in_cbas_bucket < self.num_items:
