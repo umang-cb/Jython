@@ -75,6 +75,9 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         else:
             node_in_test = self.cbas_servers[0]
         
+        items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+        self.log.info("Items before service restart: %s"%items_in_cbas_bucket)
+                
         if self.restart_method == "graceful":
             self.log.info("Gracefully re-starting service on node %s"%node_in_test)
             NodeHelper.do_a_warm_up(node_in_test)
@@ -146,6 +149,9 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         else:
             node_in_test = self.cbas_servers[0]
         
+        items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+        self.log.info("Items before service kill: %s"%items_in_cbas_bucket)
+        
         self.log.info("Kill %s process on node %s"%(process_name, node_in_test))
         shell = RemoteMachineShellConnection(node_in_test)
         shell.kill_process(process_name, service_name)
@@ -216,6 +222,9 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         else:
             node_in_test = self.cbas_servers[0]
         
+        items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+        self.log.info("Items before service restart: %s"%items_in_cbas_bucket)
+        
         self.log.info("Gracefully stopping service on node %s"%node_in_test)
         NodeHelper.stop_couchbase(node_in_test)
         NodeHelper.start_couchbase(node_in_test)
@@ -223,7 +232,7 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         self.sleep(10, "wait for service to come up.")
         
         items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
-        self.log.info("After graceful STOPPING/STARITING service docs in CBAS bucket : %s"%items_in_cbas_bucket)
+        self.log.info("After graceful STOPPING/STARTING service docs in CBAS bucket : %s"%items_in_cbas_bucket)
         
         start_time = time.time()
         while items_in_cbas_bucket <=0 and time.time()<start_time+60:
