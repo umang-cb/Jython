@@ -295,7 +295,7 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
             disk_space = disk_info[1].split()[-3][:-1]
             return disk_space
                 
-        du = int(_get_disk_usage_in_MB(remote_client)) - 100
+        du = int(_get_disk_usage_in_MB(remote_client)) - 50
         chunk_size=1024
         while int(du) > 0:
             output, error = remote_client.execute_command("dd if=/dev/zero of=full_disk{0} bs={1}M count=1".format(str(du)+ "_MB" + str(time.time()),chunk_size), use_channel=True)
@@ -319,11 +319,10 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         elif items_in_cbas_bucket_before < self.num_items*3:
             self.log.info("Data Ingestion Interrupted successfully")
         
-        self.sleep(10)
         output, error = remote_client.execute_command("rm -rf full_disk*", use_channel=True)
         remote_client.log_command_output(output, error)
         remote_client.disconnect()
-
+        
         run_count = 0
         fail_count = 0
         success_count = 0
@@ -351,6 +350,8 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         
         if self.cbas_node_type == "NC":
             self.assertTrue(fail_count+aborted_count==0, "Some queries failed/aborted")
+        
+        self.sleep(60)
         
         query = "select count(*) from {0};".format(self.cbas_dataset_name)
         self.cbas_util._run_concurrent_queries(query,"immediate",100)
