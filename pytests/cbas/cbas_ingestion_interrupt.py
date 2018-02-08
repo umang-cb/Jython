@@ -79,15 +79,16 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
             self.log.info("Gracefully re-starting service on node %s"%node_in_test)
             NodeHelper.do_a_warm_up(node_in_test)
             NodeHelper.wait_service_started(node_in_test)
+            self.sleep(10, "wait for service to come up.")
             items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
             self.log.info("After graceful service restart docs in CBAS bucket : %s"%items_in_cbas_bucket)
         else:
             self.log.info("Kill Memcached process on node %s"%node_in_test)
             shell = RemoteMachineShellConnection(node_in_test)
             shell.kill_memcached()
+            self.sleep(10, "wait for memcached to come up.")
             items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
             self.log.info("After memcached kill, docs in CBAS bucket : %s"%items_in_cbas_bucket)
-            self.sleep(5, "wait for memcached to come up.")
         
         if items_in_cbas_bucket < self.num_items*3 and items_in_cbas_bucket>self.num_items:
             self.log.info("Data Ingestion Interrupted successfully")
@@ -148,7 +149,7 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         self.log.info("Kill %s process on node %s"%(process_name, node_in_test))
         shell = RemoteMachineShellConnection(node_in_test)
         shell.kill_process(process_name, service_name)
-        self.sleep(5, "wait for %s to come up."%process_name)
+        self.sleep(10, "wait for %s to come up."%process_name)
         items_in_cbas_bucket = 0
         
         start_time = time.time()
@@ -195,8 +196,6 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         if cbas_node_type == "NC":
             self.assertTrue((fail_count+aborted_count)==0, "Some queries failed/aborted")
                 
-        self.log.info("After service restart %s queued jobs are running."%run_count)
-        
         query = "select count(*) from {0};".format(self.cbas_dataset_name)
         self.cbas_util._run_concurrent_queries(query,"immediate",100)
         
@@ -219,8 +218,12 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         
         self.log.info("Gracefully stopping service on node %s"%node_in_test)
         NodeHelper.stop_couchbase(node_in_test)
+        NodeHelper.start_couchbase(node_in_test)
+        NodeHelper.wait_service_started(node_in_test)
+        self.sleep(10, "wait for service to come up.")
+        
         items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
-        self.log.info("After graceful STOPPING service docs in CBAS bucket : %s"%items_in_cbas_bucket)
+        self.log.info("After graceful STOPPING/STARITING service docs in CBAS bucket : %s"%items_in_cbas_bucket)
         
         start_time = time.time()
         while items_in_cbas_bucket <=0 and time.time()<start_time+60:
@@ -262,8 +265,6 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         if self.cbas_node_type == "NC":
             self.assertTrue(fail_count+aborted_count==0, "Some queries failed/aborted")
         
-        NodeHelper.start_couchbase(node_in_test)
-        NodeHelper.wait_service_started(node_in_test)
         query = "select count(*) from {0};".format(self.cbas_dataset_name)
         self.cbas_util._run_concurrent_queries(query,"immediate",100)
         
@@ -287,9 +288,6 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         query = "select sleep(count(*),50000) from {0};".format(self.cbas_dataset_name)
         handles = self.cbas_util._run_concurrent_queries(query,"async",10)
         
-        # Add the code for disk full here:
-
-        
         def _get_disk_usage_in_MB(remote_client):
             disk_info = remote_client.get_disk_info(in_MB=True)
             disk_space = disk_info[1].split()[-3][:-1]
@@ -308,12 +306,14 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
                 
         items_in_cbas_bucket_before, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
         items_in_cbas_bucket_after, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
-        
-        while items_in_cbas_bucket_before !=items_in_cbas_bucket_after:
-            items_in_cbas_bucket_before, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
-            self.sleep(2)
-            items_in_cbas_bucket_after, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
-        
+        try:
+            while items_in_cbas_bucket_before !=items_in_cbas_bucket_after:
+                items_in_cbas_bucket_before, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+                self.sleep(2)
+                items_in_cbas_bucket_after, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+        except:
+            self.log.info("Ingestion interrupted and server seems to be down")
+            
         if items_in_cbas_bucket_before == self.num_items*3:
             self.log.info("Data Ingestion did not interrupted but completed.")
         elif items_in_cbas_bucket_before < self.num_items*3:
@@ -322,6 +322,7 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         output, error = remote_client.execute_command("rm -rf full_disk*", use_channel=True)
         remote_client.log_command_output(output, error)
         remote_client.disconnect()
+        self.sleep(10, "wait for service to come up after disk space is made available.")
         
         run_count = 0
         fail_count = 0
@@ -374,15 +375,18 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         else:
             node_in_test = self.cbas_servers[0]
         
+        items_in_cbas_bucket_before, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+        self.log.info("Intems before network down: %s"%items_in_cbas_bucket_before)
         RemoteMachineShellConnection(node_in_test).stop_network("30")
+        self.sleep(40, "Wait for network to come up.")
         
-        items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
-        
+        items_in_cbas_bucket_after, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+        self.log.info("Items after network is up: %s"%items_in_cbas_bucket_after)
         start_time = time.time()
-        while items_in_cbas_bucket <=0 and time.time()<start_time+60:
-            items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+        while items_in_cbas_bucket_after <=0 and time.time()<start_time+60:
+            items_in_cbas_bucket_after, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
             self.sleep(1)
-        
+        items_in_cbas_bucket = items_in_cbas_bucket_after
         if items_in_cbas_bucket < self.num_items*3 and items_in_cbas_bucket>self.num_items:
             self.log.info("Data Ingestion Interrupted successfully")
         elif items_in_cbas_bucket < self.num_items:
@@ -418,8 +422,6 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         if self.cbas_node_type == "NC":
             self.assertTrue(fail_count+aborted_count==0, "Some queries failed/aborted")
         
-        NodeHelper.start_couchbase(node_in_test)
-        NodeHelper.wait_service_started(node_in_test)
         query = "select count(*) from {0};".format(self.cbas_dataset_name)
         self.cbas_util._run_concurrent_queries(query,"immediate",100)
         
