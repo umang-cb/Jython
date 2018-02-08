@@ -67,7 +67,7 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         self.cbas_node_type = self.input.param('cbas_node_type',None)
         
         query = "select sleep(count(*),50000) from {0};".format(self.cbas_dataset_name)
-        handles = self.cbas_util._run_concurrent_queries(query,"async",100)
+        handles = self.cbas_util._run_concurrent_queries(query,"async",10)
         self.ingestion_in_progress()
         
         if self.cbas_node_type == "CC":
@@ -125,7 +125,7 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
             self.assertTrue(fail_count+aborted_count==0, "Some queries failed/aborted")
         
         query = "select count(*) from {0};".format(self.cbas_dataset_name)
-        self.cbas_util._run_concurrent_queries(query,"immediate",200)
+        self.cbas_util._run_concurrent_queries(query,"immediate",100)
         
         if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,self.num_items*3):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
@@ -137,7 +137,7 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         cbas_node_type = self.input.param('cbas_node_type',None)
         
         query = "select sleep(count(*),50000) from {0};".format(self.cbas_dataset_name)
-        handles = self.cbas_util._run_concurrent_queries(query,"async",100)
+        handles = self.cbas_util._run_concurrent_queries(query,"async",10)
         self.ingestion_in_progress()
         
         if cbas_node_type == "CC":
@@ -208,7 +208,7 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         self.cbas_node_type = self.input.param('cbas_node_type',None)
         
         query = "select sleep(count(*),50000) from {0};".format(self.cbas_dataset_name)
-        handles = self.cbas_util._run_concurrent_queries(query,"async",100)
+        handles = self.cbas_util._run_concurrent_queries(query,"async",10)
         self.ingestion_in_progress()
         
         if self.cbas_node_type == "CC":
@@ -265,7 +265,7 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         NodeHelper.start_couchbase(node_in_test)
         NodeHelper.wait_service_started(node_in_test)
         query = "select count(*) from {0};".format(self.cbas_dataset_name)
-        self.cbas_util._run_concurrent_queries(query,"immediate",200)
+        self.cbas_util._run_concurrent_queries(query,"immediate",100)
         
         if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,self.num_items*3):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
@@ -285,41 +285,41 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         self.setup_for_test()
         
         query = "select sleep(count(*),50000) from {0};".format(self.cbas_dataset_name)
-        handles = self.cbas_util._run_concurrent_queries(query,"async",1)
+        handles = self.cbas_util._run_concurrent_queries(query,"async",10)
         
         # Add the code for disk full here:
 
         
-        def _get_disk_usage_percentage(remote_client):
-            disk_info = remote_client.get_disk_info()
-            percentage = disk_info[3] + disk_info[4];
-            for item in percentage.split():
-                if "%" in item:
-                    self.log.info("disk usage {0}".format(item))
-                    return item[:-1]
+        def _get_disk_usage_in_MB(remote_client):
+            disk_info = remote_client.get_disk_info(in_MB=True)
+            disk_space = disk_info[1].split()[-3][:-1]
+            return disk_space
                 
-        percentage = _get_disk_usage_percentage(remote_client)
-        while int(percentage) < 98:
-            output, error = remote_client.execute_command("dd if=/dev/zero of=full_disk{0} bs=1024M count=1".format(percentage + str(time.time())), use_channel=True)
+        du = int(_get_disk_usage_in_MB(remote_client)) - 100
+        chunk_size=1024
+        while int(du) > 0:
+            output, error = remote_client.execute_command("dd if=/dev/zero of=full_disk{0} bs={1}M count=1".format(str(du)+ "_MB" + str(time.time()),chunk_size), use_channel=True)
             remote_client.log_command_output(output, error)
-            percentage = _get_disk_usage_percentage(remote_client)
+            du -= 1024
+            if du < 1024:
+                chunk_size = du
         
         self.ingestion_in_progress()
                 
-        items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+        items_in_cbas_bucket_before, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+        items_in_cbas_bucket_after, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
         
-        start_time = time.time()
-        while items_in_cbas_bucket <=0 and time.time()<start_time+60:
-            items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
-            self.sleep(1)
+        while items_in_cbas_bucket_before !=items_in_cbas_bucket_after:
+            items_in_cbas_bucket_before, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+            self.sleep(2)
+            items_in_cbas_bucket_after, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
         
-        if items_in_cbas_bucket < self.num_items*3 and items_in_cbas_bucket>self.num_items:
-            self.log.info("Data Ingestion Interrupted successfully")
-        elif items_in_cbas_bucket < self.num_items:
-            self.log.info("Data Ingestion did not interrupted but restarting from 0.")
-        else:
+        if items_in_cbas_bucket_before == self.num_items*3:
             self.log.info("Data Ingestion did not interrupted but completed.")
+        elif items_in_cbas_bucket_before < self.num_items*3:
+            self.log.info("Data Ingestion Interrupted successfully")
         
+        self.sleep(10)
         output, error = remote_client.execute_command("rm -rf full_disk*", use_channel=True)
         remote_client.log_command_output(output, error)
         remote_client.disconnect()
@@ -363,7 +363,7 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         self.cbas_node_type = self.input.param('cbas_node_type',None)
         
         query = "select sleep(count(*),50000) from {0};".format(self.cbas_dataset_name)
-        handles = self.cbas_util._run_concurrent_queries(query,"async",100)
+        handles = self.cbas_util._run_concurrent_queries(query,"async",10)
         self.ingestion_in_progress()
         
         # Add the code for stop network here:
