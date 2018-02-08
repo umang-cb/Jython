@@ -1921,7 +1921,7 @@ class RestConnection(object):
             log.info('/nodes/self/controller/settings params : {0}'.format(urllib.urlencode(data)))
             status, content, header = self._http_request(api, 'POST', urllib.urlencode(data))
             if status:
-                log.info("Setting data_path: {0}: status {1}".format(data, status))
+                log.info("Setting paths: {0}: status {1}".format(data, status))
             else:
                 log.error("Unable to set data_path {0} : {1}".format(data, content))
             return status

@@ -1,0 +1,427 @@
+'''
+Created on Jan 31, 2018
+
+@author: riteshagarwal
+'''
+
+from cbas_base import CBASBaseTest, TestInputSingleton
+from lib.memcached.helper.data_helper import MemcachedClientHelper
+from remote.remote_util import RemoteMachineShellConnection
+from membase.api.rest_client import RestConnection
+import time
+from node_utils.node_ready_functions import NodeHelper
+from cbas.cbas_utils import cbas_utils
+
+class IngestionInterrupt_CBAS(CBASBaseTest):
+
+    def setUp(self):
+        self.input = TestInputSingleton.input
+        self.input.test_params.update({"default_bucket":False})
+        super(IngestionInterrupt_CBAS, self).setUp()
+        
+        if "add_all_cbas_nodes" in self.input.test_params and self.input.test_params["add_all_cbas_nodes"] and len(self.cbas_servers) > 0:
+            self.otpNodes.append(self.add_all_nodes_then_rebalance(self.cbas_servers))
+            
+        self.create_default_bucket()
+
+    def setup_for_test(self, skip_data_loading=False):
+        
+        if not skip_data_loading:
+            # Load Couchbase bucket first.
+            self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0,
+                                                   self.num_items, batch_size=10000)
+
+        # Create bucket on CBAS
+        self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
+                                   cb_bucket_name=self.cb_bucket_name,
+                                   cb_server_ip=self.cb_server_ip)
+
+        # Create dataset on the CBAS bucket
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+                                                cbas_dataset_name=self.cbas_dataset_name)
+        # Connect to Bucket
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
+                               cb_bucket_password=self.cb_bucket_password)
+
+        if not skip_data_loading:
+            # Validate no. of items in CBAS dataset
+            if not self.cbas_util.validate_cbas_dataset_items_count(
+                    self.cbas_dataset_name,
+                    self.num_items):
+                self.fail(
+                    "No. of items in CBAS dataset do not match that in the CB bucket")
+                
+    def ingestion_in_progress(self):
+        self.cbas_util.disconnect_from_bucket(self.cbas_bucket_name)
+        
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items*2, "create", self.num_items,
+                                                   self.num_items*3, batch_size=10000)
+        
+        
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
+                               cb_bucket_password=self.cb_bucket_password)
+        
+    def test_service_restart(self):
+        self.setup_for_test()
+        self.restart_method = self.input.param('restart_method',None)
+        self.cbas_node_type = self.input.param('cbas_node_type',None)
+        
+        query = "select sleep(count(*),50000) from {0};".format(self.cbas_dataset_name)
+        handles = self.cbas_util._run_concurrent_queries(query,"async",100)
+        self.ingestion_in_progress()
+        
+        if self.cbas_node_type == "CC":
+            node_in_test = self.cbas_node
+        else:
+            node_in_test = self.cbas_servers[0]
+        
+        if self.restart_method == "graceful":
+            self.log.info("Gracefully re-starting service on node %s"%node_in_test)
+            NodeHelper.do_a_warm_up(node_in_test)
+            NodeHelper.wait_service_started(node_in_test)
+            items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+            self.log.info("After graceful service restart docs in CBAS bucket : %s"%items_in_cbas_bucket)
+        else:
+            self.log.info("Kill Memcached process on node %s"%node_in_test)
+            shell = RemoteMachineShellConnection(node_in_test)
+            shell.kill_memcached()
+            items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+            self.log.info("After memcached kill, docs in CBAS bucket : %s"%items_in_cbas_bucket)
+            self.sleep(5, "wait for memcached to come up.")
+        
+        if items_in_cbas_bucket < self.num_items*3 and items_in_cbas_bucket>self.num_items:
+            self.log.info("Data Ingestion Interrupted successfully")
+        elif items_in_cbas_bucket < self.num_items:
+            self.log.info("Data Ingestion did interrupted and restarting from 0.")
+        else:
+            self.log.info("Data Ingestion did not interrupted but complete before service restart.")
+            
+        run_count = 0
+        fail_count = 0
+        success_count = 0
+        aborted_count = 0
+        shell=RemoteMachineShellConnection(node_in_test)
+        for handle in handles:
+            status, hand = self.cbas_util.retrieve_request_status_using_handle(node_in_test, handle, shell)
+            if status == "running":
+                run_count += 1
+                self.log.info("query with handle %s is running."%handle)
+            elif status == "failed":
+                fail_count += 1
+                self.log.info("query with handle %s is failed."%handle)
+            elif status == "success":
+                success_count += 1
+                self.log.info("query with handle %s is successful."%handle)
+            else:
+                aborted_count +=1
+                self.log.info("Queued job is deleted: %s"%status)
+                
+        self.log.info("After service restart %s queued jobs are Running."%run_count)
+        self.log.info("After service restart %s queued jobs are Failed."%fail_count)
+        self.log.info("After service restart %s queued jobs are Successful."%success_count)
+        self.log.info("After service restart %s queued jobs are Aborted."%aborted_count)
+        
+        if self.cbas_node_type == "NC":
+            self.assertTrue(fail_count+aborted_count==0, "Some queries failed/aborted")
+        
+        query = "select count(*) from {0};".format(self.cbas_dataset_name)
+        self.cbas_util._run_concurrent_queries(query,"immediate",200)
+        
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,self.num_items*3):
+            self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
+
+    def test_kill_analytics_service(self):
+        self.setup_for_test()
+        process_name = self.input.param('process_name',None)
+        service_name = self.input.param('service_name',None)
+        cbas_node_type = self.input.param('cbas_node_type',None)
+        
+        query = "select sleep(count(*),50000) from {0};".format(self.cbas_dataset_name)
+        handles = self.cbas_util._run_concurrent_queries(query,"async",100)
+        self.ingestion_in_progress()
+        
+        if cbas_node_type == "CC":
+            node_in_test = self.cbas_node
+        else:
+            node_in_test = self.cbas_servers[0]
+        
+        self.log.info("Kill %s process on node %s"%(process_name, node_in_test))
+        shell = RemoteMachineShellConnection(node_in_test)
+        shell.kill_process(process_name, service_name)
+        self.sleep(5, "wait for %s to come up."%process_name)
+        items_in_cbas_bucket = 0
+        
+        start_time = time.time()
+        
+        while items_in_cbas_bucket <=0 and time.time()<start_time+120:
+            items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+            self.sleep(1)
+            
+        items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+        self.log.info("After %s kill, docs in CBAS bucket : %s"%(process_name, items_in_cbas_bucket))
+        
+        if items_in_cbas_bucket < self.num_items*3 and items_in_cbas_bucket>self.num_items:
+            self.log.info("Data Ingestion Interrupted successfully")
+        elif items_in_cbas_bucket < self.num_items:
+            self.log.info("Data Ingestion did not interrupted but restarting from 0.")
+        else:
+            self.log.info("Data Ingestion did not interrupted but complete before service restart.")
+            
+        run_count = 0
+        fail_count = 0
+        success_count = 0
+        aborted_count = 0
+        shell=RemoteMachineShellConnection(node_in_test)
+        for handle in handles:
+            status, hand = self.cbas_util.retrieve_request_status_using_handle(node_in_test, handle, shell)
+            if status == "running":
+                run_count += 1
+                self.log.info("query with handle %s is running."%handle)
+            elif status == "failed":
+                fail_count += 1
+                self.log.info("query with handle %s is failed."%handle)
+            elif status == "success":
+                success_count += 1
+                self.log.info("query with handle %s is successful."%handle)
+            else:
+                aborted_count +=1
+                self.log.info("Queued job is deleted: %s"%status)
+                
+        self.log.info("After service restart %s queued jobs are Running."%run_count)
+        self.log.info("After service restart %s queued jobs are Failed."%fail_count)
+        self.log.info("After service restart %s queued jobs are Successful."%success_count)
+        self.log.info("After service restart %s queued jobs are Aborted."%aborted_count)
+        
+        if cbas_node_type == "NC":
+            self.assertTrue((fail_count+aborted_count)==0, "Some queries failed/aborted")
+                
+        self.log.info("After service restart %s queued jobs are running."%run_count)
+        
+        query = "select count(*) from {0};".format(self.cbas_dataset_name)
+        self.cbas_util._run_concurrent_queries(query,"immediate",100)
+        
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,self.num_items*3):
+            self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
+
+    def test_stop_start_service_ingest_data(self):
+        self.setup_for_test()
+        self.cbas_node_type = self.input.param('cbas_node_type',None)
+        
+        query = "select sleep(count(*),50000) from {0};".format(self.cbas_dataset_name)
+        handles = self.cbas_util._run_concurrent_queries(query,"async",100)
+        self.ingestion_in_progress()
+        
+        if self.cbas_node_type == "CC":
+            node_in_test = self.cbas_node
+            self.cbas_util = cbas_utils(self.master, self.cbas_servers[0])
+        else:
+            node_in_test = self.cbas_servers[0]
+        
+        self.log.info("Gracefully stopping service on node %s"%node_in_test)
+        NodeHelper.stop_couchbase(node_in_test)
+        items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+        self.log.info("After graceful STOPPING service docs in CBAS bucket : %s"%items_in_cbas_bucket)
+        
+        start_time = time.time()
+        while items_in_cbas_bucket <=0 and time.time()<start_time+60:
+            items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+            self.sleep(1)
+        
+        if items_in_cbas_bucket < self.num_items*3 and items_in_cbas_bucket>self.num_items:
+            self.log.info("Data Ingestion Interrupted successfully")
+        elif items_in_cbas_bucket < self.num_items:
+            self.log.info("Data Ingestion did not interrupted but restarting from 0.")
+        else:
+            self.log.info("Data Ingestion did not interrupted but complete before service restart.")
+            
+        run_count = 0
+        fail_count = 0
+        success_count = 0
+        aborted_count = 0
+        shell=RemoteMachineShellConnection(node_in_test)
+        for handle in handles:
+            status, hand = self.cbas_util.retrieve_request_status_using_handle(node_in_test, handle, shell)
+            if status == "running":
+                run_count += 1
+                self.log.info("query with handle %s is running."%handle)
+            elif status == "failed":
+                fail_count += 1
+                self.log.info("query with handle %s is failed."%handle)
+            elif status == "success":
+                success_count += 1
+                self.log.info("query with handle %s is successful."%handle)
+            else:
+                aborted_count +=1
+                self.log.info("Queued job is deleted: %s"%status)
+                
+        self.log.info("After service restart %s queued jobs are Running."%run_count)
+        self.log.info("After service restart %s queued jobs are Failed."%fail_count)
+        self.log.info("After service restart %s queued jobs are Successful."%success_count)
+        self.log.info("After service restart %s queued jobs are Aborted."%aborted_count)
+        
+        if self.cbas_node_type == "NC":
+            self.assertTrue(fail_count+aborted_count==0, "Some queries failed/aborted")
+        
+        NodeHelper.start_couchbase(node_in_test)
+        NodeHelper.wait_service_started(node_in_test)
+        query = "select count(*) from {0};".format(self.cbas_dataset_name)
+        self.cbas_util._run_concurrent_queries(query,"immediate",200)
+        
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,self.num_items*3):
+            self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
+        
+    def test_disk_full_ingest_data(self):
+        self.cbas_node_type = self.input.param('cbas_node_type',None)
+        if self.cbas_node_type == "CC":
+            node_in_test = self.cbas_node
+            self.cbas_util = cbas_utils(self.master, self.cbas_servers[0])
+        else:
+            node_in_test = self.cbas_servers[0]
+            
+        remote_client = RemoteMachineShellConnection(node_in_test)
+        output, error = remote_client.execute_command("rm -rf full_disk*", use_channel=True)
+        remote_client.log_command_output(output, error)
+        
+        self.setup_for_test()
+        
+        query = "select sleep(count(*),50000) from {0};".format(self.cbas_dataset_name)
+        handles = self.cbas_util._run_concurrent_queries(query,"async",1)
+        
+        # Add the code for disk full here:
+
+        
+        def _get_disk_usage_percentage(remote_client):
+            disk_info = remote_client.get_disk_info()
+            percentage = disk_info[3] + disk_info[4];
+            for item in percentage.split():
+                if "%" in item:
+                    self.log.info("disk usage {0}".format(item))
+                    return item[:-1]
+                
+        percentage = _get_disk_usage_percentage(remote_client)
+        while int(percentage) < 98:
+            output, error = remote_client.execute_command("dd if=/dev/zero of=full_disk{0} bs=1024M count=1".format(percentage + str(time.time())), use_channel=True)
+            remote_client.log_command_output(output, error)
+            percentage = _get_disk_usage_percentage(remote_client)
+        
+        self.ingestion_in_progress()
+                
+        items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+        
+        start_time = time.time()
+        while items_in_cbas_bucket <=0 and time.time()<start_time+60:
+            items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+            self.sleep(1)
+        
+        if items_in_cbas_bucket < self.num_items*3 and items_in_cbas_bucket>self.num_items:
+            self.log.info("Data Ingestion Interrupted successfully")
+        elif items_in_cbas_bucket < self.num_items:
+            self.log.info("Data Ingestion did not interrupted but restarting from 0.")
+        else:
+            self.log.info("Data Ingestion did not interrupted but completed.")
+        
+        output, error = remote_client.execute_command("rm -rf full_disk*", use_channel=True)
+        remote_client.log_command_output(output, error)
+        remote_client.disconnect()
+
+        run_count = 0
+        fail_count = 0
+        success_count = 0
+        aborted_count = 0
+        shell=RemoteMachineShellConnection(node_in_test)
+        for handle in handles:
+            status, hand = self.cbas_util.retrieve_request_status_using_handle(node_in_test, handle, shell)
+            if status == "running":
+                run_count += 1
+                self.log.info("query with handle %s is running."%handle)
+            elif status == "failed":
+                fail_count += 1
+                self.log.info("query with handle %s is failed."%handle)
+            elif status == "success":
+                success_count += 1
+                self.log.info("query with handle %s is successful."%handle)
+            else:
+                aborted_count +=1
+                self.log.info("Queued job is deleted: %s"%status)
+                
+        self.log.info("After service restart %s queued jobs are Running."%run_count)
+        self.log.info("After service restart %s queued jobs are Failed."%fail_count)
+        self.log.info("After service restart %s queued jobs are Successful."%success_count)
+        self.log.info("After service restart %s queued jobs are Aborted."%aborted_count)
+        
+        if self.cbas_node_type == "NC":
+            self.assertTrue(fail_count+aborted_count==0, "Some queries failed/aborted")
+        
+        query = "select count(*) from {0};".format(self.cbas_dataset_name)
+        self.cbas_util._run_concurrent_queries(query,"immediate",100)
+        
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,self.num_items*3):
+            self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
+
+    def test_stop_network_ingest_data(self):
+        self.setup_for_test()
+        self.cbas_node_type = self.input.param('cbas_node_type',None)
+        
+        query = "select sleep(count(*),50000) from {0};".format(self.cbas_dataset_name)
+        handles = self.cbas_util._run_concurrent_queries(query,"async",100)
+        self.ingestion_in_progress()
+        
+        # Add the code for stop network here:
+        if self.cbas_node_type == "CC":
+            node_in_test = self.cbas_node
+            self.cbas_util = cbas_utils(self.master, self.cbas_servers[0])
+        else:
+            node_in_test = self.cbas_servers[0]
+        
+        RemoteMachineShellConnection(node_in_test).stop_network("30")
+        
+        items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+        
+        start_time = time.time()
+        while items_in_cbas_bucket <=0 and time.time()<start_time+60:
+            items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+            self.sleep(1)
+        
+        if items_in_cbas_bucket < self.num_items*3 and items_in_cbas_bucket>self.num_items:
+            self.log.info("Data Ingestion Interrupted successfully")
+        elif items_in_cbas_bucket < self.num_items:
+            self.log.info("Data Ingestion did not interrupted but restarting from 0.")
+        else:
+            self.log.info("Data Ingestion did not interrupted but complete before service restart.")
+            
+        run_count = 0
+        fail_count = 0
+        success_count = 0
+        aborted_count = 0
+        shell=RemoteMachineShellConnection(node_in_test)
+        for handle in handles:
+            status, hand = self.cbas_util.retrieve_request_status_using_handle(node_in_test, handle, shell)
+            if status == "running":
+                run_count += 1
+                self.log.info("query with handle %s is running."%handle)
+            elif status == "failed":
+                fail_count += 1
+                self.log.info("query with handle %s is failed."%handle)
+            elif status == "success":
+                success_count += 1
+                self.log.info("query with handle %s is successful."%handle)
+            else:
+                aborted_count +=1
+                self.log.info("Queued job is deleted: %s"%status)
+                
+        self.log.info("After service restart %s queued jobs are Running."%run_count)
+        self.log.info("After service restart %s queued jobs are Failed."%fail_count)
+        self.log.info("After service restart %s queued jobs are Successful."%success_count)
+        self.log.info("After service restart %s queued jobs are Aborted."%aborted_count)
+        
+        if self.cbas_node_type == "NC":
+            self.assertTrue(fail_count+aborted_count==0, "Some queries failed/aborted")
+        
+        NodeHelper.start_couchbase(node_in_test)
+        NodeHelper.wait_service_started(node_in_test)
+        query = "select count(*) from {0};".format(self.cbas_dataset_name)
+        self.cbas_util._run_concurrent_queries(query,"immediate",100)
+        
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,self.num_items*3):
+            self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
+                                
