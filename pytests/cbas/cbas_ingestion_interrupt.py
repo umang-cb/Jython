@@ -89,7 +89,7 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         
         items_in_cbas_bucket = 0
         start_time=time.time()
-        while items_in_cbas_bucket == 0 and time.time()<start_time+60:
+        while (items_in_cbas_bucket == 0 or items_in_cbas_bucket == -1) and time.time()<start_time+60:
             try:
                 items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
             except:
@@ -161,7 +161,7 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         
         items_in_cbas_bucket = 0
         start_time=time.time()
-        while items_in_cbas_bucket == 0 and time.time()<start_time+60:
+        while (items_in_cbas_bucket == 0 or items_in_cbas_bucket == -1) and time.time()<start_time+60:
             try:
                 items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
             except:
@@ -248,7 +248,7 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
 #             self.sleep(1)
         items_in_cbas_bucket = 0
         start_time=time.time()
-        while items_in_cbas_bucket == 0 and time.time()<start_time+60:
+        while (items_in_cbas_bucket == 0 or items_in_cbas_bucket == -1) and time.time()<start_time+60:
             try:
                 items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
             except:
@@ -406,7 +406,7 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
 
         items_in_cbas_bucket = 0
         start_time=time.time()
-        while items_in_cbas_bucket == 0 and time.time()<start_time+60:
+        while (items_in_cbas_bucket == 0 or items_in_cbas_bucket == -1) and time.time()<start_time+60:
             try:
                 items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
             except:
