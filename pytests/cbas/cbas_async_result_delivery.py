@@ -334,13 +334,18 @@ class CBASAsyncResultDeliveryTests(CBASBaseTest):
                                                self.num_items)
 
         # Wait while ingestion is completed
-        total_items, _ = self.cbas_util.get_num_items_in_cbas_dataset(
-            self.cbas_dataset_name)
-        while (self.num_items > total_items):
-            self.sleep(5)
-            total_items, _ = self.cbas_util.get_num_items_in_cbas_dataset(
-                self.cbas_dataset_name)
-
+#         total_items, _ = self.cbas_util.get_num_items_in_cbas_dataset(
+#             self.cbas_dataset_name)
+#         while (self.num_items > total_items):
+#             self.sleep(5)
+#             total_items, _ = self.cbas_util.get_num_items_in_cbas_dataset(
+#                 self.cbas_dataset_name)
+        # Validate no. of items in CBAS dataset
+        if not self.cbas_util.validate_cbas_dataset_items_count(
+                self.cbas_dataset_name,
+                self.num_items):
+            self.fail(
+                    "No. of items in CBAS dataset do not match that in the CB bucket")
         # Execute query (with sleep induced) and use the handle immediately to fetch the results
         statement = "select sleep(count(*),{0}) from {1} where mutated=0;".format(
             delay, self.cbas_dataset_name)
