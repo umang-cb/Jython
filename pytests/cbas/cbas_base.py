@@ -13,6 +13,7 @@ import logger
 from cluster_utils.cluster_ready_functions import cluster_utils
 
 class CBASBaseTest(BaseTestCase):
+    
     def setUp(self, add_defualt_cbas_node = True):
         self.log = logger.Logger.get_logger()
         if self._testMethodDoc:
@@ -97,7 +98,6 @@ class CBASBaseTest(BaseTestCase):
         
         self.log.info("==============  CBAS_BASE setup was finished for test #{0} {1} ==============" \
                           .format(self.case_number, self._testMethodName))
-        
         
     def tearDown(self):
         self.cbas_util.closeConn()

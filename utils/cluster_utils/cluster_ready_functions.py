@@ -16,7 +16,6 @@ class cluster_utils():
         self.master = server
         self.rest = RestConnection(server)
         self.log = logger.Logger.get_logger()
-        self.otpNodes = []
         
     def get_nodes_in_cluster(self, master_node=None):
         rest = None
@@ -357,11 +356,12 @@ class cluster_utils():
         return initial_list
 
     def add_all_nodes_then_rebalance(self, nodes):
+        otpNodes = []
         if len(nodes)>=1:
             for server in nodes:
                 '''This is the case when master node is running cbas service as well'''
                 if self.master.ip != server.ip:
-                    self.otpNodes.append(self.rest.add_node(user=server.rest_username,
+                    otpNodes.append(self.rest.add_node(user=server.rest_username,
                                                password=server.rest_password,
                                                remoteIp=server.ip,
                                                port=8091,
@@ -371,7 +371,7 @@ class cluster_utils():
         else:
             self.log.info("No Nodes provided to add in cluster")
 
-        return self.otpNodes
+        return otpNodes
     
     def rebalance(self, wait_for_completion=True):
         nodes = self.rest.node_statuses()

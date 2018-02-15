@@ -593,3 +593,173 @@ class cbas_utils():
                     break
             result &= index_found
         return result, content
+
+    def retrieve_cc_ip(self,shell=None):
+        
+        if not shell:
+            shell = RemoteMachineShellConnection(self.cbas_node)
+        url = self.cbas_helper.cbas_base_url + "/analytics/cluster"
+        output, error = shell.execute_command(
+            """curl -v {0} -u {1}:{2}""".format(url,
+                                                self.cbas_node.rest_username,
+                                                self.cbas_node.rest_password))
+
+        response = ""
+        for line in output:
+            response = response + line
+        if response:
+            response = json.loads(response)
+        
+        if not shell:
+            shell.disconnect()
+
+        ccNodeId = ""
+        ccNodeIP = ""
+        nodes = None
+        ccNodeConfigURL=None
+        if 'ccNodeId' in response:
+            ccNodeId = response['ccNodeId']
+        if 'nodes' in response:
+            nodes = response['nodes']
+            for node in nodes:
+                if node["nodeId"] == ccNodeId:
+                    ccNodeConfigURL = node['configUri']
+                    ccNodeIP = node['nodeName'][:-5]
+                    break
+                
+        self.log.info("cc_config_urls=%s, ccNodeId=%s, ccNodeIP=%s"%(ccNodeConfigURL,ccNodeId,ccNodeIP))
+        return ccNodeIP
+
+    def retrieve_nodes_config(self, only_cc_node_url=True, shell=None):
+        """
+        Retrieves status of a request from /analytics/status endpoint
+        """
+        if not shell:
+            shell = RemoteMachineShellConnection(self.cbas_node)
+        url = self.cbas_helper.cbas_base_url + "/analytics/cluster"
+        output, error = shell.execute_command(
+            """curl -v {0} -u {1}:{2}""".format(url,
+                                                self.cbas_node.rest_username,
+                                                self.cbas_node.rest_password))
+
+        response = ""
+        for line in output:
+            response = response + line
+        if response:
+            response = json.loads(response)
+        
+        if not shell:
+            shell.disconnect()
+
+        ccNodeId = ""
+        nodes = None
+        ccNodeConfigURL=None
+        if 'ccNodeId' in response:
+            ccNodeId = response['ccNodeId']
+        if 'nodes' in response:
+            nodes = response['nodes']
+            for node in nodes:
+                if only_cc_node_url and node["nodeId"] == ccNodeId:
+                    ccNodeConfigURL = node['configUri']
+                    break
+                
+        self.log.info("cc_config_urls=%s, ccNodeId=%s"%(ccNodeConfigURL,ccNodeId))
+        self.log.info("Nodes: %s"%nodes)
+        return nodes, ccNodeId, ccNodeConfigURL
+
+    def retrieve_analyticsHttpAdminListen_address_port(self, NodeConfigURL, shell=None):
+        """
+        Retrieves status of a request from /analytics/status endpoint
+        """
+        if not shell:
+            shell = RemoteMachineShellConnection(self.cbas_node)
+        output, error = shell.execute_command(
+            """curl -v {0} -u {1}:{2}""".format(NodeConfigURL,
+                                                self.cbas_node.rest_username,
+                                                self.cbas_node.rest_password))
+
+        response = ""
+        for line in output:
+            response = response + line
+        if response:
+            response = json.loads(response)
+        
+        if not shell:
+            shell.disconnect()
+            
+        analyticsHttpAdminListenAddress = None
+        analyticsHttpAdminListenPort = None
+        
+        if 'analyticsHttpAdminListenAddress' in response:
+            analyticsHttpAdminListenAddress = response['analyticsHttpAdminListenAddress']
+        if 'analyticsHttpAdminListenPort' in response:
+            analyticsHttpAdminListenPort = response['analyticsHttpAdminListenPort']
+
+        return analyticsHttpAdminListenAddress, analyticsHttpAdminListenPort
+    
+    def retrive_replica_from_storage_data(self, analyticsHttpAdminListenAddress, analyticsHttpAdminListenPort, shell=None):
+        url = "http://{0}:{1}/analytics/node/storage".format(analyticsHttpAdminListenAddress,analyticsHttpAdminListenPort)
+        
+        if not shell:
+            shell = RemoteMachineShellConnection(self.cbas_node)
+        output, error = shell.execute_command(
+            """curl -v {0} -u {1}:{2}""".format(url,
+                                                self.cbas_node.rest_username,
+                                                self.cbas_node.rest_password))
+
+        response = ""
+        for line in output:
+            response = response + line
+        if response:
+            response = json.loads(response)
+        self.log.info("Api %s: %s"%(url,response))
+        
+        if not shell:
+            shell.disconnect()    
+            
+        for partition in response:
+            if 'replicas' in partition:
+                return partition['replicas']
+    
+    def get_replicas_info(self,shell=None):
+        cc__metadata_replicas_info = []
+        start_time = time.time()
+        ccNodeId = None
+        while ccNodeId == None and start_time +60 > time.time():
+            nodes,ccNodeId,ccConfigURL = self.retrieve_nodes_config(shell)
+        if ccConfigURL:
+            address, port = self.retrieve_analyticsHttpAdminListen_address_port(ccConfigURL, shell)
+            cc__metadata_replicas_info = self.retrive_replica_from_storage_data(address, port, shell)
+        
+        return cc__metadata_replicas_info
+    
+    def get_num_partitions(self,shell=None):
+        partitons={}
+        nodes,ccNodeId,ccConfigURL = self.retrieve_nodes_config(shell=shell)
+        for node in nodes:
+            address, port = self.retrieve_analyticsHttpAdminListen_address_port(node['configUri'], shell)
+            partitons[node['nodeName']]=self.retrieve_number_of_partitions(address, port, shell)
+        
+        return partitons
+    
+    def retrieve_number_of_partitions(self, analyticsHttpAdminListenAddress, analyticsHttpAdminListenPort, shell=None):
+        url = "http://{0}:{1}/analytics/node/storage".format(analyticsHttpAdminListenAddress,analyticsHttpAdminListenPort)
+        
+        if not shell:
+            shell = RemoteMachineShellConnection(self.cbas_node)
+        output, error = shell.execute_command(
+            """curl -v {0} -u {1}:{2}""".format(url,
+                                                self.cbas_node.rest_username,
+                                                self.cbas_node.rest_password))
+
+        response = ""
+        for line in output:
+            response = response + line
+        if response:
+            response = json.loads(response)
+        self.log.info("Api %s: %s"%(url,response))
+        
+        if not shell:
+            shell.disconnect()    
+            
+        return len(response)         
