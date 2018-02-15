@@ -96,7 +96,7 @@ class MetadataReplication(CBASBaseTest):
         else:
             node_in_test = [self.cbas_node] + self.cbas_servers[:self.how_many]
             otpNodes = self.otpNodes[:self.how_many+1]
-            self.cbas_util = cbas_utils(self.master, self.cbas_servers[-1])
+            self.cbas_util = cbas_utils(self.master, self.cbas_servers[self.how_many+1])
             
         replicas_before_rebalance=len(self.cbas_util.get_replicas_info(self.shell))
         
