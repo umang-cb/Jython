@@ -103,6 +103,7 @@ class MetadataReplication(CBASBaseTest):
         if self.rebalance_type == 'in':
             if self.restart_rebalance:
                 self.cluster_util.add_all_nodes_then_rebalance(self.cbas_servers[self.input.param("nc_nodes_to_add"):self.how_many+self.input.param("nc_nodes_to_add")],wait_for_completion=False)
+                self.sleep(4)
                 if self.rest._rebalance_progress_status() == "running":
                     self.assertTrue(self.rest.stop_rebalance(), "Failed while stopping rebalance.")
                 else:
@@ -115,7 +116,7 @@ class MetadataReplication(CBASBaseTest):
         else:
             if self.restart_rebalance:
                 self.cluster_util.remove_node(otpNodes,wait_for_rebalance=False)
-                
+                self.sleep(4)
                 if self.rest._rebalance_progress_status() == "running":
                     self.assertTrue(self.rest.stop_rebalance(), "Failed while stopping rebalance.")
                 else:
