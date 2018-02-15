@@ -355,7 +355,7 @@ class cluster_utils():
                     initial_list.remove(server)
         return initial_list
 
-    def add_all_nodes_then_rebalance(self, nodes):
+    def add_all_nodes_then_rebalance(self, nodes, wait_for_completion=True):
         otpNodes = []
         if len(nodes)>=1:
             for server in nodes:
@@ -367,7 +367,7 @@ class cluster_utils():
                                                port=8091,
                                                services=server.services.split(",")))
     
-            self.rebalance()
+            self.rebalance(wait_for_completion)
         else:
             self.log.info("No Nodes provided to add in cluster")
 

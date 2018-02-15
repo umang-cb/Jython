@@ -101,7 +101,16 @@ class MetadataReplication(CBASBaseTest):
         replicas_before_rebalance=len(self.cbas_util.get_replicas_info(self.shell))
         
         if self.rebalance_type == 'in':
-            self.cluster_util.add_all_nodes_then_rebalance(self.cbas_servers[self.input.param("nc_nodes_to_add"):self.how_many+self.input.param("nc_nodes_to_add")])
+            if self.restart_rebalance:
+                self.cluster_util.add_all_nodes_then_rebalance(self.cbas_servers[self.input.param("nc_nodes_to_add"):self.how_many+self.input.param("nc_nodes_to_add")],wait_for_completion=False)
+                if self.rest._rebalance_progress_status() == "running":
+                    self.assertTrue(self.rest.stop_rebalance(), "Failed while stopping rebalance.")
+                else:
+                    self.fail("Rebalance completed before the test could have stopped rebalance.")
+                
+                self.rebalance(wait_for_completion=False)
+            else:
+                self.cluster_util.add_all_nodes_then_rebalance(self.cbas_servers[self.input.param("nc_nodes_to_add"):self.how_many+self.input.param("nc_nodes_to_add")],wait_for_completion=False)
             replicas_before_rebalance += self.replica_change
         else:
             if self.restart_rebalance:
