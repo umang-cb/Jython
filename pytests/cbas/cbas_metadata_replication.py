@@ -91,7 +91,11 @@ class MetadataReplication(CBASBaseTest):
         if self.rebalance_node == "CC":
             node_in_test = [self.cbas_node]
             otpNodes = [self.otpNodes[0]]
+            
+            self.cbas_util.closeConn()
             self.cbas_util = cbas_utils(self.master, self.cbas_servers[0])
+            self.cbas_util.createConn("default")
+            
             self.cbas_node = self.cbas_servers[0]
         elif self.rebalance_node == "NC":
             node_in_test = self.cbas_servers[:self.how_many]
@@ -99,8 +103,9 @@ class MetadataReplication(CBASBaseTest):
         else:
             node_in_test = [self.cbas_node] + self.cbas_servers[:self.how_many]
             otpNodes = self.otpNodes[:self.how_many+1]
+            self.cbas_util.closeConn()
             self.cbas_util = cbas_utils(self.master, self.cbas_servers[self.how_many])
-            
+            self.cbas_util.createConn("default")
         replicas_before_rebalance=len(self.cbas_util.get_replicas_info(self.shell))
         
         if self.rebalance_type == 'in':
@@ -212,7 +217,9 @@ class MetadataReplication(CBASBaseTest):
                     self.cluster_util.remove_node([otpnode],wait_for_rebalance=True)
                     for server in self.cbas_servers:
                         if cc_ip != server.ip:
+                            self.cbas_util.closeConn()
                             self.cbas_util = cbas_utils(self.master, server)
+                            self.cbas_util.createConn("default")
                             self.cbas_node = server
                             break
                     items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
@@ -250,8 +257,9 @@ class MetadataReplication(CBASBaseTest):
         self.ingestion_in_progress()
         
         replicas_before_rebalance=len(self.cbas_util.get_replicas_info(self.shell))
-        
+        self.cbas_util.closeConn()
         self.cbas_util = cbas_utils(self.master, self.cbas_servers[0])
+        self.cbas_util.createConn("default")
         self.cbas_node = self.cbas_servers[0]
         
         self.cluster_util.add_node(node=self.cbas_servers[-1],rebalance=False)
