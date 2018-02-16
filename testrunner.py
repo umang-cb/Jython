@@ -314,12 +314,12 @@ def main():
     print "Global Test input params:"
     pprint(TestInputSingleton.input.test_params)
     import mode
-    if options.mode == "java":
-        mode.java = True
+    if options.mode == "rest":
+        mode.rest = True
     elif options.mode == "cli":
         mode.cli = True
     else:
-        mode.rest = True
+        mode.java = True
     xunit = XUnitTestResult()
     # Create root logs directory
     abs_path = os.path.dirname(os.path.abspath(sys.argv[0]))

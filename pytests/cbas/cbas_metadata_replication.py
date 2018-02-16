@@ -4,14 +4,16 @@ Created on Jan 31, 2018
 @author: riteshagarwal
 '''
 
+import ast
+import time
+
+from cbas.cbas_utils import cbas_utils
 from cbas_base import CBASBaseTest, TestInputSingleton
 from lib.memcached.helper.data_helper import MemcachedClientHelper
-from remote.remote_util import RemoteMachineShellConnection
 from membase.api.rest_client import RestConnection
-import time
 from node_utils.node_ready_functions import NodeHelper
-from cbas.cbas_utils import cbas_utils
-import ast
+from remote.remote_util import RemoteMachineShellConnection
+
 
 class MetadataReplication(CBASBaseTest):
 
@@ -27,6 +29,7 @@ class MetadataReplication(CBASBaseTest):
         self.otpNodes += self.nc_otpNodes
             
         self.create_default_bucket()
+        self.cbas_util.createConn("default")
         self.shell = RemoteMachineShellConnection(self.master)
         
         #test for number of partitions:

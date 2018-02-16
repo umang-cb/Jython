@@ -23,7 +23,7 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
             self.otpNodes.append(self.add_all_nodes_then_rebalance(self.cbas_servers))
             
         self.create_default_bucket()
-
+        self.cbas_util.createConn("default")
     def setup_for_test(self, skip_data_loading=False):
         
         if not skip_data_loading:

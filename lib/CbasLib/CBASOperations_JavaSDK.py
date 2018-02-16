@@ -21,7 +21,7 @@ class CBASHelper(CBAS_helper_rest, SDKClient):
 
     def __init__(self, master, cbas_node):
         self.server = master
-        super(CBASHelper, self).__init__(cbas_node)
+        super(CBASHelper, self).__init__(master, cbas_node)
         SDKClient(self.server).__init__(self.server)
         self.connectionLive = False
 
