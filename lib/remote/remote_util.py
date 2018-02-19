@@ -834,7 +834,7 @@ class RemoteMachineShellConnection:
                             log.info("Couchbase Server was installed in non default path %s"
                                                                             % output[0])
                         self.nr_home_path = output[0]
-                    self.execute_command_raw('cd %s;rm couchbase-server-*'
+                    self.execute_command_raw_jsch('cd %s;rm couchbase-server-*'
                                                       % self.nr_home_path)
                     if "nr_install_dir" in self.input.test_params and \
                                            self.input.test_params["nr_install_dir"]:
