@@ -848,7 +848,7 @@ class RemoteMachineShellConnection:
                         self.log_command_output(op, er)
                     output, error = self.execute_command("ls -lh ")
                     self.log_command_output(output, error)
-                    output, error = self.execute_command_raw('cd {2}; pwd;'
+                    output, error = self.execute_command_raw_jsch('cd {2}; pwd;'
                                                              ' wget -q -O {0} {1};ls -lh'
                                                              .format(filename, url,
                                                                      self.nr_home_path))
