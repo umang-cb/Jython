@@ -4,7 +4,6 @@ Created on Jan 31, 2018
 @author: riteshagarwal
 '''
 
-import ast
 import time
 
 from cbas.cbas_utils import cbas_utils
@@ -69,8 +68,18 @@ class MetadataReplication(CBASBaseTest):
     def ingestion_in_progress(self):
         self.cbas_util.disconnect_from_bucket(self.cbas_bucket_name)
         
-        self.perform_doc_ops_in_all_cb_buckets(self.num_items*2, "create", self.num_items,
-                                                   self.num_items*3, batch_size=10000)
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items*2, "create", 0,
+                                                   self.num_items*2, batch_size=10000)
+        
+        
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
+                               cb_bucket_password=self.cb_bucket_password)
+    
+    def ingest_more_data(self):
+        self.cbas_util.disconnect_from_bucket(self.cbas_bucket_name)
+        
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items*2, "create", self.num_items*2,
+                                                   self.num_items*4, batch_size=10000)
         
         
         self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
@@ -251,6 +260,8 @@ class MetadataReplication(CBASBaseTest):
         pass
     
     def test_cc_swap_rebalance(self):
+        self.restart_rebalance = self.input.param('restart_rebalance',False)
+        
         self.setup_for_test(skip_data_loading=True)
         query = "select sleep(count(*),50000) from {0};".format(self.cbas_dataset_name)
         handles = self.cbas_util._run_concurrent_queries(query,"async",10)
@@ -264,7 +275,12 @@ class MetadataReplication(CBASBaseTest):
         
         self.cluster_util.add_node(node=self.cbas_servers[-1],rebalance=False)
         self.cluster_util.remove_node([self.otpNodes[0]],wait_for_rebalance=False)
-        
+        if self.restart_rebalance:
+            if self.rest._rebalance_progress_status() == "running":
+                self.assertTrue(self.rest.stop_rebalance(), "Failed while stopping rebalance.")
+            else:
+                self.fail("Rebalance completed before the test could have stopped rebalance.")
+            self.rebalance(wait_for_completion=False)
         self.sleep(5)
         while self.rest._rebalance_progress_status() == "running":
             replicas = self.cbas_util.get_replicas_info(self.shell)
@@ -334,8 +350,173 @@ class MetadataReplication(CBASBaseTest):
     def test_reboot_nodes(self):
         #Test for reboot CC and reboot all nodes.
         self.setup_for_test(skip_data_loading=True)
+        query = "select sleep(count(*),50000) from {0};".format(self.cbas_dataset_name)
+        handles = self.cbas_util._run_concurrent_queries(query,"async",10)        
+        
+        self.ingestion_in_progress()
+        
         self.node_type = self.input.param('node_type','CC')
         
-        replica_nodes = self.cbas_util.get_replicas_info(self.shell)
+        replica_nodes_before_reboot = self.cbas_util.get_replicas_info(self.shell)
+        replicas_before_reboot=len(self.cbas_util.get_replicas_info(self.shell))
+        if self.node_type == "CC":
+            NodeHelper.reboot_server(self.cbas_node, self)
+        elif self.node_type == "NC":
+            for server in self.cbas_servers:
+                NodeHelper.reboot_server(server, self)
+        else:
+            NodeHelper.reboot_server(self.cbas_node, self)
+            NodeHelper.reboot_server(server, self)
         
+        replica_nodes_after_reboot = self.cbas_util.get_replicas_info(self.shell)
+        replicas_after_reboot=len(replica_nodes_after_reboot)
+        
+        self.assertTrue(replica_nodes_after_reboot == replica_nodes_before_reboot,
+                        "Replica nodes changed after reboot. Before: %s , After : %s"
+                        %(replica_nodes_after_reboot,replica_nodes_before_reboot))
+        self.assertTrue(replicas_after_reboot == replicas_before_reboot,
+                        "Number of Replica nodes changed after reboot. Before: %s , After : %s"
+                        %(replicas_before_reboot,replicas_after_reboot))
+        
+        query = "select count(*) from {0};".format(self.cbas_dataset_name)
+        self.cbas_util._run_concurrent_queries(query,"immediate",100)
+        
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,self.num_items*2):
+            self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
+        
+        for replica in replica_nodes_after_reboot:
+            self.log.info("replica state during rebalance: %s"%replica['status'])
+            self.assertEqual(replica['status'], "IN_SYNC","Replica state is incorrect: %s"%replica['status'])
     
+    def test_failover(self):
+        self.setup_for_test(skip_data_loading=True)
+        self.rebalance_node = self.input.param('rebalance_node','CC')
+        self.how_many = self.input.param('how_many',1)
+        self.restart_rebalance = self.input.param('restart_rebalance',False)
+        self.replica_change = self.input.param('replica_change',0)
+        
+        query = "select sleep(count(*),50000) from {0};".format(self.cbas_dataset_name)
+        handles = self.cbas_util._run_concurrent_queries(query,"async",10)
+        self.ingestion_in_progress()
+        
+        if self.rebalance_node == "CC":
+            node_in_test = [self.cbas_node]
+            otpNodes = [self.otpNodes[0]]
+            self.cbas_util.closeConn()
+            self.cbas_util = cbas_utils(self.master, self.cbas_servers[0])
+            self.cbas_util.createConn("default")
+            
+            self.cbas_node = self.cbas_servers[0]
+        elif self.rebalance_node == "NC":
+            node_in_test = self.cbas_servers[:self.how_many]
+            otpNodes = self.nc_otpNodes[:self.how_many]
+        else:
+            node_in_test = [self.cbas_node] + self.cbas_servers[:self.how_many]
+            otpNodes = self.otpNodes[:self.how_many+1]
+            self.cbas_util.closeConn()
+            self.cbas_util = cbas_utils(self.master, self.cbas_servers[self.how_many])
+            self.cbas_util.createConn("default")
+            
+        replicas_before_rebalance=len(self.cbas_util.get_replicas_info(self.shell))
+        
+        if self.restart_rebalance:
+            graceful_failover = self.input.param("graceful_failover", False)
+            failover_task = self._cb_cluster.async_failover(self.input.servers,
+                                                            node_in_test,
+                                                            graceful_failover)
+            failover_task.get_result()
+            self.rebalance(wait_for_completion=False)
+            self.sleep(4)
+            if self.rest._rebalance_progress_status() == "running":
+                self.assertTrue(self.rest.stop_rebalance(), "Failed while stopping rebalance.")
+                if self.add_back:
+                    for otpnode in otpNodes:
+                        self.rest.set_recovery_type('ns_1@' + otpnode.ip, "full")
+                        self.rest.add_back_node('ns_1@' + otpnode.ip)
+            else:
+                self.fail("Rebalance completed before the test could have stopped rebalance.")
+            self.rebalance(wait_for_completion=False)
+        else:
+            graceful_failover = self.input.param("graceful_failover", False)
+            failover_task = self._cb_cluster.async_failover(self.input.servers,
+                                                            node_in_test,
+                                                            graceful_failover)
+            failover_task.get_result()
+            if self.add_back:
+                for otpnode in otpNodes:
+                    self.rest.set_recovery_type('ns_1@' + otpnode.ip, "full")
+                    self.rest.add_back_node('ns_1@' + otpnode.ip)
+            self.rebalance(wait_for_completion=False)
+
+        replicas_before_rebalance -= self.replica_change
+        self.sleep(5)
+        while self.rest._rebalance_progress_status() == "running":
+            replicas = self.cbas_util.get_replicas_info(self.shell)
+            if replicas:
+                for replica in replicas:
+                    self.log.info("replica state during rebalance: %s"%replica['status'])
+        self.sleep(5)
+        replicas = self.cbas_util.get_replicas_info(self.shell)
+        replicas_after_rebalance=len(replicas)
+        self.assertEqual(replicas_after_rebalance, replicas_before_rebalance, "%s,%s"%(replicas_after_rebalance,replicas_before_rebalance))
+        
+        for replica in replicas:
+            self.log.info("replica state during rebalance: %s"%replica['status'])
+            self.assertEqual(replica['status'], "IN_SYNC","Replica state is incorrect: %s"%replica['status'])
+                                
+        items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+        self.log.info("Items before service restart: %s"%items_in_cbas_bucket)
+                
+        items_in_cbas_bucket = 0
+        start_time=time.time()
+        while (items_in_cbas_bucket == 0 or items_in_cbas_bucket == -1) and time.time()<start_time+60:
+            try:
+                items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+            except:
+                pass
+            
+        self.log.info("After rebalance operation docs in CBAS bucket : %s"%items_in_cbas_bucket)
+        if items_in_cbas_bucket < self.num_items*2 and items_in_cbas_bucket>self.num_items:
+            self.log.info("Data Ingestion Interrupted successfully")
+        elif items_in_cbas_bucket < self.num_items:
+            self.log.info("Data Ingestion did interrupted and restarting from 0.")
+        else:
+            self.log.info("Data Ingestion did not interrupted but complete before rebalance operation.")
+            
+        run_count = 0
+        fail_count = 0
+        success_count = 0
+        aborted_count = 0
+        shell=RemoteMachineShellConnection(node_in_test[0])
+        for handle in handles:
+            status, hand = self.cbas_util.retrieve_request_status_using_handle(node_in_test, handle, shell)
+            if status == "running":
+                run_count += 1
+                self.log.info("query with handle %s is running."%handle)
+            elif status == "failed":
+                fail_count += 1
+                self.log.info("query with handle %s is failed."%handle)
+            elif status == "success":
+                success_count += 1
+                self.log.info("query with handle %s is successful."%handle)
+            else:
+                aborted_count +=1
+                self.log.info("Queued job is deleted: %s"%status)
+                
+        self.log.info("After service restart %s queued jobs are Running."%run_count)
+        self.log.info("After service restart %s queued jobs are Failed."%fail_count)
+        self.log.info("After service restart %s queued jobs are Successful."%success_count)
+        self.log.info("After service restart %s queued jobs are Aborted."%aborted_count)
+        
+        if self.rebalance_node == "NC":
+            self.assertTrue(fail_count+aborted_count==0, "Some queries failed/aborted")
+        
+        query = "select count(*) from {0};".format(self.cbas_dataset_name)
+        self.cbas_util._run_concurrent_queries(query,"immediate",100)
+        
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,self.num_items*2):
+            self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
+            
+        self.ingest_more_data()
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,self.num_items*4):
+            self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
