@@ -394,6 +394,7 @@ class MetadataReplication(CBASBaseTest):
         self.how_many = self.input.param('how_many',1)
         self.restart_rebalance = self.input.param('restart_rebalance',False)
         self.replica_change = self.input.param('replica_change',0)
+        self.add_back = self.input.param('add_back',False)
         
         query = "select sleep(count(*),50000) from {0};".format(self.cbas_dataset_name)
         handles = self.cbas_util._run_concurrent_queries(query,"async",10)
