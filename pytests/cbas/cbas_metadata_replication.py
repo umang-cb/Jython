@@ -203,7 +203,7 @@ class MetadataReplication(CBASBaseTest):
         self.log.info("After service restart %s queued jobs are Aborted."%aborted_count)
         
         if self.rebalance_node == "NC":
-            self.assertTrue(fail_count+aborted_count==0, "Some queries failed/aborted")
+            self.assertTrue(aborted_count==0, "Some queries aborted")
         
         query = "select count(*) from {0};".format(self.cbas_dataset_name)
         self.cbas_util._run_concurrent_queries(query,"immediate",100)
@@ -419,6 +419,8 @@ class MetadataReplication(CBASBaseTest):
             self.cbas_util.createConn("default")
             
         replicas_before_rebalance=len(self.cbas_util.get_replicas_info(self.shell))
+        items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+        self.log.info("Items before failover node: %s"%items_in_cbas_bucket)
         
         if self.restart_rebalance:
             graceful_failover = self.input.param("graceful_failover", False)
@@ -465,9 +467,6 @@ class MetadataReplication(CBASBaseTest):
             self.log.info("replica state during rebalance: %s"%replica['status'])
             self.assertEqual(replica['status'], "IN_SYNC","Replica state is incorrect: %s"%replica['status'])
                                 
-        items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
-        self.log.info("Items before service restart: %s"%items_in_cbas_bucket)
-                
         items_in_cbas_bucket = 0
         start_time=time.time()
         while (items_in_cbas_bucket == 0 or items_in_cbas_bucket == -1) and time.time()<start_time+60:
@@ -510,7 +509,7 @@ class MetadataReplication(CBASBaseTest):
         self.log.info("After service restart %s queued jobs are Aborted."%aborted_count)
         
         if self.rebalance_node == "NC":
-            self.assertTrue(fail_count+aborted_count==0, "Some queries failed/aborted")
+            self.assertTrue(aborted_count==0, "Some queries aborted")
         
         query = "select count(*) from {0};".format(self.cbas_dataset_name)
         self.cbas_util._run_concurrent_queries(query,"immediate",100)
