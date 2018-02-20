@@ -120,7 +120,7 @@ class MetadataReplication(CBASBaseTest):
         if self.rebalance_type == 'in':
             if self.restart_rebalance:
                 self.cluster_util.add_all_nodes_then_rebalance(self.cbas_servers[self.input.param("nc_nodes_to_add"):self.how_many+self.input.param("nc_nodes_to_add")],wait_for_completion=False)
-                self.sleep(4)
+                self.sleep(2)
                 if self.rest._rebalance_progress_status() == "running":
                     self.assertTrue(self.rest.stop_rebalance(), "Failed while stopping rebalance.")
                 else:
@@ -133,7 +133,7 @@ class MetadataReplication(CBASBaseTest):
         else:
             if self.restart_rebalance:
                 self.cluster_util.remove_node(otpNodes,wait_for_rebalance=False)
-                self.sleep(4)
+                self.sleep(2)
                 if self.rest._rebalance_progress_status() == "running":
                     self.assertTrue(self.rest.stop_rebalance(), "Failed while stopping rebalance.")
                 else:
@@ -143,13 +143,13 @@ class MetadataReplication(CBASBaseTest):
             else:
                 self.cluster_util.remove_node(otpNodes,wait_for_rebalance=False)
             replicas_before_rebalance -= self.replica_change
-        self.sleep(5)
+        self.sleep(2)
         while self.rest._rebalance_progress_status() == "running":
             replicas = self.cbas_util.get_replicas_info(self.shell)
             if replicas:
                 for replica in replicas:
                     self.log.info("replica state during rebalance: %s"%replica['status'])
-        self.sleep(5)
+        self.sleep(2)
         replicas = self.cbas_util.get_replicas_info(self.shell)
         replicas_after_rebalance=len(replicas)
         self.assertEqual(replicas_after_rebalance, replicas_before_rebalance, "%s,%s"%(replicas_after_rebalance,replicas_before_rebalance))
