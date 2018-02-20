@@ -725,7 +725,7 @@ class cbas_utils():
         cc__metadata_replicas_info = []
         start_time = time.time()
         ccNodeId = None
-        while ccNodeId == None and start_time +60 > time.time():
+        while not ccNodeId and start_time +60 > time.time():
             nodes,ccNodeId,ccConfigURL = self.retrieve_nodes_config(shell)
         if ccConfigURL:
             address, port = self.retrieve_analyticsHttpAdminListen_address_port(ccConfigURL, shell)
