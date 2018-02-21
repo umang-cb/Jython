@@ -726,7 +726,7 @@ class cbas_utils():
         start_time = time.time()
         ccNodeId = None
         nodes = []
-        while not ccNodeId and not nodes and start_time +60 > time.time():
+        while (not ccNodeId or not nodes) and start_time +60 > time.time():
             nodes,ccNodeId,ccConfigURL = self.retrieve_nodes_config(shell)
         if ccConfigURL:
             address, port = self.retrieve_analyticsHttpAdminListen_address_port(ccConfigURL, shell)
