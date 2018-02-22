@@ -422,12 +422,12 @@ def main():
             result.errors = [(name, e.message)]
         else:
 #             result = unittest.TextTestRunner(verbosity=2).run(suite)
-            test_timeout = TestInputSingleton.input.param("test_timeout", None)
+            test_timeout = TestInputSingleton.input.param("test_timeout", 1200)
             t = threading.Thread(target=unittest.TextTestRunner(verbosity=2).run,
                name="test_thread",
                args=(suite))
             t.start()
-            result = t.join(timeout=1200)
+            result = t.join(timeout=int(test_timeout))
             if "get-coredumps" in TestInputSingleton.input.test_params:
                 if TestInputSingleton.input.param("get-coredumps", True):
                     if get_core_dumps(TestInputSingleton.input, logs_folder):
