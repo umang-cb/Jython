@@ -394,7 +394,7 @@ def main():
         if "get-coredumps" in TestInputSingleton.input.test_params:
             if TestInputSingleton.input.param("get-coredumps", True):
                 clear_old_core_dumps(TestInputSingleton.input, logs_folder)
-        if case_number == 0:
+        if case_number == 1:
             before_suite_name = "%s.%s" % (name[:name.rfind('.')], BEFORE_SUITE)
             try:
                 print "Run before suite setup for %s" % name
@@ -421,13 +421,13 @@ def main():
             result = unittest.TextTestRunner(verbosity=2)._makeResult()
             result.errors = [(name, e.message)]
         else:
-#             result = unittest.TextTestRunner(verbosity=2).run(suite)
-            test_timeout = TestInputSingleton.input.param("test_timeout", 1200)
-            t = threading.Thread(target=unittest.TextTestRunner(verbosity=2).run,
-               name="test_thread",
-               args=(suite))
-            t.start()
-            result = t.join(timeout=int(test_timeout))
+            result = unittest.TextTestRunner(verbosity=2).run(suite)
+#             test_timeout = TestInputSingleton.input.param("test_timeout", None)
+#             t = StoppableThreadWithResult(target=unittest.TextTestRunner(verbosity=2).run,
+#                name="test_thread",
+#                args=(suite))
+#             t.start()
+#             result = t.join(timeout=test_timeout)
             if "get-coredumps" in TestInputSingleton.input.test_params:
                 if TestInputSingleton.input.param("get-coredumps", True):
                     if get_core_dumps(TestInputSingleton.input, logs_folder):

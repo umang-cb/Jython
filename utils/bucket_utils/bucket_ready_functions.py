@@ -442,6 +442,7 @@ class bucket_utils():
             gen = copy.deepcopy(kv_gen)
             if bucket.type != 'memcached':
 #                 tasks.append(self.cluster.async_load_gen_docs_java(server, bucket.name, gen.start,gen.end-gen.start))
+                self.log.info("BATCH SIZE for documents load: %s" % batch_size)
                 tasks.append(self.cluster.async_load_gen_docs(server, bucket.name, gen,
                                                               bucket.kvs[kv_store],
                                                               op_type, exp, flag, only_store_hash,
@@ -468,7 +469,7 @@ class bucket_utils():
             for bucket in self.buckets:
                 ClusterOperationHelper.flushctl_set(self.master,
                                                     "bfilter_enabled", 'true', bucket)
-
+        self.log.info("BATCH SIZE for documents load: %s" % batch_size)
         tasks = self._async_load_all_buckets(server, kv_gen, op_type, exp, kv_store, flag,
                                              only_store_hash, batch_size, pause_secs,
                                              timeout_secs, proxy_client)
@@ -1359,6 +1360,7 @@ class bucket_utils():
                                      start=start_key, end=end_key)
         self.log.info("%s %s documents..." % (operation, num_items))
         try:
+            self.log.info("BATCH SIZE for documents load: %s" % batch_size)
             self._load_all_buckets(self.master, gen_load, operation, 0,batch_size=batch_size)
             self._verify_stats_all_buckets(self.input.servers)
         except Exception as e:

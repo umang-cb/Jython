@@ -139,7 +139,7 @@ class Cluster(object):
 
     def async_load_gen_docs(self, server, bucket, generator, kv_store, op_type, exp=0, flag=0, only_store_hash=True,
                             batch_size=1, pause_secs=1, timeout_secs=5, proxy_client=None):
-
+        log.info("BATCH SIZE for documents load: %s" % batch_size)
         if isinstance(generator, list):
                 _task = conc.LoadDocumentsGeneratorsTask(server, self.task_manager, bucket, generator, kv_store, op_type, exp, flag, only_store_hash, batch_size)
         else:
