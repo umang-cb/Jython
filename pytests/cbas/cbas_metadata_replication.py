@@ -168,7 +168,7 @@ class MetadataReplication(CBASBaseTest):
                 items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
             except:
                 pass
-            
+            self.sleep(1)
         self.log.info("After rebalance operation docs in CBAS bucket : %s"%items_in_cbas_bucket)
         if items_in_cbas_bucket < self.num_items*2 and items_in_cbas_bucket>self.num_items:
             self.log.info("Data Ingestion Interrupted successfully")
@@ -241,7 +241,7 @@ class MetadataReplication(CBASBaseTest):
                             items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
                         except:
                             pass
-                        
+                        self.sleep(1)
                     self.log.info("After rebalance operation docs in CBAS bucket : %s"%items_in_cbas_bucket)
                     if items_in_cbas_bucket < self.num_items*2 and items_in_cbas_bucket>self.num_items:
                         self.log.info("Data Ingestion Interrupted successfully")
@@ -307,7 +307,7 @@ class MetadataReplication(CBASBaseTest):
                 items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
             except:
                 pass
-            
+            self.sleep(1)
         self.log.info("After rebalance operation docs in CBAS bucket : %s"%items_in_cbas_bucket)
         if items_in_cbas_bucket < self.num_items*2 and items_in_cbas_bucket>self.num_items:
             self.log.info("Data Ingestion Interrupted successfully")
@@ -350,11 +350,7 @@ class MetadataReplication(CBASBaseTest):
     def test_reboot_nodes(self):
         #Test for reboot CC and reboot all nodes.
         self.setup_for_test(skip_data_loading=True)
-        query = "select sleep(count(*),50000) from {0};".format(self.cbas_dataset_name)
-        handles = self.cbas_util._run_concurrent_queries(query,"async",10)        
-        
         self.ingestion_in_progress()
-        
         self.node_type = self.input.param('node_type','CC')
         
         replica_nodes_before_reboot = self.cbas_util.get_replicas_info(self.shell)
@@ -384,7 +380,9 @@ class MetadataReplication(CBASBaseTest):
             try:
                 items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
             except:
-                pass        
+                pass
+            self.sleep(1)
+               
         query = "select count(*) from {0};".format(self.cbas_dataset_name)
         self.cbas_util._run_concurrent_queries(query,"immediate",100)
         
@@ -481,7 +479,7 @@ class MetadataReplication(CBASBaseTest):
                 items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
             except:
                 pass
-            
+            self.sleep(1)
         self.log.info("After rebalance operation docs in CBAS bucket : %s"%items_in_cbas_bucket)
         if items_in_cbas_bucket < self.num_items*2 and items_in_cbas_bucket>self.num_items:
             self.log.info("Data Ingestion Interrupted successfully")
