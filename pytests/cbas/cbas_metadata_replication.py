@@ -122,7 +122,7 @@ class MetadataReplication(CBASBaseTest):
                 self.cluster_util.add_all_nodes_then_rebalance(self.cbas_servers[self.input.param("nc_nodes_to_add"):self.how_many+self.input.param("nc_nodes_to_add")],wait_for_completion=False)
                 self.sleep(2)
                 if self.rest._rebalance_progress_status() == "running":
-                    self.assertTrue(self.rest.stop_rebalance(), "Failed while stopping rebalance.")
+                    self.assertTrue(self.rest.stop_rebalance(wait_timeout=120), "Failed while stopping rebalance.")
                 else:
                     self.fail("Rebalance completed before the test could have stopped rebalance.")
                 
@@ -135,11 +135,11 @@ class MetadataReplication(CBASBaseTest):
                 self.cluster_util.remove_node(otpNodes,wait_for_rebalance=False)
                 self.sleep(2)
                 if self.rest._rebalance_progress_status() == "running":
-                    self.assertTrue(self.rest.stop_rebalance(), "Failed while stopping rebalance.")
+                    self.assertTrue(self.rest.stop_rebalance(wait_timeout=120), "Failed while stopping rebalance.")
                 else:
                     self.fail("Rebalance completed before the test could have stopped rebalance.")
                 
-                self.rebalance(wait_for_completion=False)
+                self.rebalance(wait_for_completion=False,ejected_nodes=[node.id for node in [self.otpNodes[0]]])
             else:
                 self.cluster_util.remove_node(otpNodes,wait_for_rebalance=False)
             replicas_before_rebalance -= self.replica_change
@@ -275,13 +275,13 @@ class MetadataReplication(CBASBaseTest):
         
         self.cluster_util.add_node(node=self.cbas_servers[-1],rebalance=False)
         self.cluster_util.remove_node([self.otpNodes[0]],wait_for_rebalance=False)
-        self.sleep(4, "Wait for sometime after rebalance started.")
+        self.sleep(2, "Wait for sometime after rebalance started.")
         if self.restart_rebalance:
             if self.rest._rebalance_progress_status() == "running":
-                self.assertTrue(self.rest.stop_rebalance(), "Failed while stopping rebalance.")
+                self.assertTrue(self.rest.stop_rebalance(wait_timeout=120), "Failed while stopping rebalance.")
             else:
                 self.fail("Rebalance completed before the test could have stopped rebalance.")
-            self.rebalance(wait_for_completion=False)
+            self.rebalance(ejected_nodes=[node.id for node in [self.otpNodes[0]]], wait_for_completion=False)
         self.sleep(5)
         while self.rest._rebalance_progress_status() == "running":
             replicas = self.cbas_util.get_replicas_info(self.shell)
@@ -441,17 +441,20 @@ class MetadataReplication(CBASBaseTest):
                                                             node_in_test,
                                                             graceful_failover)
             failover_task.get_result()
-            self.rebalance(wait_for_completion=False)
+            self.rebalance(ejected_nodes=[node.id for node in otpNodes], wait_for_completion=False)
             self.sleep(4)
             if self.rest._rebalance_progress_status() == "running":
-                self.assertTrue(self.rest.stop_rebalance(), "Failed while stopping rebalance.")
+                self.assertTrue(self.rest.stop_rebalance(wait_timeout=120), "Failed while stopping rebalance.")
                 if self.add_back:
                     for otpnode in otpNodes:
                         self.rest.set_recovery_type('ns_1@' + otpnode.ip, "full")
                         self.rest.add_back_node('ns_1@' + otpnode.ip)
+                    self.rebalance(wait_for_completion=False)
+                else:
+                    self.rebalance(ejected_nodes=[node.id for node in otpNodes], wait_for_completion=False)
             else:
                 self.fail("Rebalance completed before the test could have stopped rebalance.")
-            self.rebalance(wait_for_completion=False)
+            
         else:
             graceful_failover = self.input.param("graceful_failover", False)
             failover_task = self._cb_cluster.async_failover(self.input.servers,

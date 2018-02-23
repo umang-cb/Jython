@@ -373,9 +373,9 @@ class cluster_utils():
 
         return otpNodes
     
-    def rebalance(self, wait_for_completion=True):
+    def rebalance(self, wait_for_completion=True, ejected_nodes = []):
         nodes = self.rest.node_statuses()
-        started = self.rest.rebalance(otpNodes=[node.id for node in nodes])
+        started = self.rest.rebalance(otpNodes=[node.id for node in nodes],ejectedNodes=ejected_nodes)
         if started and wait_for_completion:
             result = self.rest.monitorRebalance()
 #             self.assertTrue(result, "Rebalance operation failed after adding %s cbas nodes,"%self.cbas_servers)

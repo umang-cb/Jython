@@ -1075,6 +1075,7 @@ class LoadDocumentsGeneratorsTask(LoadDocumentsTask):
             if len(self.op_types) != len(self.buckets):
                 self.state = FINISHED
                 self. set_unexpected_exception(Exception("not all generators have bucket specified!"))
+        log.info("Staring pumping data through run_normal_throughput_mode")
         self.run_normal_throughput_mode()
         # check if running in high throughput mode or normal
         # if self.is_high_throughput_mode:
@@ -1083,6 +1084,7 @@ class LoadDocumentsGeneratorsTask(LoadDocumentsTask):
         #     self.run_normal_throughput_mode()
 
         self.state = FINISHED
+        log.info("Now closing connections.")
         self.client.close()
         self.set_result(True)
 
@@ -1884,6 +1886,7 @@ class BatchedValidateDataTask(GenericLoadingTask):
             self.state = FINISHED
             self.kv_store.release_partitions(partition_keys_dic.keys())
             self.set_unexpected_exception(error)
+            log.info("Closing connections.")
             self.client.close()
             return
         for partition, keys in partition_keys_dic.items():
