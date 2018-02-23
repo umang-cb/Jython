@@ -725,7 +725,7 @@ class GenericLoadingTask(Thread, Task):
         self.state = EXECUTING
 
     def check(self):
-        self.client.close()
+#         self.client.close()
         pass
 
     def run(self):
