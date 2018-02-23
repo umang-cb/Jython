@@ -423,6 +423,7 @@ class MetadataReplication(CBASBaseTest):
             self.cbas_util = cbas_utils(self.master, self.cbas_servers[self.how_many])
             self.cbas_util.createConn("default")
             
+        replicas_before_rebalance=len(self.cbas_util.get_replicas_info(self.shell))
         items_in_cbas_bucket = 0
         start_time=time.time()
         while (items_in_cbas_bucket == 0 or items_in_cbas_bucket == -1) and time.time()<start_time+60:
