@@ -275,6 +275,7 @@ class MetadataReplication(CBASBaseTest):
         
         self.cluster_util.add_node(node=self.cbas_servers[-1],rebalance=False)
         self.cluster_util.remove_node([self.otpNodes[0]],wait_for_rebalance=False)
+        self.sleep(4, "Wait for sometime after rebalance started.")
         if self.restart_rebalance:
             if self.rest._rebalance_progress_status() == "running":
                 self.assertTrue(self.rest.stop_rebalance(), "Failed while stopping rebalance.")
