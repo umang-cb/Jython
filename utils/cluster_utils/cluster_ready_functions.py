@@ -10,7 +10,7 @@ from membase.api.rest_client import RestConnection, RestHelper
 from remote.remote_util import RemoteMachineShellConnection
 from ClusterLib.ClusterOperations import ClusterHelper
 import logger
-
+import time
 class cluster_utils():
     def __init__(self, server):
         self.master = server
@@ -219,7 +219,7 @@ class cluster_utils():
                     # Delete Path
                     shell.cleanup_data_config(data_path)
                     self.start_server(node)
-                self.sleep(10)
+                time.sleep(10)
             except Exception, ex:
                 self.log.info(ex)
 
@@ -415,7 +415,8 @@ class cluster_utils():
                                               ejectedNodes=[node.id for node in otpnode],
                                               wait_for_rebalance=wait_for_rebalance)
         except Exception as e:
-            self.sleep(5,"First time rebalance failed on Removal. Wait and try again. THIS IS A BUG.")
+            self.log("First time rebalance failed on Removal. Wait and try again. THIS IS A BUG.")
+            time.sleep(5)
             removed = helper.remove_nodes(knownNodes=[node.id for node in nodes],
                                               ejectedNodes=[node.id for node in otpnode],
                                               wait_for_rebalance=wait_for_rebalance)
