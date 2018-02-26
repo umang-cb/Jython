@@ -96,7 +96,7 @@ class MetadataReplication(CBASBaseTest):
         query = "select sleep(count(*),50000) from {0};".format(self.cbas_dataset_name)
         handles = self.cbas_util._run_concurrent_queries(query,"async",10)
         self.ingestion_in_progress()
-        
+        otpNodes = []
         if self.rebalance_node == "CC":
             node_in_test = [self.cbas_node]
             otpNodes = [self.otpNodes[0]]
@@ -139,7 +139,7 @@ class MetadataReplication(CBASBaseTest):
                 else:
                     self.fail("Rebalance completed before the test could have stopped rebalance.")
                 
-                self.rebalance(wait_for_completion=False,ejected_nodes=[node.id for node in [self.otpNodes[0]]])
+                self.rebalance(wait_for_completion=False,ejected_nodes=[node.id for node in otpNodes])
             else:
                 self.cluster_util.remove_node(otpNodes,wait_for_rebalance=False)
             replicas_before_rebalance -= self.replica_change
