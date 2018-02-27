@@ -431,7 +431,7 @@ class CBASClusterManagement(CBASBaseTest):
         NodeHelper.stop_couchbase(self.cbas_servers[0])
         NodeHelper.start_couchbase(self.cbas_servers[0])
         NodeHelper.wait_service_started(self.cbas_servers[0])
-        
+        self.sleep(20)
         self.setup_cbas_bucket_dataset_connect(self.cb_bucket_name, self.travel_sample_docs_count)
         self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.travel_sample_docs_count),"Data loss in CBAS.")
 
