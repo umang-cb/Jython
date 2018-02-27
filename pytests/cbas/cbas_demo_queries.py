@@ -48,14 +48,14 @@ class QueryDetails:
         {
             "id": "grouping_aggregation",
             "dataset_id": "beer-sample",
-            "query": "SELECT br.brewery_id, COUNT(*) AS num_beers FROM beers br GROUP BY br.brewery_id HAVING num_beers > 30 and br.brewery_id != \"\";",
+            "query": "SELECT br.brewery_id, COUNT(*) FROM beers br GROUP BY br.brewery_id HAVING COUNT(*) > 30 and br.brewery_id != \"\";",
             "expected_status": "success",
             "expected_hits": "11"
         },
         {
             "id": "hash_based_grouping_aggregation",
             "dataset_id": "beer-sample",
-            "query": "SELECT br.brewery_id, COUNT(*) AS num_beers FROM beers br /*+ hash */ GROUP BY br.brewery_id HAVING num_beers > 30 and br.brewery_id != \"\";",
+            "query": "SELECT br.brewery_id, COUNT(*) FROM beers br /*+ hash */ GROUP BY br.brewery_id HAVING COUNT(*) > 30 and br.brewery_id != \"\";",
             "expected_status": "success",
             "expected_hits": "11"
         },
