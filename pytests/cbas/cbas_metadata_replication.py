@@ -15,7 +15,10 @@ from remote.remote_util import RemoteMachineShellConnection
 
 
 class MetadataReplication(CBASBaseTest):
-
+    def tearDown(self):
+        self.ingest_more_data()
+        CBASBaseTest.tearDown(self)
+        
     def setUp(self):
         self.input = TestInputSingleton.input
         self.input.test_params.update({"default_bucket":False})
@@ -81,10 +84,11 @@ class MetadataReplication(CBASBaseTest):
         self.perform_doc_ops_in_all_cb_buckets(self.num_items*2, "create", self.num_items*2,
                                                    self.num_items*4, batch_size=10000)
         
-        
         self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                cb_bucket_password=self.cb_bucket_password)
-    
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,self.num_items*4):
+                self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
+                
     def test_rebalance(self):
         self.setup_for_test(skip_data_loading=True)
         self.rebalance_type = self.input.param('rebalance_type','out')
@@ -210,7 +214,7 @@ class MetadataReplication(CBASBaseTest):
         
         if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,self.num_items*2):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
-
+        
     def test_cancel_CC_rebalance(self):
         pass
     
@@ -257,7 +261,6 @@ class MetadataReplication(CBASBaseTest):
             
         if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,self.num_items*2):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
-        pass
     
     def test_cc_swap_rebalance(self):
         self.restart_rebalance = self.input.param('restart_rebalance',False)
@@ -533,6 +536,4 @@ class MetadataReplication(CBASBaseTest):
         if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,self.num_items*2):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
             
-        self.ingest_more_data()
-        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,self.num_items*4):
-            self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
+        
