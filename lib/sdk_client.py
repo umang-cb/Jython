@@ -270,7 +270,7 @@ class SDKClient(object):
             time.sleep(20)
             doc_op().bulkUpsert(self.cb, docs)
             log.info("Calling close inside SDK due to an exception during bulkSet.")
-            self.close()
+#             self.close()
             
     def upsert_multi(self, keys, ttl=0, persist_to=0, replicate_to=0):
         import bulk_doc_operations.doc_ops as doc_op
