@@ -268,7 +268,7 @@ class SDKClient(object):
             doc_op().bulkSet(self.cb, docs)
         except:
             time.sleep(20)
-            doc_op().bulkSet(self.cb, docs)
+            doc_op().bulkUpsert(self.cb, docs)
             log.info("Calling close inside SDK due to an exception during bulkSet.")
             self.close()
             

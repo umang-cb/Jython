@@ -16,7 +16,6 @@ from remote.remote_util import RemoteMachineShellConnection
 
 class MetadataReplication(CBASBaseTest):
     def tearDown(self):
-        self.ingest_more_data()
         CBASBaseTest.tearDown(self)
         
     def setUp(self):
@@ -214,6 +213,7 @@ class MetadataReplication(CBASBaseTest):
         
         if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,self.num_items*2):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
+        self.ingest_more_data()
         
     def test_cancel_CC_rebalance(self):
         pass
@@ -261,7 +261,7 @@ class MetadataReplication(CBASBaseTest):
             
         if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,self.num_items*2):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
-    
+        self.ingest_more_data()
     def test_cc_swap_rebalance(self):
         self.restart_rebalance = self.input.param('restart_rebalance',False)
         
@@ -350,7 +350,7 @@ class MetadataReplication(CBASBaseTest):
         
         if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,self.num_items*2):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
-                        
+        self.ingest_more_data()       
     def test_reboot_nodes(self):
         #Test for reboot CC and reboot all nodes.
         self.setup_for_test(skip_data_loading=True)
@@ -396,7 +396,8 @@ class MetadataReplication(CBASBaseTest):
         for replica in replica_nodes_after_reboot:
             self.log.info("replica state during rebalance: %s"%replica['status'])
             self.assertEqual(replica['status'], "IN_SYNC","Replica state is incorrect: %s"%replica['status'])
-    
+        self.ingest_more_data()
+        
     def test_failover(self):
         self.setup_for_test(skip_data_loading=True)
         self.rebalance_node = self.input.param('rebalance_node','CC')
@@ -536,4 +537,4 @@ class MetadataReplication(CBASBaseTest):
         if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,self.num_items*2):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
             
-        
+        self.ingest_more_data()
