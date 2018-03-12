@@ -45,7 +45,7 @@ class MetadataReplication(CBASBaseTest):
         if not skip_data_loading:
             # Load Couchbase bucket first.
             self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0,
-                                                   self.num_items, batch_size=10000)
+                                                   self.num_items, batch_size=1000)
 
         # Create bucket on CBAS
         self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
@@ -71,7 +71,7 @@ class MetadataReplication(CBASBaseTest):
         self.cbas_util.disconnect_from_bucket(self.cbas_bucket_name)
         
         self.perform_doc_ops_in_all_cb_buckets(self.num_items*2, "create", 0,
-                                                   self.num_items*2, batch_size=10000)
+                                                   self.num_items*2, batch_size=1000)
         
         
         self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
@@ -81,7 +81,7 @@ class MetadataReplication(CBASBaseTest):
         self.cbas_util.disconnect_from_bucket(self.cbas_bucket_name)
         
         self.perform_doc_ops_in_all_cb_buckets(self.num_items*2, "create", self.num_items*2,
-                                                   self.num_items*4, batch_size=10000)
+                                                   self.num_items*4, batch_size=1000)
         
         self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                cb_bucket_password=self.cb_bucket_password)

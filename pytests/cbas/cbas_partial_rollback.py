@@ -44,7 +44,7 @@ class PartialRollback_CBAS(CBASBaseTest):
         if not skip_data_loading:
             # Load Couchbase bucket first.
             self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0,
-                                                   self.num_items, batch_size=10000)
+                                                   self.num_items, batch_size=1000)
 
         # Create bucket on CBAS
         self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,

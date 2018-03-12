@@ -996,7 +996,7 @@ class LoadDocumentsTask(GenericLoadingTask):
         return self.generator.has_next()
 
     def next(self, override_generator = None):
-        log.info("BATCH SIZE for documents load: %s" % self.batch_size)
+#         log.info("BATCH SIZE for documents load: %s" % self.batch_size)
         if self.batch_size == 1:
             key, value = self.generator.next()
             partition = self.kv_store.acquire_partition(key)
@@ -1040,7 +1040,7 @@ class LoadDocumentsGeneratorsTask(LoadDocumentsTask):
                  batch_size=1,pause_secs=1, timeout_secs=60):
         LoadDocumentsTask.__init__(self, server, task_manager, bucket, generators[0], kv_store, op_type, exp, flag=flag,
                     only_store_hash=only_store_hash, batch_size=batch_size, pause_secs=pause_secs, timeout_secs=timeout_secs)
-        log.info("BATCH SIZE for documents load: %s" % batch_size)
+#         log.info("BATCH SIZE for documents load: %s" % batch_size)
         if batch_size == 1:
             self.generators = generators
         else:
