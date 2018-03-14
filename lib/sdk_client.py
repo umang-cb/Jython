@@ -282,11 +282,11 @@ class SDKClient(object):
     def insert(self, key, value, ttl=0, format=None, persist_to=0, replicate_to=0):
         doc = self.__translate_to_json_document(key, value)
         try:
-            self.cb.insert(doc, persist_to, replicate_to, ttl, TimeUnit.SECONDS)
+            self.cb.insert(doc)
         except CouchbaseException as e:
             try:
                 time.sleep(10)
-                self.cb.insert(doc, persist_to, replicate_to, ttl, TimeUnit.SECONDS)
+                self.cb.insert(doc)
             except CouchbaseException as e:
                 raise
 
@@ -599,7 +599,7 @@ class SDKSmartClient(object):
         return self.client
 
     def set(self, key, exp, flags, value, format=FMT_AUTO):
-        self.client.set(key, value, ttl=exp, format=format)
+        self.client.insert(key, value, ttl=exp, format=format)
 
     def append(self, key, value, format=FMT_AUTO):
         return self.client.set(key, value, format=format)

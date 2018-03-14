@@ -24,6 +24,7 @@ class CBASBucketOperations(CBASBaseTest):
         self.cbas_util.createConn("default")
 
     def tearDown(self):
+        self.cleanup_cbas()
         super(CBASBucketOperations, self).tearDown()
 
     def setup_for_test(self, skip_data_loading=False):
