@@ -155,3 +155,12 @@ class CBASTuqSanity(QuerySanityTests):
                                     "Expected output for fn %s( %s) : %s. Actual: %s" %(
                                                 fn, name_item, expected_result, doc["type_output"]))
                 self.log.info("Fn %s(%s) is checked. (%s)" % (fn, name_item, expected_result))
+                
+    def test_to_string(self):
+        for bucket in self.buckets:
+            self.query = "SELECT TOSTRING(join_mo) month FROM %s" % bucket.name
+            actual_result = self.run_cbq_query()
+            actual_result = sorted(actual_result['results'])
+            expected_result = [{"month" : str(doc['join_mo'])} for doc in self.full_list]
+            expected_result = sorted(expected_result)
+            self._verify_results(actual_result, expected_result)

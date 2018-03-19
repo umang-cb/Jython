@@ -2874,6 +2874,15 @@ class QuerySanityTests(QueryTests):
         actual_result = self.run_cbq_query()
         self.assertTrue(actual_result['results'][0]['num'] == 12,
                         "Expected: 12. Actual: %s" % (actual_result['results']))
+        self.query = 'SELECT tonum("False") as num'
+        actual_result = self.run_cbq_query()
+        self.assertTrue(actual_result['results'][0]['num'] == 0,
+                        "Expected: 0. Actual: %s" % (actual_result['results']))
+        self.query = 'SELECT tonum("True") as num'
+        actual_result = self.run_cbq_query()
+        self.assertTrue(actual_result['results'][0]['num'] == 1,
+                        "Expected: 1. Actual: %s" % (actual_result['results']))
+
         self.log.info("TONUM is checked")
 
     def test_to_str(self):
