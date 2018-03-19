@@ -568,6 +568,9 @@ class QueryTests(BaseTestCase):
         if type == 'default':
             if self.array_indexing:
                 generators = json_generator.generate_docs_employee_array(docs_per_day, start)
+            elif self.dataset == 'cbas':
+                #not working
+                generators = json_generator.generate_docs_employee_more_field_types(docs_per_day, start)
             elif self.dataset == 'default':
                 #not working
                 generators = json_generator.generate_docs_employee(docs_per_day, start)
