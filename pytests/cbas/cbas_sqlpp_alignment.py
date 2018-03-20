@@ -5,9 +5,6 @@ Created on Mar 13, 2018
 '''
 
 from cbas_base import *
-# from couchbase import FMT_BYTES
-import threading
-import random
 from sdk_client import SDKSmartClient
 from couchbase_helper.tuq_generators import JsonGenerator
 
@@ -47,15 +44,13 @@ class CBASSQL_Alignment(CBASBaseTest):
  
         # Allow ingestion to complete
         self.cbas_util.wait_for_ingestion_complete([self.cbas_dataset_name], 10, 300)
-
-    def test_incompatible_types(self):
-        self.setupForTest()
         
+        #load some data to allow incompatible comparisons.
         data_dict = {"name":[123456,[234234,234234],None,{'key':'value'},True,12345.12345],
                  "age":["String", [234234,234234],None,{'key':'value'},True,12345.12345],
                  "premium_customer":["String", 12345567,[234234,234234,"string"],None,{'key':'value'},123456.123456,],
                  "travel_history":["String", 12345567,None,{'key':'value'},123456.123456,],
-                 "address":["String", 12345567,[234234,234234,"string"],None,123456.123456,]
+                 "address":["String", 12345567,[234234,134234,"string"],None,123456.123456,]
                  }
         self.client = SDKSmartClient(RestConnection(self.master), "default", self.master)
         i=0
@@ -65,6 +60,10 @@ class CBASSQL_Alignment(CBASBaseTest):
                 self.client.set("incompatible_doc_%s"%i, 0, 0, {key:value})
                 i+=1
         self.client.close()
+        
+    def test_incompatible_types_comparison(self):
+        self.setupForTest()
+        
         query_string = "SELECT count(*) FROM default_ds where name < 'a';"
         query_integer = "SELECT count(*) FROM default_ds where age > 1;"
         query_bool = "SELECT count(*) FROM default_ds where premium_customer = True;"
@@ -80,4 +79,22 @@ class CBASSQL_Alignment(CBASBaseTest):
             self.log.info("Query: %s , Result: %s"%(query,results))
             self.assertTrue(status == "success", "Query failed")
             self.assertTrue(results[0]["$1"]>=0, "Result is incorrect")
-    
+
+    def test_incompatible_types_orderBy(self):
+        self.setupForTest()
+        
+        query_string = "SELECT name FROM default_ds order by name;"
+        query_integer = "SELECT age FROM default_ds order by age;"
+        query_bool = "SELECT premium_customer FROM default_ds order by premium_customer;"
+        query_null = "SELECT premium_customer FROM default_ds order by premium_customer;"
+        query_array = "SELECT travel_history FROM default_ds order by travel_history;"
+        query_json_object = "SELECT address FROM default_ds order by address;"
+        
+        queries = [query_string,query_integer,query_bool,query_null,query_array,query_json_object]
+        
+        for query in queries:
+            status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(query)
+            self.log.info("Query: %s , Result: %s"%(query,results))
+            self.assertTrue(status == "success", "Query failed")
+            self.assertTrue(len(results)==38, "Result is incorrect")
+        
