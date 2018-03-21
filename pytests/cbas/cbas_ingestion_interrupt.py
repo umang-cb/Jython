@@ -20,7 +20,7 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         super(IngestionInterrupt_CBAS, self).setUp()
         
         if "add_all_cbas_nodes" in self.input.test_params and self.input.test_params["add_all_cbas_nodes"] and len(self.cbas_servers) > 0:
-            self.otpNodes.append(self.add_all_nodes_then_rebalance(self.cbas_servers))
+            self.otpNodes.extend(self.add_all_nodes_then_rebalance(self.cbas_servers))
             
         self.create_default_bucket()
         self.cbas_util.createConn("default")
