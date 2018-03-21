@@ -226,7 +226,9 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         
         if self.cbas_node_type == "CC":
             node_in_test = self.cbas_node
+            self.cbas_util.closeConn()
             self.cbas_util = cbas_utils(self.master, self.cbas_servers[0])
+            self.cbas_util.createConn("default")
         else:
             node_in_test = self.cbas_servers[0]
         
