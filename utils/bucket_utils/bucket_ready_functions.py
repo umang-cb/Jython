@@ -198,6 +198,12 @@ class bucket_utils():
             log.error(msg)
             if test_case:
                 test_case.fail(msg=msg.format(name))
+        
+        if bucket_created:      
+            self.buckets.append(Bucket(name=name, authType="sasl", saslPassword="",
+                                num_replicas=self.num_replicas, bucket_size=self.bucket_size,
+                                eviction_policy=self.eviction_policy, lww=self.lww,
+                                type=self.bucket_type))
         return bucket_created
     
     def create_multiple_buckets(self, server, replica, bucket_ram_ratio=(2.0 / 3.0),

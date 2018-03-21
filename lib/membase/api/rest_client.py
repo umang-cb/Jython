@@ -3602,6 +3602,16 @@ class RestParser(object):
         node.memoryTotal = parsed['memoryTotal']
         node.mcdMemoryAllocated = parsed['mcdMemoryAllocated']
         node.mcdMemoryReserved = parsed['mcdMemoryReserved']
+        
+        if 'indexMemoryQuota' in parsed:
+            node.indexMemoryQuota = parsed['indexMemoryQuota']
+        if 'ftsMemoryQuota' in parsed:    
+            node.ftsMemoryQuota = parsed['ftsMemoryQuota']
+        if 'cbasMemoryQuota' in parsed: 
+            node.cbasMemoryQuota = parsed['cbasMemoryQuota']
+        if 'eventingMemoryQuota' in parsed: 
+            node.eventingMemoryQuota = parsed['eventingMemoryQuota']
+        
         node.status = parsed['status']
         node.hostname = parsed['hostname']
         node.clusterCompatibility = parsed['clusterCompatibility']

@@ -495,14 +495,14 @@ class RemoteMachineShellConnection:
             log.info(self.execute_command("pgrep -l java"))
         return o, r
     
-    def kill_process(self, process_name, service_name):
+    def kill_process(self, process_name, service_name, signum=9):
         self.extract_remote_info()
         if self.info.type.lower() == 'windows':
             o, r = self.execute_command("taskkill /F /T /IM %s*"%process_name)
             self.log_command_output(o, r)
         else:
             log.info(self.execute_command("pgrep -l %s"%process_name))
-            o, r = self.execute_command("kill -9 $(ps aux | grep '%s' | awk '{print $2}')"%service_name)
+            o, r = self.execute_command("kill -%s $(ps aux | grep '%s' | awk '{print $2}')" % (signum, service_name))
             self.log_command_output(o, r)
             log.info(self.execute_command("pgrep -l %s"%process_name))
         return o, r

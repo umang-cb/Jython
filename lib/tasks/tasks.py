@@ -808,7 +808,7 @@ class GenericLoadingTask(Thread, Task):
             self. set_unexpected_exception(error)
 
         try:
-            self.client.set(key, self.exp, self.flag, value)
+            self.client.upsert(key, self.exp, self.flag, value)
             if self.only_store_hash:
                 value = str(crc32.crc32_hash(value))
             partition.set(key, value, self.exp, self.flag)
