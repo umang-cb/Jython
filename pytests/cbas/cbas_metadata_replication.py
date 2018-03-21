@@ -147,7 +147,8 @@ class MetadataReplication(CBASBaseTest):
                 self.cluster_util.remove_node(otpNodes,wait_for_rebalance=False)
             replicas_before_rebalance -= self.replica_change
         self.sleep(2)
-        while self.rest._rebalance_progress_status() == "running":
+        str_time = time.time()
+        while self.rest._rebalance_progress_status() == "running" and time.time()<str_time+300:
             replicas = self.cbas_util.get_replicas_info(self.shell)
             if replicas:
                 for replica in replicas:
@@ -286,7 +287,8 @@ class MetadataReplication(CBASBaseTest):
                 self.fail("Rebalance completed before the test could have stopped rebalance.")
             self.rebalance(ejected_nodes=[node.id for node in [self.otpNodes[0]]], wait_for_completion=False)
         self.sleep(5)
-        while self.rest._rebalance_progress_status() == "running":
+        str_time = time.time()
+        while self.rest._rebalance_progress_status() == "running" and time.time()<str_time+300:
             replicas = self.cbas_util.get_replicas_info(self.shell)
             if replicas:
                 for replica in replicas:
@@ -473,7 +475,8 @@ class MetadataReplication(CBASBaseTest):
 
         replicas_before_rebalance -= self.replica_change
         self.sleep(5)
-        while self.rest._rebalance_progress_status() == "running":
+        str_time = time.time()
+        while self.rest._rebalance_progress_status() == "running" and time.time()<str_time+300:
             replicas = self.cbas_util.get_replicas_info(self.shell)
             if replicas:
                 for replica in replicas:
