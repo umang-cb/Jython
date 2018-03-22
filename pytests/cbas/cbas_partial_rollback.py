@@ -3,7 +3,7 @@ Created on Jan 4, 2018
 
 @author: riteshagarwal
 '''
-
+from cbas.cbas_utils import cbas_utils
 from cbas_base import CBASBaseTest, TestInputSingleton
 from lib.memcached.helper.data_helper import MemcachedClientHelper
 from remote.remote_util import RemoteMachineShellConnection
@@ -345,6 +345,9 @@ class PartialRollback_CBAS(CBASBaseTest):
         
         if self.CC:
             self.cluster_util.remove_node([self.otpNodes[0]],wait_for_rebalance=False)
+            self.cbas_util.closeConn()
+            self.cbas_util = cbas_utils(self.master, self.cbas_servers[0])
+            self.cbas_util.createConn("default")
         else:
             self.cluster_util.remove_node([self.otpNodes[1]],wait_for_rebalance=False)
             
@@ -356,9 +359,9 @@ class PartialRollback_CBAS(CBASBaseTest):
         curr = time.time()
         while items_in_cbas_bucket != 0 and items_in_cbas_bucket >= items_before_persistence_stop:
             try:
-                items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
                 if curr+120 < time.time():
                     break
+                items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
             except:
                 self.log.info("Probably rebalance is in progress and the reason for queries being failing.")
                 pass
