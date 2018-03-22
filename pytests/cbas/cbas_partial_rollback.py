@@ -355,9 +355,13 @@ class PartialRollback_CBAS(CBASBaseTest):
         self.sleep(2,"Wait for 2 secs for DCP rollback sent to CBAS.")
         curr = time.time()
         while items_in_cbas_bucket != 0 and items_in_cbas_bucket >= items_before_persistence_stop:
-            items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
-            if curr+120 < time.time():
-                break
+            try:
+                items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+                if curr+120 < time.time():
+                    break
+            except:
+                self.log.info("Probably rebalance is in progress and the reason for queries being failing.")
+                pass
         self.assertTrue(items_in_cbas_bucket<items_before_persistence_stop, "Roll-back did not happen.")
         self.log.info("#######BINGO########\nROLLBACK HAPPENED")
         
