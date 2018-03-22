@@ -164,3 +164,27 @@ class CBASTuqSanity(QuerySanityTests):
             expected_result = [{"month" : str(doc['join_mo'])} for doc in self.full_list]
             expected_result = sorted(expected_result)
             self._verify_results(actual_result, expected_result)
+
+    def test_regex_contains(self):
+        for bucket in self.buckets:
+            self.query = "select email from %s where REGEXP_CONTAINS(email, '-m..l')" % (bucket.name)
+
+            actual_list = self.run_cbq_query()
+            actual_result = sorted(actual_list['results'])
+            expected_result = [{"email" : doc["email"]}
+                               for doc in self.full_list
+                               if len(re.compile('-m..l').findall(doc['email'])) > 0]
+            expected_result = sorted(expected_result)
+            self._verify_results(actual_result, expected_result)
+            
+    def test_title(self):
+        for bucket in self.buckets:
+            self.query = "select TITLE(VMs[0].os) as OS from %s" % (bucket.name)
+
+            actual_list = self.run_cbq_query()
+            actual_result = sorted(actual_list['results'])
+
+            expected_result = [{"OS" : (doc["VMs"][0]["os"][0].upper() + doc["VMs"][0]["os"][1:])}
+                               for doc in self.full_list]
+            expected_result = sorted(expected_result)
+            self._verify_results(actual_result, expected_result)
