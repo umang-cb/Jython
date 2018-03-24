@@ -244,3 +244,16 @@ class CBASTuqSanity(QuerySanityTests):
             expected_result = sorted(expected_result, key=lambda doc: (doc['name'],
                                                                        doc['period']))
             self._verify_results(actual_result, expected_result)
+
+    def test_contains(self):
+        for bucket in self.buckets:
+            self.query = "select name from %s where contains(job_title, 'Sale')" % (bucket.name)
+
+            actual_list = self.run_cbq_query()
+            actual_result = sorted(actual_list['results'])
+
+            expected_result = [{"name" : doc["name"]}
+                               for doc in self.full_list
+                               if doc['job_title'].find('Sale') != -1]
+            expected_result = sorted(expected_result)
+            self._verify_results(actual_result, expected_result)

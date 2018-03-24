@@ -368,7 +368,8 @@ class MetadataReplication(CBASBaseTest):
                 NodeHelper.reboot_server(server, self)
         else:
             NodeHelper.reboot_server(self.cbas_node, self)
-            NodeHelper.reboot_server(server, self)
+            for server in self.cbas_servers:
+                NodeHelper.reboot_server(server, self)
         
         replica_nodes_after_reboot = self.cbas_util.get_replicas_info(self.shell)
         replicas_after_reboot=len(replica_nodes_after_reboot)
@@ -447,20 +448,22 @@ class MetadataReplication(CBASBaseTest):
                                                             node_in_test,
                                                             graceful_failover)
             failover_task.get_result()
-            self.rebalance(ejected_nodes=[node.id for node in otpNodes], wait_for_completion=False)
-            self.sleep(4)
+            if self.add_back:
+                for otpnode in otpNodes:
+                    self.rest.set_recovery_type('ns_1@' + otpnode.ip, "full")
+                    self.rest.add_back_node('ns_1@' + otpnode.ip)
+                self.rebalance(wait_for_completion=False)
+            else:
+                self.rebalance(ejected_nodes=[node.id for node in otpNodes], wait_for_completion=False)
+            self.sleep(2)
             if self.rest._rebalance_progress_status() == "running":
                 self.assertTrue(self.rest.stop_rebalance(wait_timeout=120), "Failed while stopping rebalance.")
                 if self.add_back:
-                    for otpnode in otpNodes:
-                        self.rest.set_recovery_type('ns_1@' + otpnode.ip, "full")
-                        self.rest.add_back_node('ns_1@' + otpnode.ip)
                     self.rebalance(wait_for_completion=False)
                 else:
                     self.rebalance(ejected_nodes=[node.id for node in otpNodes], wait_for_completion=False)
             else:
                 self.fail("Rebalance completed before the test could have stopped rebalance.")
-            
         else:
             graceful_failover = self.input.param("graceful_failover", False)
             failover_task = self._cb_cluster.async_failover(self.input.servers,
