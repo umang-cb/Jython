@@ -7,7 +7,45 @@ Created on Mar 16, 2018
 @author: riteshagarwal
 '''
 from tuqquery.tuq_sanity import QuerySanityTests
+from basetestcase import BaseTestCase
+from membase.api.rest_client import RestConnection
+from cbas.cbas_base import CBASBaseTest
+from CbasLib.CBASOperations import CBASHelper
 
+class cbas_object_tests(CBASBaseTest):
+    def setup_cbas_bucket_dataset_connect(self, cb_bucket, num_docs):
+        # Create bucket on CBAS
+        self.cbas_util.createConn(cb_bucket)
+        self.assertTrue(self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
+                       cb_bucket_name=cb_bucket),"bucket creation failed on cbas")
+        
+        self.assertTrue(self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+                          cbas_dataset_name=self.cbas_dataset_name), "dataset creation failed on cbas")
+        
+        self.assertTrue(self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name),"Connecting cbas bucket to cb bucket failed")
+        
+        self.assertTrue(self.cbas_util.wait_for_ingestion_complete([self.cbas_dataset_name], num_docs),"Data ingestion to cbas couldn't complete in 300 seconds.")
+        
+    def test_object_pairs(self):
+        self.query = 'insert into %s (KEY, VALUE) VALUES ("test",{"type":"testType","indexMap":{"key1":"val1", "key2":"val2"},"data":{"foo":"bar"}})'%(self.default_bucket_name)
+        result = RestConnection(self.master).query_tool(self.query)
+        self.assertTrue(result['status'] == "success")
+        self.setup_cbas_bucket_dataset_connect("default", 0)
+        self.query = "SELECT object_pairs(indexMap) from %s;"%self.cbas_dataset_name
+        
+        result = CBASHelper(self.master,self.cbas_node).execute_statement_on_cbas(self.query,
+                                                                                  "immediate")
+        result = json.loads(result)
+        expected_result = [{
+                        "name": "key1",
+                        "value": "val1"
+                      },
+                      {
+                        "name": "key2",
+                        "value": "val2"
+                      }]
+        self.assertTrue(result['results'][0]['$1']==expected_result)
+        
 class CBASTuqSanity(QuerySanityTests):
     
     def test_array_length(self):
