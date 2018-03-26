@@ -257,3 +257,39 @@ class CBASTuqSanity(QuerySanityTests):
                                if doc['job_title'].find('Sale') != -1]
             expected_result = sorted(expected_result)
             self._verify_results(actual_result, expected_result)
+            
+    def test_between_bigint(self):
+        for bucket in self.buckets:
+            self.query = "SELECT name FROM {0} WHERE join_mo BETWEEN -9223372036854775808 AND 9223372036854775807 ORDER BY name".format(bucket.name)
+            actual_result = self.run_cbq_query()
+
+            expected_result = [{"name" : doc['name']} for doc in self.full_list
+                               if doc["join_mo"] >= -9223372036854775808 and doc["join_mo"] <= 9223372036854775807]
+            expected_result = sorted(expected_result, key=lambda doc: (doc['name']))
+            self._verify_results(actual_result['results'], expected_result)
+
+            self.query = "SELECT name FROM {0} WHERE join_mo NOT BETWEEN -9223372036854775808 AND 9223372036854775807 ORDER BY name".format(bucket.name)
+            actual_result = self.run_cbq_query()
+
+            expected_result = [{"name" : doc['name']} for doc in self.full_list
+                               if not(doc["join_mo"] >= -9223372036854775808 and doc["join_mo"] <= 9223372036854775807)]
+            expected_result = sorted(expected_result, key=lambda doc: (doc['name']))
+            self._verify_results(actual_result['results'], expected_result)
+            
+    def test_between_double(self):
+        for bucket in self.buckets:
+            self.query = "SELECT name FROM {0} WHERE join_mo BETWEEN -1.79769313486231570E308  AND 1.79769313486231570E308 ORDER BY name".format(bucket.name)
+            actual_result = self.run_cbq_query()
+
+            expected_result = [{"name" : doc['name']} for doc in self.full_list
+                               if doc["join_mo"] >= -1.79769313486231570E308 and doc["join_mo"] <= 1.79769313486231570E308]
+            expected_result = sorted(expected_result, key=lambda doc: (doc['name']))
+            self._verify_results(actual_result['results'], expected_result)
+
+            self.query = "SELECT name FROM {0} WHERE join_mo NOT BETWEEN -1.79769313486231570E308  AND 1.79769313486231570E308 ORDER BY name".format(bucket.name)
+            actual_result = self.run_cbq_query()
+
+            expected_result = [{"name" : doc['name']} for doc in self.full_list
+                               if not(doc["join_mo"] >= -1.79769313486231570E308 and doc["join_mo"] <= 1.79769313486231570E308)]
+            expected_result = sorted(expected_result, key=lambda doc: (doc['name']))
+            self._verify_results(actual_result['results'], expected_result)
