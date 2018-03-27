@@ -331,3 +331,17 @@ class CBASTuqSanity(QuerySanityTests):
                                if not(doc["join_mo"] >= -1.79769313486231570E308 and doc["join_mo"] <= 1.79769313486231570E308)]
             expected_result = sorted(expected_result, key=lambda doc: (doc['name']))
             self._verify_results(actual_result['results'], expected_result)
+            
+    def test_concatenation_where(self):
+        for bucket in self.buckets:
+            self.query = 'SELECT name, skills' +\
+            ' FROM %s WHERE skills[0]=("skill" || "2010")' % (bucket.name)
+
+            actual_list = self.run_cbq_query()
+
+            actual_result = sorted(actual_list['results'])
+            expected_result = [{"name" : doc["name"], "skills" : doc["skills"]}
+                               for doc in self.full_list
+                               if doc["skills"][0] == 'skill2010']
+            expected_result = sorted(expected_result)
+            self._verify_results(actual_result, expected_result)
