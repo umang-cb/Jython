@@ -3,8 +3,7 @@ Created on Sep 25, 2017
 
 @author: riteshagarwal
 '''
-
-from Rest_Connection import RestConnection
+from connections.Rest_Connection import RestConnection
 import logger
 import base64
 import json
@@ -132,4 +131,24 @@ class CBASHelper(RestConnection):
             return json.loads(content)
         except ValueError:
             return content
+
+    def operation_log_level_on_cbas(self, method, params=None, logger_name=None, log_level=None, timeout=120, username=None,
+                                    password=None):
+        if not username:
+            username = self.username
+        if not password:
+            password = self.password
+        headers = self._create_capi_headers(username, password)
         
+        if params is not None:
+            api = self.cbas_base_url + "/analytics/cluster/logging"
+        else:
+            api = self.cbas_base_url + "/analytics/cluster/logging/" + logger_name
+        
+        # In case of SET action we can set logging level of a specific logger and pass log_level as text string in body 
+        if log_level:
+           params = log_level    
+
+        status, content, response = self._http_request(api, method=method, params=params, headers=headers,
+                                                       timeout=timeout)
+        return status, content, response

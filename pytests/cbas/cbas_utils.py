@@ -763,4 +763,52 @@ class cbas_utils():
         if not shell:
             shell.disconnect()    
             
-        return len(response)         
+        return len(response)
+
+    def set_log_level_on_cbas(self, log_level_dict, timeout=120, username=None, password=None):
+
+        payload = ""
+        for component, level in log_level_dict.items():
+            payload += '{ "level": "' + level + '", "name": "' + component + '" },'
+        payload = payload.rstrip(",")
+        params = '{ "loggers": [ ' + payload + ' ] }'
+        status, content, response = self.cbas_helper.operation_log_level_on_cbas(method="PUT", params=params,
+                                                                                 logger_name=None,
+                                                                                 timeout=timeout, username=username,
+                                                                                 password=password)
+        return status, content, response
+
+    def set_specific_log_level_on_cbas(self, logger_name, log_level, timeout=120, username=None, password=None):
+        status, content, response = self.cbas_helper.operation_log_level_on_cbas(method="PUT", params=None,
+                                                                                 logger_name=logger_name, log_level=log_level,
+                                                                                 timeout=timeout, username=username,
+                                                                                 password=password)
+        return status, content, response
+
+    def get_log_level_on_cbas(self, timeout=120, username=None, password=None):
+        status, content, response = self.cbas_helper.operation_log_level_on_cbas(method="GET", params="",
+                                                                                 logger_name=None,
+                                                                                 timeout=timeout,
+                                                                                 username=username, password=password)
+        return status, content, response
+
+    def get_specific_cbas_log_level(self, logger_name, timeout=120, username=None, password=None):
+        status, content, response = self.cbas_helper.operation_log_level_on_cbas(method="GET", params=None,
+                                                                                 logger_name=logger_name,
+                                                                                 timeout=timeout,
+                                                                                 username=username, password=password)
+        return status, content, response
+
+    def delete_all_loggers_on_cbas(self, timeout=120, username=None, password=None):
+        status, content, response = self.cbas_helper.operation_log_level_on_cbas(method="DELETE", params="",
+                                                                                 logger_name=None,
+                                                                                 timeout=timeout,
+                                                                                 username=username, password=password)
+        return status, content, response
+
+    def delete_specific_cbas_log_level(self, logger_name, timeout=120, username=None, password=None):
+        status, content, response = self.cbas_helper.operation_log_level_on_cbas(method="DELETE", params=None,
+                                                                                 logger_name=logger_name,
+                                                                                 timeout=timeout,
+                                                                                 username=username, password=password)
+        return status, content, response
