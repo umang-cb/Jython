@@ -7,35 +7,33 @@ Created on Mar 16, 2018
 @author: riteshagarwal
 '''
 from tuqquery.tuq_sanity import QuerySanityTests
-from basetestcase import BaseTestCase
 from membase.api.rest_client import RestConnection
 from cbas.cbas_base import CBASBaseTest
-from CbasLib.CBASOperations import CBASHelper
+import re
 
 class cbas_object_tests(CBASBaseTest):
-    def setup_cbas_bucket_dataset_connect(self, cb_bucket, num_docs):
+    def setup_cbas_bucket_dataset_connect(self):
         # Create bucket on CBAS
-        self.cbas_util.createConn(cb_bucket)
+        self.query = 'insert into %s (KEY, VALUE) VALUES ("test",{"type":"testType","indexMap":{"key1":"val1", "key2":"val2"},"data":{"foo":"bar"}})'%(self.default_bucket_name)
+        result = RestConnection(self.master).query_tool(self.query)
+        self.assertTrue(result['status'] == "success")
+        
+        self.cbas_util.createConn(self.default_bucket_name)
         self.assertTrue(self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
-                       cb_bucket_name=cb_bucket),"bucket creation failed on cbas")
+                       cb_bucket_name=self.default_bucket_name),"bucket creation failed on cbas")
         
         self.assertTrue(self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
                           cbas_dataset_name=self.cbas_dataset_name), "dataset creation failed on cbas")
         
         self.assertTrue(self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name),"Connecting cbas bucket to cb bucket failed")
         
-        self.assertTrue(self.cbas_util.wait_for_ingestion_complete([self.cbas_dataset_name], num_docs),"Data ingestion to cbas couldn't complete in 300 seconds.")
+        self.assertTrue(self.cbas_util.wait_for_ingestion_complete([self.cbas_dataset_name], 1),"Data ingestion to cbas couldn't complete in 300 seconds.")
         
     def test_object_pairs(self):
-        self.query = 'insert into %s (KEY, VALUE) VALUES ("test",{"type":"testType","indexMap":{"key1":"val1", "key2":"val2"},"data":{"foo":"bar"}})'%(self.default_bucket_name)
-        result = RestConnection(self.master).query_tool(self.query)
-        self.assertTrue(result['status'] == "success")
-        self.setup_cbas_bucket_dataset_connect("default", 0)
+        self.setup_cbas_bucket_dataset_connect()
         self.query = "SELECT object_pairs(indexMap) from %s;"%self.cbas_dataset_name
         
-        result = CBASHelper(self.master,self.cbas_node).execute_statement_on_cbas(self.query,
-                                                                                  "immediate")
-        result = json.loads(result)
+        status, _, _, result, _ = self.cbas_util.execute_statement_on_cbas_util(self.query,"immediate")
         expected_result = [{
                         "name": "key1",
                         "value": "val1"
@@ -44,7 +42,31 @@ class cbas_object_tests(CBASBaseTest):
                         "name": "key2",
                         "value": "val2"
                       }]
-        self.assertTrue(result['results'][0]['$1']==expected_result)
+        self.assertTrue(status=="success")
+        self.assertTrue(result[0]['$1']==expected_result)
+
+    def test_object_length(self):
+        self.setup_cbas_bucket_dataset_connect()
+        self.query = "SELECT object_length(indexMap) from %s;"%self.cbas_dataset_name
+        
+        status, _, _, result, _ = self.cbas_util.execute_statement_on_cbas_util(self.query,"immediate")
+        self.assertTrue(status=="success")
+        self.assertTrue(result[0]['$1']==2)
+        
+    def test_object_names(self):
+        self.setup_cbas_bucket_dataset_connect()
+        self.query = "SELECT object_names(indexMap) from %s;"%self.cbas_dataset_name
+        
+        status, _, _, result, _ = self.cbas_util.execute_statement_on_cbas_util(self.query,"immediate")
+
+        expected_result = [{
+                        "name": "key1",
+                      },
+                      {
+                        "name": "key2",
+                      }]
+        self.assertTrue(status=="success")
+        self.assertTrue(result[0]['$1']==expected_result)
         
 class CBASTuqSanity(QuerySanityTests):
     
