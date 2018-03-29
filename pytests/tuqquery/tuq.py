@@ -97,14 +97,10 @@ class QueryTests(BaseTestCase):
         if self.primary_indx_type.lower() == "gsi":
             self.gsi_type = self.input.param("gsi_type", 'plasma')
         if self.input.param("reload_data", False):
-#             if self.analytics:
-#                 self.cluster.rebalance([self.master, self.cbas_node], [], [self.cbas_node], services=['cbas'])
             for bucket in self.buckets:
                 self.cluster.bucket_flush(self.master, bucket=bucket, timeout=180000)
             self.gens_load = self.gen_docs(self.docs_per_day)
             self.load(self.gens_load, batch_size=1000, flag=self.item_flag)
-#             if self.analytics:
-#                 self.cluster.rebalance([self.master, self.cbas_node], [self.cbas_node], [], services=['cbas'])
         if not (hasattr(self, 'skip_generation') and self.skip_generation):
             self.full_list = self.generate_full_docs_list(self.gens_load)
         if self.input.param("gomaxprocs", None):
@@ -114,15 +110,7 @@ class QueryTests(BaseTestCase):
             if self.analytics == False:
                 self.create_primary_index_for_3_0_and_greater()
         self.log.info('-'*100)
-        self.log.info('Temp fix for MB-16888')
-        if self.cluster_ops == False:
-           self.shell.execute_command("killall -9 cbq-engine")
-           self.shell.execute_command("killall -9 indexer")
-           self.sleep(20, 'wait for indexer')
         self.log.info('-'*100)
-#         if self.analytics:
-#             self.setup_analytics()
-#             self.sleep(30, 'wait for analytics setup')
         if self.monitoring:
             self.run_cbq_query('delete from system:prepareds')
             self.run_cbq_query('delete from system:completed_requests')

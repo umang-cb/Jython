@@ -10,6 +10,8 @@ from tuqquery.tuq_sanity import QuerySanityTests
 from membase.api.rest_client import RestConnection
 from cbas.cbas_base import CBASBaseTest
 import re
+import datetime
+
 
 class cbas_object_tests(CBASBaseTest):
     def setup_cbas_bucket_dataset_connect(self):
@@ -59,12 +61,8 @@ class cbas_object_tests(CBASBaseTest):
         
         status, _, _, result, _ = self.cbas_util.execute_statement_on_cbas_util(self.query,"immediate")
 
-        expected_result = [{
-                        "name": "key1",
-                      },
-                      {
-                        "name": "key2",
-                      }]
+        expected_result = [{"$1": ["key1","key2"]}]
+        
         self.assertTrue(status=="success")
         self.assertTrue(result[0]['$1']==expected_result)
         
@@ -367,3 +365,86 @@ class CBASTuqSanity(QuerySanityTests):
                                if doc["skills"][0] == 'skill2010']
             expected_result = sorted(expected_result)
             self._verify_results(actual_result, expected_result)
+
+    def test_meta(self):
+        for bucket in self.buckets:
+            expected_result = [{"name" : doc['name']} for doc in self.full_list]
+            expected_result = [dict(y) for y in set(tuple(x.items()) for x in expected_result)]
+            expected_result = sorted(expected_result, key=lambda doc: (doc['name']))
+
+            self.query = "SELECT distinct name FROM %s WHERE META(%s).id IS NOT NULL"  % (
+                                                                                   bucket.name, bucket.name)
+            actual_result = self.run_cbq_query()
+
+            actual_result = sorted(actual_result['results'], key=lambda doc: (doc['name']))
+            self._verify_results(actual_result, expected_result)
+
+
+    def test_clock_millis(self):
+        self.query = "select clock_millis() as now"
+        res = self.run_cbq_query()
+        self.assertTrue(res['status']=="success", "Query %s failed."%self.query)
+        
+    def test_clock_local(self):
+        self.query = "select clock_local() as now"
+        res = self.run_cbq_query()
+        self.assertTrue(res['status']=="success", "Query %s failed."%self.query)
+        now = datetime.datetime.now()
+        expected = "%s-%02d-%02dT" % (now.year, now.month, now.day)
+        self.assertTrue(res["results"][0]["now"].startswith(expected),
+                        "Result expected: %s. Actual %s" % (expected, res["results"]))
+        
+    def test_clock_utc(self):
+        self.query = "select clock_utc() as now"
+        res = self.run_cbq_query()
+        self.assertTrue(res['status']=="success", "Query %s failed."%self.query)        
+
+    def test_DATE_TRUNC_MILLIS(self):
+        self.query = "SELECT DATE_TRUNC_MILLIS(1463284740000, 'day') as day,\
+       DATE_TRUNC_MILLIS(1463284740000, 'month') as month,\
+       DATE_TRUNC_MILLIS(1463284740000, 'year') as year;"
+        res = self.run_cbq_query()
+        self.assertTrue(res['status']=="success", "Query %s failed."%self.query)         
+        
+        expected = [
+                      {
+                        "day": 1463270400000,
+                        "month": 1462147200000,
+                        "year": 1451696400000
+                      }
+                    ]
+        self.assertTrue(res['results']==expected, "Query %s failed."%self.query)   
+        
+    def test_DATE_TRUNC_STR(self):
+        self.query = "SELECT DATE_TRUNC_STR('2016-05-18T03:59:00Z', 'day') as day,\
+        DATE_TRUNC_STR('2016-05-18T03:59:00Z', 'month') as month,\
+        DATE_TRUNC_STR('2016-05-18T03:59:00Z', 'year') as year;"
+        
+        res = self.run_cbq_query()
+        self.assertTrue(res['status']=="success", "Query %s failed."%self.query)         
+        
+        expected = [
+                      {
+                        "day": "2016-05-18T00:00:00Z",
+                        "month": "2016-05-01T00:00:00Z",
+                        "year": "2016-01-01T00:00:00Z"
+                      }
+                    ]
+        self.assertTrue(res['results']==expected, "Query %s failed."%self.query)
+    
+    def test_DURATION_TO_STR(self):
+        self.query = "SELECT DURATION_TO_STR(2000) as microsecs,\
+        DURATION_TO_STR(2000000) as millisecs,\
+        DURATION_TO_STR(2000000000) as secs;"
+        
+        res = self.run_cbq_query()
+        self.assertTrue(res['status']=="success", "Query %s failed."%self.query)         
+        
+        expected = [
+                      {
+                        "microsecs": "2µs",
+                        "millisecs": "2ms",
+                        "secs": "2s"
+                      }
+                    ]
+        self.assertTrue(res['results']==expected, "Query %s failed."%self.query)
