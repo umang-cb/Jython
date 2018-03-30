@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import json
 import math
 
@@ -11,6 +12,7 @@ from membase.api.rest_client import RestConnection
 from cbas.cbas_base import CBASBaseTest
 import re
 import datetime
+from pytests.tuqquery.date_time_functions import *
 
 
 class cbas_object_tests(CBASBaseTest):
@@ -393,6 +395,15 @@ class CBASTuqSanity(QuerySanityTests):
         expected = "%s-%02d-%02dT" % (now.year, now.month, now.day)
         self.assertTrue(res["results"][0]["now"].startswith(expected),
                         "Result expected: %s. Actual %s" % (expected, res["results"]))
+
+    def test_now_local(self):
+        self.query = "select now_local() as now"
+        res = self.run_cbq_query()
+        self.assertTrue(res['status']=="success", "Query %s failed."%self.query)
+        now = datetime.datetime.now()
+        expected = "%s-%02d-%02dT" % (now.year, now.month, now.day)
+        self.assertTrue(res["results"][0]["now"].startswith(expected),
+                        "Result expected: %s. Actual %s" % (expected, res["results"]))
         
     def test_clock_utc(self):
         self.query = "select clock_utc() as now"
@@ -415,6 +426,10 @@ class CBASTuqSanity(QuerySanityTests):
                     ]
         self.assertTrue(res['results']==expected, "Query %s failed."%self.query)   
         
+        self.query = "SELECT DATE_TRUNC_STR('2016-05-18T03:59:00Z', 'day') as day,\
+       DATE_TRUNC_STR('2016-05-18T03:59:00Z', 'month') as month,\
+       DATE_TRUNC_STR('2016-05-18T03:59:00Z', 'year') as year;"
+       
     def test_DATE_TRUNC_STR(self):
         self.query = "SELECT DATE_TRUNC_STR('2016-05-18T03:59:00Z', 'day') as day,\
         DATE_TRUNC_STR('2016-05-18T03:59:00Z', 'month') as month,\
@@ -448,3 +463,22 @@ class CBASTuqSanity(QuerySanityTests):
                       }
                     ]
         self.assertTrue(res['results']==expected, "Query %s failed."%self.query)
+        
+class DateTimeFunctionClass_cbas(DateTimeFunctionClass):
+    
+    def test_date_part_millis(self):
+        for count in range(5):
+            if count == 0:
+                milliseconds = 0
+            else:
+                milliseconds = random.randint(658979899785, 876578987695)
+            for part in PARTS:
+                expected_local_query = 'SELECT DATE_PART_STR(MILLIS_TO_STR({0}), "{1}")'.format(milliseconds, part)
+                expected_local_result = self.run_cbq_query(expected_local_query)
+                actual_local_query = self._generate_date_part_millis_query(milliseconds, part)
+                self.log.info(actual_local_query)
+                actual_local_result = self.run_cbq_query(actual_local_query)
+                self.assertEqual(actual_local_result["results"][0]["$1"], expected_local_result["results"][0]["$1"],
+                                 "Actual result {0} and expected result {1} don't match for {2} milliseconds and \
+                                 {3} parts".format(actual_local_result["results"][0], expected_local_result["results"][0]["$1"],
+                                                   milliseconds, part))

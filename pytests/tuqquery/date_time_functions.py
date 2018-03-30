@@ -38,6 +38,37 @@ TIMEZONES = ["UTC"]
 
 
 class DateTimeFunctionClass(QueryTests):
+    
+    FORMATS = ["2006-01-02T15:04:05.999+07:00",
+               "2006-01-02T15:04:05.999",
+               "2006-01-02T15:04:05",
+               "2006-01-02 15:04:05.999+07:00",
+               "2006-01-02 15:04:05.999",
+               "2006-01-02 15:04:05",
+               "2006-01-02",
+               "15:04:05.999+07:00",
+               "15:04:05.999",
+               "15:04:05"]
+    
+    PARTS = ["millennium",
+             "century",
+             "decade",
+             "year",
+             "quarter",
+             "month",
+             "day",
+             "hour",
+             "minute",
+             "second",
+             "millisecond",
+             "week",
+             "day_of_year", "doy",
+             "day_of_week", "dow",
+             "iso_week",
+             "iso_year",
+             "iso_dow"]
+    
+    TIMEZONES = ["UTC"]
     def setUp(self):
         super(DateTimeFunctionClass, self).setUp()
 
