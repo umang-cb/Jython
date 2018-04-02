@@ -370,7 +370,7 @@ class PartialRollback_CBAS(CBASBaseTest):
         
         items_in_cb_bucket = 0
         curr = time.time()
-        while items_in_cb_bucket != items_in_cbas_bucket:
+        while items_in_cb_bucket != items_in_cbas_bucket or items_in_cb_bucket == 0:
             items_in_cb_bucket = 0
             items_in_cbas_bucket = 0
             if self.where_field and self.where_value:
