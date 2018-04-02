@@ -1349,7 +1349,7 @@ class bucket_utils():
         client.close()
         return inserted_keys
 
-    def perform_doc_ops_in_all_cb_buckets(self, num_items, operation, start_key=0, end_key=1000, batch_size=5000):
+    def perform_doc_ops_in_all_cb_buckets(self, num_items, operation, start_key=0, end_key=1000, batch_size=5000, exp=0):
         """
         Create/Update/Delete docs in all cb buckets
         :param num_items: No. of items to be created/deleted/updated
@@ -1367,7 +1367,7 @@ class bucket_utils():
         self.log.info("%s %s documents..." % (operation, num_items))
         try:
             self.log.info("BATCH SIZE for documents load: %s" % batch_size)
-            self._load_all_buckets(self.master, gen_load, operation, 0,batch_size=batch_size)
+            self._load_all_buckets(self.master, gen_load, operation, exp, batch_size=batch_size)
             self._verify_stats_all_buckets(self.input.servers)
         except Exception as e:
             self.log.info(e.message)

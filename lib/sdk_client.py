@@ -238,7 +238,7 @@ class SDKClient(object):
                 raise
 
     def set(self, key, value, ttl=0, format=None, persist_to=0, replicate_to=0):
-        doc = self.__translate_to_json_document(key, value)
+        doc = self.__translate_to_json_document(key, value, ttl)
         try:
             return self.cb.set(doc)
         except CouchbaseException as e:
@@ -249,7 +249,7 @@ class SDKClient(object):
                 raise
 
     def upsert(self, key, value, ttl=0, persist_to=0, replicate_to=0):
-        doc = self.__translate_to_json_document(key, value)
+        doc = self.__translate_to_json_document(key, value, ttl)
         try:
             return self.cb.upsert(doc)
         except CouchbaseException as e:
@@ -263,7 +263,7 @@ class SDKClient(object):
         import bulk_doc_operations.doc_ops as doc_op
         docs = []
         for key, value in keys.items():
-            docs.append(self.__translate_to_json_document(key, value))
+            docs.append(self.__translate_to_json_document(key, value, ttl))
         try:
             doc_op().bulkSet(self.cb, docs)
         except:
@@ -276,11 +276,11 @@ class SDKClient(object):
         import bulk_doc_operations.doc_ops as doc_op
         docs = []
         for key, value in keys.items():
-            docs.append(self.__translate_to_json_document(key, value))
+            docs.append(self.__translate_to_json_document(key, value, ttl))
         doc_op().bulkUpsert(self.cb, docs)
         
     def insert(self, key, value, ttl=0, format=None, persist_to=0, replicate_to=0):
-        doc = self.__translate_to_json_document(key, value)
+        doc = self.__translate_to_json_document(key, value, ttl)
         try:
             self.cb.insert(doc)
         except CouchbaseException as e:
@@ -294,7 +294,7 @@ class SDKClient(object):
         import bulk_doc_operations.doc_ops as doc_op
         docs = []
         for key, value in keys.items():
-            docs.append(self.__translate_to_json_document(key, value))
+            docs.append(self.__translate_to_json_document(key, value, ttl))
         doc_op().bulkSet(self.cb, docs)
 
     def touch(self, key, ttl=0):
@@ -512,15 +512,15 @@ class SDKClient(object):
             return N1qlQueryResult(query, self.cb)
         except CouchbaseException as e:
             raise
-
-    def __translate_to_json_document(self, key, value):
+    
+    def __translate_to_json_document(self, key, value, ttl=0):
         try:
             if type(value) != dict:
                 value = json.loads(value)
             js = JsonObject.create()
             for field, val in value.items():
                 js.put(field, val)
-            doc = JsonDocument.create(key, js)
+            doc = JsonDocument.create(key, ttl, js)
             return doc
         except DocumentNotJsonException as e:
             return StringDocument.create(key,str(value))
