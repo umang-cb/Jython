@@ -11,6 +11,7 @@ from tuqquery.tuq_sanity import QuerySanityTests
 from membase.api.rest_client import RestConnection
 from cbas.cbas_base import CBASBaseTest
 import re
+import time
 import datetime
 from pytests.tuqquery.date_time_functions import *
 
@@ -66,7 +67,7 @@ class cbas_object_tests(CBASBaseTest):
         expected_result = [{"$1": ["key1","key2"]}]
         
         self.assertTrue(status=="success")
-        self.assertTrue(result[0]['$1']==expected_result)
+        self.assertTrue(result==expected_result)
         
 class CBASTuqSanity(QuerySanityTests):
     
@@ -395,7 +396,31 @@ class CBASTuqSanity(QuerySanityTests):
         expected = "%s-%02d-%02dT" % (now.year, now.month, now.day)
         self.assertTrue(res["results"][0]["now"].startswith(expected),
                         "Result expected: %s. Actual %s" % (expected, res["results"]))
-
+    
+    def test_millis_to_local(self):
+        now_millis = time.time()
+        now_time = datetime.datetime.fromtimestamp(now_millis)
+        expected = "%s-%02d-%02dT%02d:%02d" % (now_time.year, now_time.month, now_time.day,
+                                         now_time.hour, now_time.minute)
+        self.query = "select millis_to_local(%s) as now" % (now_millis * 1000)
+        res = self.run_cbq_query()
+        self.assertTrue(res["results"][0]["now"].startswith(expected),
+                        "Result expected: %s. Actual %s" % (expected, res["results"]))
+        
+        self.query = "SELECT MILLIS_TO_STR(1463284740000) as full_date,\
+        MILLIS_TO_STR(1463284740000, 'invalid format') as invalid_format,\
+        MILLIS_TO_STR(1463284740000, '1111-11-11') as short_date;"
+        res = self.run_cbq_query()
+        self.assertTrue(res['status']=="success", "Query %s failed."%self.query)         
+        
+        expected = [{
+            "full_date": "2016-05-14T20:59:00-07:00",
+            "invalid_format": "2016-05-14T20:59:00-07:00",
+            "short_date": "2016-05-14"
+            }]
+        
+        self.assertTrue(res['results']==expected, "Query %s failed."%self.query)
+          
     def test_now_local(self):
         self.query = "select now_local() as now"
         res = self.run_cbq_query()
@@ -426,10 +451,6 @@ class CBASTuqSanity(QuerySanityTests):
                     ]
         self.assertTrue(res['results']==expected, "Query %s failed."%self.query)   
         
-        self.query = "SELECT DATE_TRUNC_STR('2016-05-18T03:59:00Z', 'day') as day,\
-       DATE_TRUNC_STR('2016-05-18T03:59:00Z', 'month') as month,\
-       DATE_TRUNC_STR('2016-05-18T03:59:00Z', 'year') as year;"
-       
     def test_DATE_TRUNC_STR(self):
         self.query = "SELECT DATE_TRUNC_STR('2016-05-18T03:59:00Z', 'day') as day,\
         DATE_TRUNC_STR('2016-05-18T03:59:00Z', 'month') as month,\
@@ -463,7 +484,87 @@ class CBASTuqSanity(QuerySanityTests):
                       }
                     ]
         self.assertTrue(res['results']==expected, "Query %s failed."%self.query)
+
+    def test_MILLIS_TO_UTC(self):
+        self.query = "SELECT MILLIS_TO_UTC(1463284740000) as full_date,\
+        MILLIS_TO_UTC(1463284740000, 'invalid format') as invalid_format,\
+        MILLIS_TO_UTC(1463284740000, '1111-11-11') as short_date;"
         
+        res = self.run_cbq_query()
+        self.assertTrue(res['status']=="success", "Query %s failed."%self.query)         
+        
+        expected = [
+                    {
+                        "full_date": "2016-05-15T03:59:00Z",
+                        "invalid_format": "2016-05-15T03:59:00Z",
+                        "short_date": "2016-05-15"
+                    }
+                    ]
+        self.assertTrue(res['results']==expected, "Query %s failed."%self.query)
+
+    def test_STR_TO_DURATION(self):
+        
+        self.query = "SELECT STR_TO_DURATION('1h') as hour,\
+        STR_TO_DURATION('1us') as microsecond,\
+        STR_TO_DURATION('1ms') as millisecond,\
+        STR_TO_DURATION('1m') as minute,\
+        STR_TO_DURATION('1ns') as nanosecond,\
+        STR_TO_DURATION('1s') as second;"
+        
+        res = self.run_cbq_query()
+        self.assertTrue(res['status']=="success", "Query %s failed."%self.query)         
+        
+        expected = [
+                      {
+                        "hour": 3600000000000,
+                        "microsecond": 1000,
+                        "millisecond": 1000000,
+                        "minute": 60000000000,
+                        "nanosecond": 2,
+                        "second": 1000000000
+                      }
+                    ]
+        self.assertTrue(res['results']==expected, "Query %s failed."%self.query)
+
+    def test_WEEKDAY_MILLIS(self):
+        self.query = "SELECT WEEKDAY_MILLIS(1486237655742) as Day;"
+        
+        res = self.run_cbq_query()
+        self.assertTrue(res['status']=="success", "Query %s failed."%self.query)         
+        
+        expected = [
+                    {
+                        "Day": "Saturday"
+                    }
+                   ]
+        self.assertTrue(res['results']==expected, "Query %s failed."%self.query)
+
+    def test_WEEKDAY_STR(self):
+        self.query = "SELECT WEEKDAY_STR('2017-02-05') as Day;"
+        
+        res = self.run_cbq_query()
+        self.assertTrue(res['status']=="success", "Query %s failed."%self.query)         
+        
+        expected = [
+                    {
+                        "Day": "Sunday"
+                    }
+                   ]
+        self.assertTrue(res['results']==expected, "Query %s failed."%self.query)
+
+    def test_MILLIS(self):
+        self.query = 'SELECT MILLIS("2016-05-15T03:59:00Z") as DateStringInMilliseconds;'
+        
+        res = self.run_cbq_query()
+        self.assertTrue(res['status']=="success", "Query %s failed."%self.query)         
+        
+        expected = [
+                    {
+                        "DateStringInMilliseconds": 1463284740000
+                    }
+                   ]
+        self.assertTrue(res['results']==expected, "Query %s failed."%self.query)
+    
 class DateTimeFunctionClass_cbas(DateTimeFunctionClass):
     
     def test_date_part_millis(self):

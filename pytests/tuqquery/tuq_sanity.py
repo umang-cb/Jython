@@ -2676,7 +2676,7 @@ class QuerySanityTests(QueryTests):
         'now_str(),"second") as sec, date_part_str(now_str(),"millisecond") as msec'
         now = datetime.datetime.now()
         res = self.run_cbq_query()
-        self.assertTrue(res["results"][0]["hour"] == now.hour or res["results"][0]["hour"] == (now.hour + 1),
+        self.assertTrue(res["results"][0]["hour"] == now.hour+7 or res["results"][0]["hour"] == (now.hour + 8),
                         "Result for hours expected: %s. Actual %s" % (now.hour, res["results"]))
         self.assertTrue("minute" in res["results"][0], "No minute field")
         self.assertTrue("sec" in res["results"][0], "No second field")
@@ -2753,7 +2753,7 @@ class QuerySanityTests(QueryTests):
         'date_part_millis(%s,"minute") as minute, date_part_millis(' % (now_millis) +\
         '%s,"second") as sec, date_part_millis(%s,"millisecond") as msec' % (now_millis,now_millis)
         res = self.run_cbq_query()
-        self.assertTrue(res["results"][0]["hour"] == now_time.hour,
+        self.assertTrue(res["results"][0]["hour"] == now_time.hour+7,
                         "Result expected: %s. Actual %s" % (now_time.hour, res["results"]))
         self.assertTrue(res["results"][0]["minute"] == now_time.minute,
                         "Result expected: %s. Actual %s" % (now_time.minute, res["results"]))
