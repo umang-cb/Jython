@@ -70,7 +70,20 @@ class cbas_object_tests(CBASBaseTest):
         self.assertTrue(result==expected_result)
         
 class CBASTuqSanity(QuerySanityTests):
-    
+    FORMATS = ["2006-01-02T15:04:05.999+07:00",
+           "2006-01-02T15:04:05.999",
+           "2006-01-02T15:04:05+07:00",
+           "2006-01-02T15:04:05",
+           "2006-01-02 15:04:05.999+07:00",
+           "2006-01-02 15:04:05.999",
+           "2006-01-02 15:04:05+07:00",
+           "2006-01-02 15:04:05",
+           "2006-01-02",
+           "15:04:05.999+07:00",
+           "15:04:05.999",
+           "15:04:05+07:00",
+           "15:04:05"]
+
     def test_array_length(self):
         for bucket in self.buckets:
             self.query = "SELECT _id, array_length(hikes) as hike_count" +\
@@ -382,7 +395,43 @@ class CBASTuqSanity(QuerySanityTests):
             actual_result = sorted(actual_result['results'], key=lambda doc: (doc['name']))
             self._verify_results(actual_result, expected_result)
 
-
+    def test_clock_formats(self):
+        self.query = 'SELECT NOW_LOCAL("2006-01-02") as NOW_LOCAL, \
+        NOW_STR("2006-01-02") as NOW_STR, \
+        CLOCK_UTC("2006-01-02") as CLOCK_UTC, \
+        CLOCK_STR("2006-01-02") as CLOCK_STR, \
+        STR_TO_UTC(CLOCK_STR("2006-01-02")) as STR_TO_UTC, \
+        CLOCK_LOCAL("2006-01-02") as CLOCK_LOCAL'
+        res = self.run_cbq_query()
+        now = datetime.datetime.now()
+        
+        expected = "%s-%02d-%02d" % (now.year, now.month, now.day)
+        expected_utc = "%s-%02d-%02d" % (now.year, now.month, now.day+1)
+        result = True
+        
+        self.assertTrue(res['status']=="success", "Query %s failed."%self.query)
+        
+        if not res['results'][0]["NOW_LOCAL"]==expected:
+            self.log.info("NOW_LOCAL(2006-01-02) failed.")
+            result = False
+        if not res['results'][0]["NOW_STR"]==expected:
+            self.log.info("NOW_STR(2006-01-02) failed.")
+            result = False
+        if not res['results'][0]["CLOCK_UTC"]==expected or res['results'][0]["CLOCK_UTC"]==expected_utc:
+            self.log.info("CLOCK_UTC(2006-01-02) failed.")
+            result = False
+        if not res['results'][0]["CLOCK_STR"]==expected:
+            self.log.info("CLOCK_STR(2006-01-02) failed.")
+            result = False
+        if not res['results'][0]["STR_TO_UTC"]==expected:
+            self.log.info("STR_TO_UTC(CLOCK_STR(2006-01-02)) failed.")
+            result = False
+        if not res['results'][0]["CLOCK_LOCAL"]==expected:
+            self.log.info("CLOCK_LOCAL(2006-01-02) failed.")
+            result = False
+            
+        self.assertTrue(result, "Query %s failed."%self.query)
+        
     def test_clock_millis(self):
         self.query = "select clock_millis() as now"
         res = self.run_cbq_query()
@@ -478,7 +527,7 @@ class CBASTuqSanity(QuerySanityTests):
         
         expected = [
                       {
-                        "microsecs": "2µs",
+                        "microsecs": u"2µs",
                         "millisecs": "2ms",
                         "secs": "2s"
                       }
@@ -516,11 +565,11 @@ class CBASTuqSanity(QuerySanityTests):
         
         expected = [
                       {
-                        "hour": 3600000000000,
+                        "hour": 3600000000000L,
                         "microsecond": 1000,
                         "millisecond": 1000000,
-                        "minute": 60000000000,
-                        "nanosecond": 2,
+                        "minute": 60000000000L,
+                        "nanosecond": 1,
                         "second": 1000000000
                       }
                     ]
