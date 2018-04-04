@@ -84,6 +84,32 @@ class CBASTuqSanity(QuerySanityTests):
            "15:04:05+07:00",
            "15:04:05"]
 
+    def test_let_string(self):
+        for bucket in self.buckets:
+            self.query = "select name, join_date date from %s let join_date = tostr(join_yr) || '-' || tostr(join_mo)" % (bucket.name)
+
+            actual_list = self.run_cbq_query()
+            actual_result = sorted(actual_list['results'])
+
+            expected_result = [{"name" : doc["name"],
+                                "date" : '%s-%s' % (doc['join_yr'], doc['join_mo'])}
+                               for doc in self.full_list]
+            expected_result = sorted(expected_result)
+            self._verify_results(actual_result, expected_result)
+            
+    def test_with_clause(self):
+        for bucket in self.buckets:
+            self.query = "WITH avghike AS (SELECT VALUE AVG(hikes[0]) FROM %s AS user)[0] \
+            SELECT count(*), avghike \
+            FROM %s user \
+            WHERE user.hikes[0] > ceil(avghike);" % (bucket.name,bucket.name)
+
+            actual_list = self.run_cbq_query()
+            actual_result = sorted(actual_list['results'])
+
+            expected_result = len(doc['hikes'][0] for doc in self.full_list if doc['hikes'][0] > actual_result['avghike'])
+            self.assertTrue(actual_result==expected_result, "With clause failed.")
+            
     def test_array_length(self):
         for bucket in self.buckets:
             self.query = "SELECT _id, array_length(hikes) as hike_count" +\
@@ -263,6 +289,83 @@ class CBASTuqSanity(QuerySanityTests):
             expected_result = sorted(expected_result)
             self._verify_results(actual_result, expected_result)
 
+    def test_path_expression(self):
+        for bucket in self.buckets:
+            self.query = "SELECT name as name, tasks_points.task1 as task1 , hikes[2] as hike from %s" % (bucket.name)
+            actual_result = self.run_cbq_query()
+            actual_result = sorted(actual_result['results'], key=lambda doc: (doc['name'],doc['hike']))
+            expected_result = [{"name": doc['name'],
+                                "task1" : doc['tasks_points']['task1'],
+                                "hike" : doc['hikes'][2]}
+                               for doc in self.full_list]
+            
+            expected_result = sorted(expected_result, key=lambda doc: (doc['name'],doc['hike']))
+            
+            self._verify_results(actual_result, expected_result)
+
+    def test_like_aliases(self):
+        for bucket in self.buckets:
+            self.query = "select name AS NAME from %s " % (bucket.name) +\
+            "AS EMPLOYEE where EMPLOYEE.name LIKE '_mpl%' ORDER BY name"
+            actual_result = self.run_cbq_query()
+            expected_result = [{"NAME" : doc['name']} for doc in self.full_list
+                               if doc["name"].find('mpl') == 1]
+            expected_result = sorted(expected_result, key=lambda doc: (doc['NAME']))
+            self._verify_results(actual_result['results'], expected_result)
+
+    def test_like_wildcards(self):
+        for bucket in self.buckets:
+            self.query = "SELECT email FROM %s WHERE email " % (bucket.name) +\
+                         "LIKE '%@%.%' ORDER BY email"
+            actual_result = self.run_cbq_query()
+
+            expected_result = [{"email" : doc['email']} for doc in self.full_list
+                               if re.match(r'.*@.*\..*', doc['email'])]
+            expected_result = sorted(expected_result, key=lambda doc: (doc['email']))
+            self._verify_results(actual_result['results'], expected_result)
+
+            self.query = "SELECT email FROM %s WHERE email" % (bucket.name) +\
+                         " LIKE '%@%.h' ORDER BY email"
+            actual_result = self.run_cbq_query()
+            expected_result = []
+            self._verify_results(actual_result['results'], expected_result)
+            
+    def test_like(self):
+        for bucket in self.buckets:
+            self.query = "SELECT name FROM {0} WHERE job_title LIKE 'S%' ORDER BY name".format(bucket.name)
+            actual_result = self.run_cbq_query()
+
+            expected_result = [{"name" : doc['name']} for doc in self.full_list
+                               if doc["job_title"].startswith('S')]
+            expected_result = sorted(expected_result, key=lambda doc: (doc['name']))
+            self._verify_results(actual_result['results'], expected_result)
+
+            self.query = "SELECT name FROM {0} WHERE job_title LIKE '%u%' ORDER BY name".format(
+                                                                            bucket.name)
+            actual_result = self.run_cbq_query()
+            expected_result = [{"name" : doc['name']} for doc in self.full_list
+                               if doc["job_title"].find('u') != -1]
+            expected_result = sorted(expected_result, key=lambda doc: (doc['name']))
+            self._verify_results(actual_result['results'], expected_result)
+
+            self.query = "SELECT name FROM {0} WHERE job_title NOT LIKE 'S%' ORDER BY name".format(
+                                                                            bucket.name)
+            actual_result = self.run_cbq_query()
+            expected_result = [{"name" : doc['name']} for doc in self.full_list
+                               if not doc["job_title"].startswith('S')]
+            expected_result = sorted(expected_result, key=lambda doc: (doc['name']))
+            self._verify_results(actual_result['results'], expected_result)
+
+            self.query = "SELECT name FROM {0} WHERE job_title NOT LIKE '_ales' ORDER BY name".format(
+                                                                            bucket.name)
+            actual_result = self.run_cbq_query()
+            expected_result = [{"name" : doc['name']} for doc in self.full_list
+                               if not (doc["job_title"].endswith('ales') and\
+                               len(doc["job_title"]) == 5)]
+
+            expected_result = sorted(expected_result, key=lambda doc: (doc['name']))
+            self._verify_results(actual_result['results'], expected_result)
+            
     def test_case_and_like(self):
         for bucket in self.buckets:
             self.query = "SELECT name, CASE WHEN join_mo < 3 OR join_mo > 11 THEN" +\
