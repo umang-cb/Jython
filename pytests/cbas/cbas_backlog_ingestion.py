@@ -3,9 +3,9 @@ Created on 28-Mar-2018
 
 @author: tanzeem
 """
-
 from cbas.cbas_base import CBASBaseTest
 from couchbase_helper.documentgenerator import DocumentGenerator
+from membase.helper.cluster_helper import ClusterOperationHelper
 
 
 class CBASBacklogIngestion(CBASBaseTest):
@@ -26,8 +26,8 @@ class CBASBacklogIngestion(CBASBaseTest):
         return documents
 
     '''
-    -i b/resources/4-nodes-template.ini -t cbas.cbas_backlog_ingestion.CBASBacklogIngestion.test_document_expiry_with_overlapping_filters_between_datasets,default_bucket=True,items=1000,cb_bucket_name=default,cbas_bucket_name=default_cbas,cbas_dataset_name=default_ds,where_field=profession,where_value=teacher
-    -i b/resources/4-nodes-template.ini -t cbas.cbas_backlog_ingestion.CBASBacklogIngestion.test_document_expiry_with_overlapping_filters_between_datasets,default_bucket=True,items=10000,cb_bucket_name=default,cbas_bucket_name=default_cbas,cbas_dataset_name=default_ds,where_field=profession,where_value=teacher,secondary_index=True,index_fields=profession:string
+    -i b/resources/4-nodes-template.ini -t cbas.cbas_backlog_ingestion.CBASBacklogIngestion.test_document_expiry_with_overlapping_filters_between_datasets,default_bucket=True,items=10000,cb_bucket_name=default,cbas_bucket_name=default_cbas,cbas_dataset_name=default_ds,where_field=profession,where_value=teacher,batch_size=10000
+    -i b/resources/4-nodes-template.ini -t cbas.cbas_backlog_ingestion.CBASBacklogIngestion.test_document_expiry_with_overlapping_filters_between_datasets,default_bucket=True,items=10000,cb_bucket_name=default,cbas_bucket_name=default_cbas,cbas_dataset_name=default_ds,where_field=profession,where_value=teacher,batch_size=10000,secondary_index=True,index_fields=profession:string
     '''
 
     def test_document_expiry_with_overlapping_filters_between_datasets(self):
@@ -43,13 +43,17 @@ class CBASBacklogIngestion(CBASBaseTest):
         9. Expire data with profession teacher
         10. Verify the updated dataset count post expiry
         """
+        self.log.info("Set expiry pager on default bucket")
+        ClusterOperationHelper.flushctl_set(self.master, "exp_pager_stime", 1, bucket="default")
+
         self.log.info("Load data in the default bucket")
         num_items = self.input.param("items", 10000)
-        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, num_items, exp=0)
+        batch_size = self.input.param("batch_size", 10000)
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, num_items, exp=0, batch_size=batch_size)
 
         self.log.info("Load data in the default bucket, with documents containing profession teacher")
         load_gen = CBASBacklogIngestion.generate_documents(num_items, num_items * 2, role=['teacher'])
-        self._async_load_all_buckets(server=self.master, kv_gen=load_gen, op_type="create", exp=0)
+        self._async_load_all_buckets(server=self.master, kv_gen=load_gen, op_type="create", exp=0, batch_size=batch_size)
 
         self.log.info("Create primary index")
         query = "CREATE PRIMARY INDEX ON {0} using gsi".format(self.buckets[0].name)
@@ -122,13 +126,12 @@ class CBASBacklogIngestion(CBASBaseTest):
             self.cbas_util.validate_cbas_dataset_items_count(cbas_dataset_name, num_items + (num_items // 2)))
         self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(cbas_dataset_with_clause, num_items // 2))
 
-        self.log.info("Update the documents with profession teacher to expire in next 10 seconds")
-        self.perform_doc_ops_in_all_cb_buckets(num_items // 2, "update", num_items, num_items + (num_items // 2),
-                                               exp=10)
-
+        self.log.info("Update the documents with profession teacher to expire in next 1 seconds")
+        self.perform_doc_ops_in_all_cb_buckets(num_items // 2, "update", num_items, num_items + (num_items // 2), exp=1)
+        
         self.log.info("Wait for documents to expire")
         self.sleep(15, message="Waiting for documents to expire")
-
+        
         self.log.info("Wait for ingestion to complete")
         self.cbas_util.wait_for_ingestion_complete([cbas_dataset_name], num_items)
         self.cbas_util.wait_for_ingestion_complete([cbas_dataset_with_clause], 0)
@@ -139,7 +142,7 @@ class CBASBacklogIngestion(CBASBaseTest):
 
     '''
     -i b/resources/4-nodes-template.ini -t cbas.cbas_backlog_ingestion.CBASBacklogIngestion.test_multiple_cbas_bucket_with_overlapping_filters_between_datasets,default_bucket=True,
-    cb_bucket_name=default,cbas_bucket_name=default_cbas_,num_of_cbas_buckets=4,items=10000,cbas_dataset_name=default_ds_,where_field=profession,join_operator=or
+    cb_bucket_name=default,cbas_bucket_name=default_cbas_,num_of_cbas_buckets=4,items=10000,cbas_dataset_name=default_ds_,where_field=profession,join_operator=or,batch_size=10000
     '''
 
     def test_multiple_cbas_bucket_with_overlapping_filters_between_datasets(self):
@@ -151,11 +154,12 @@ class CBASBacklogIngestion(CBASBaseTest):
         """
         self.log.info("Load data in the default bucket")
         num_of_cbas_buckets = self.input.param("num_of_cbas_buckets", 4)
+        batch_size = self.input.param("batch_size", 10000)
         cbas_bucket_name = self.input.param("cbas_bucket_name", "default_cbas_")
         professions = ['teacher', 'doctor', 'engineer', 'dentist', 'racer', 'dancer', 'singer', 'musician', 'pilot',
                        'finance']
         load_gen = CBASBacklogIngestion.generate_documents(0, self.num_items, role=professions[:num_of_cbas_buckets])
-        self._async_load_all_buckets(server=self.master, kv_gen=load_gen, op_type="create", exp=0)
+        self._async_load_all_buckets(server=self.master, kv_gen=load_gen, op_type="create", exp=0, batch_size=batch_size)
 
         self.log.info("Create primary index")
         query = "CREATE PRIMARY INDEX ON {0} using gsi".format(self.buckets[0].name)
@@ -205,21 +209,3 @@ class CBASBacklogIngestion(CBASBaseTest):
                 'select count(*) from `%s`' % (self.cbas_dataset_name + str(index)))
             count_ds = results[0]["$1"]
             self.assertEqual(count_ds, count_n1ql, msg="result count mismatch between N1QL and Analytics")
-
-    '''
-    -i b/resources/4-nodes-template.ini -t cbas.cbas_backlog_ingestion.CBASBacklogIngestion.test_document_expiry,items=50
-    '''
-
-    def test_document_expiry(self):
-
-        self.log.info("Load data in the default bucket")
-        num_items = self.input.param("items", 50)
-        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items, batch_size=50, exp=0)
-
-        self.log.info("Update half the documents in the default bucket by setting expiry to 10 seconds")
-        self.perform_doc_ops_in_all_cb_buckets(50, "update", 0, 25, batch_size=5, exp=10)
-
-        self.log.info("Wait for documents to expire")
-        self.sleep(15, message="Waiting for documents to expire")
-
-        self.log.info("test here..")
