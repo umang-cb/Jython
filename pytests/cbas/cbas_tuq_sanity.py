@@ -107,7 +107,7 @@ class CBASTuqSanity(QuerySanityTests):
             actual_list = self.run_cbq_query()
             actual_result = sorted(actual_list['results'])
 
-            expected_result = len(doc['hikes'][0] for doc in self.full_list if doc['hikes'][0] > actual_result['avghike'])
+            expected_result = len([doc['hikes'][0] for doc in self.full_list if doc['hikes'][0] > actual_result['avghike']])
             self.assertTrue(actual_result==expected_result, "With clause failed.")
             
     def test_array_length(self):

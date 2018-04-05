@@ -41,92 +41,130 @@ class CBASRBACTests(CBASBaseTest):
         operation_map = [
             {"operation": "create_bucket",
              "should_work_for_users": ["analytics_manager1",
-                                       "analytics_manager2",
                                        "analytics_manager4",
-                                       "analytics_reader1", "cluster_admin",
-                                       "admin"],
+                                       "admin"
+                                       ],
              "should_not_work_for_users": ["analytics_manager3",
+                                           "analytics_manager2",
+                                           "analytics_reader1", 
                                            "analytics_reader2",
                                            "analytics_reader3",
-                                           "analytics_reader4", "ro_admin"]},
+                                           "analytics_reader4",
+                                           "cluster_admin", 
+#                                            "ro_admin"
+                                           ]},
             {"operation": "create_dataset",
              "should_work_for_users": ["analytics_manager1",
-                                       "analytics_manager2",
                                        "analytics_manager4",
-                                       "analytics_reader1", "cluster_admin",
-                                       "admin"],
+                                       "admin"
+                                       ],
              "should_not_work_for_users": ["analytics_manager3",
+                                           "analytics_manager2",
+                                           "analytics_reader1", 
                                            "analytics_reader2",
                                            "analytics_reader3",
-                                           "analytics_reader4", "ro_admin"]},
+                                           "analytics_reader4",
+                                           "cluster_admin", 
+#                                            "ro_admin"
+                                           ]},
             {"operation": "connect_bucket",
              "should_work_for_users": ["analytics_manager1",
-                                       "analytics_manager2",
                                        "analytics_manager4",
-                                       "analytics_reader1", "cluster_admin",
-                                       "admin"],
+                                       "admin"
+                                       ],
              "should_not_work_for_users": ["analytics_manager3",
+                                           "analytics_manager2",
+                                           "analytics_reader1", 
                                            "analytics_reader2",
                                            "analytics_reader3",
-                                           "analytics_reader4", "ro_admin"]},
+                                           "analytics_reader4",
+                                           "cluster_admin", 
+#                                            "ro_admin"
+                                           ]},
             {"operation": "disconnect_bucket",
              "should_work_for_users": ["analytics_manager1",
-                                       "analytics_manager2",
                                        "analytics_manager4",
-                                       "analytics_reader1", "cluster_admin",
-                                       "admin"],
+                                       "admin"
+                                       ],
              "should_not_work_for_users": ["analytics_manager3",
+                                           "analytics_manager2",
+                                           "analytics_reader1", 
                                            "analytics_reader2",
                                            "analytics_reader3",
-                                           "analytics_reader4", "ro_admin"]},
+                                           "analytics_reader4",
+                                           "cluster_admin", 
+#                                            "ro_admin"
+                                           ]},
             {"operation": "drop_dataset",
              "should_work_for_users": ["analytics_manager1",
-                                       "analytics_manager2",
                                        "analytics_manager4",
-                                       "analytics_reader1", "cluster_admin",
-                                       "admin"],
+                                       "admin"
+                                       ],
              "should_not_work_for_users": ["analytics_manager3",
+                                           "analytics_manager2",
+                                           "analytics_reader1", 
                                            "analytics_reader2",
                                            "analytics_reader3",
-                                           "analytics_reader4", "ro_admin"]},
+                                           "analytics_reader4",
+                                           "cluster_admin", 
+#                                            "ro_admin"
+                                           ]},
             {"operation": "drop_bucket",
              "should_work_for_users": ["analytics_manager1",
-                                       "analytics_manager2",
                                        "analytics_manager4",
-                                       "analytics_reader1", "cluster_admin",
-                                       "admin"],
+                                       "admin"
+                                       ],
              "should_not_work_for_users": ["analytics_manager3",
+                                           "analytics_manager2",
+                                           "analytics_reader1", 
                                            "analytics_reader2",
                                            "analytics_reader3",
-                                           "analytics_reader4", "ro_admin"]},
+                                           "analytics_reader4",
+                                           "cluster_admin", 
+#                                            "ro_admin"
+                                           ]},
             {"operation": "create_index",
              "should_work_for_users": ["analytics_manager1",
-                                       "analytics_manager2",
                                        "analytics_manager4",
-                                       "analytics_reader1", "cluster_admin",
-                                       "admin"],
+                                       "admin"
+                                       ],
              "should_not_work_for_users": ["analytics_manager3",
+                                           "analytics_manager2",
+                                           "analytics_reader1", 
                                            "analytics_reader2",
                                            "analytics_reader3",
-                                           "analytics_reader4", "ro_admin"]},
+                                           "analytics_reader4",
+                                           "cluster_admin", 
+#                                            "ro_admin"
+                                           ]},
             {"operation": "drop_index",
              "should_work_for_users": ["analytics_manager1",
-                                       "analytics_manager2",
                                        "analytics_manager4",
-                                       "analytics_reader1", "cluster_admin",
-                                       "admin"],
+                                       "admin"
+                                       ],
              "should_not_work_for_users": ["analytics_manager3",
+                                           "analytics_manager2",
+                                           "analytics_reader1", 
                                            "analytics_reader2",
                                            "analytics_reader3",
-                                           "analytics_reader4", "ro_admin"]},
+                                           "analytics_reader4",
+                                           "cluster_admin", 
+#                                            "ro_admin"
+                                           ]},
             {"operation": "execute_query",
              "should_work_for_users": ["analytics_manager3",
-                                       "analytics_reader2", "ro_admin",
-                                       "cluster_admin", "admin"]},
+                                       "analytics_reader2", 
+#                                        "ro_admin",
+                                       "cluster_admin", 
+                                       "admin"
+                                       ]},
             {"operation": "execute_metadata_query",
              "should_work_for_users": ["analytics_manager3",
-                                       "analytics_reader2", "ro_admin",
-                                       "cluster_admin", "admin"]}]
+                                       "analytics_reader2", 
+#                                        "ro_admin",
+                                       "cluster_admin", 
+                                       "admin"
+                                       ]}]
 
         for user in users:
             self.log.info("Creating user %s", user["username"])
@@ -404,8 +442,9 @@ class CBASRBACTests(CBASBaseTest):
             {
                 "api_url": "http://{0}:8095/analytics/cluster/restart".format(
                     self.cbas_node.ip),
-                "roles": [{"role": "ro_admin",
-                           "expected_status": 401},
+                "roles": [
+#                     {"role": "ro_admin",
+#                            "expected_status": 401},
                           {"role": "cluster_admin",
                            "expected_status": 202},
                           {"role": "admin",
@@ -430,6 +469,7 @@ class CBASRBACTests(CBASBaseTest):
                         """curl -i {0} -X {1} -u {2}:{3} 2>/dev/null | head -n 1 | cut -d$' ' -f2""".format(
                             api["api_url"], api["method"], "testuser",
                             "password"))
+                    self.sleep(10)
                 else:
                     output, error = shell.execute_command(
                         """curl -i {0} -u {1}:{2} 2>/dev/null | head -n 1 | cut -d$' ' -f2""".format(
@@ -438,7 +478,6 @@ class CBASRBACTests(CBASBaseTest):
                 for line in output:
                     response = response + line
                 response = json.loads(str(response))
-
                 if response != role["expected_status"]:
                     self.log.info(
                         "Error accessing {0} as user with {1} role. Response = {2}".format(
