@@ -520,7 +520,7 @@ class CBASTuqSanity(QuerySanityTests):
         if not res['results'][0]["NOW_STR"]==expected:
             self.log.info("NOW_STR(2006-01-02) failed.")
             result = False
-        if not res['results'][0]["CLOCK_UTC"]==expected or res['results'][0]["CLOCK_UTC"]==expected_utc:
+        if not (res['results'][0]["CLOCK_UTC"]==expected or res['results'][0]["CLOCK_UTC"]==expected_utc):
             self.log.info("CLOCK_UTC(2006-01-02) failed.")
             result = False
         if not res['results'][0]["CLOCK_STR"]==expected:
