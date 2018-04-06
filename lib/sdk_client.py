@@ -12,6 +12,12 @@ from com.couchbase.client.java.document.json import *
 from com.couchbase.client.java.query import N1qlQueryResult, N1qlQuery
 from com.couchbase.client.core import CouchbaseException
 from com.couchbase.client.java.transcoder import JsonTranscoder
+
+from com.couchbase.client.deps.io.netty.buffer import Unpooled
+from com.couchbase.client.deps.io.netty.util import CharsetUtil
+from com.couchbase.client.java.document import BinaryDocument
+from com.couchbase.client.java.document import StringDocument
+
 from mc_bin_client import MemcachedError
 from java.util.concurrent import TimeUnit
 from BucketLib.BucketOperations import BucketHelper
@@ -565,7 +571,15 @@ class SDKClient(object):
 
     def __translate_upsert_op(self, data):
         return data.rc, data.success, data.errstr, data.key
-
+    
+    def insert_binary_document(self, keys):
+        for key in keys:
+            binary_value = Unpooled.copiedBuffer('{value":"' + key + '"}', CharsetUtil.UTF_8)
+            self.cb.upsert(BinaryDocument.create(key, binary_value))
+    
+    def insert_string_document(self, keys):
+        for key in keys:
+            self.cb.upsert(StringDocument.create(key, '{value":"' + key + '"}'))
 
 class SDKSmartClient(object):
     def __init__(self, rest, bucket, info = None):
@@ -644,3 +658,4 @@ class SDKSmartClient(object):
 
     def delete(self, key):
         return self.client.remove(key)
+

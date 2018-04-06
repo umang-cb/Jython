@@ -248,6 +248,11 @@ class bucket_utils():
                     log.error(msg.format(name))
                     success = False
                     break
+                if bucket_created:
+                    self.buckets.append(Bucket(name=name, authType="sasl", saslPassword="",
+                                               num_replicas=self.num_replicas, bucket_size=self.bucket_size,
+                                               eviction_policy=self.eviction_policy, lww=self.lww,
+                                               type=self.bucket_type))
         return success
     
     def _create_standard_buckets(self, server, num_buckets, server_id=None, bucket_size=None):
@@ -1371,3 +1376,25 @@ class bucket_utils():
             self._verify_stats_all_buckets(self.input.servers)
         except Exception as e:
             self.log.info(e.message)
+
+    def fetch_available_memory_for_kv_on_a_node(self):
+        """
+        Calculates the Memory that can be allocated for KV service on a node
+        :return: Memory that can be used for KV service.
+        """
+        info = self.rest.get_nodes_self()
+        free_memory_in_mb = info.memoryFree // 1024 ** 2
+        total_available_memory_in_mb = 0.8 * free_memory_in_mb
+        
+        active_service = info.services
+        if "index" in active_service:
+            total_available_memory_in_mb -= info.indexMemoryQuota
+        if "fts" in active_service:
+            total_available_memory_in_mb -= info.ftsMemoryQuota
+        if "cbas" in active_service:
+            total_available_memory_in_mb -= info.cbasMemoryQuota
+        if "eventing" in active_service:
+            total_available_memory_in_mb -= info.eventingMemoryQuota
+
+        return total_available_memory_in_mb
+

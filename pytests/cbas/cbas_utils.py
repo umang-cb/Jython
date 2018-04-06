@@ -812,3 +812,24 @@ class cbas_utils():
                                                                                  timeout=timeout,
                                                                                  username=username, password=password)
         return status, content, response
+
+    def update_config_on_cbas(self, config_name=None, config_value=None, username=None, password=None):
+        if config_name and config_value:
+            params = '{"' + config_name + '":' + str(config_value) + '}'
+        else:
+            raise ValueError("Missing config name and/or config value")
+        status, content, response = self.cbas_helper.operation_config_on_cbas(method="PUT", params=params,
+                                                                              username=username,
+                                                                              password=password)
+        return status, content, response
+
+    def fetch_config_on_cbas(self, config_name=None, config_value=None, username=None, password=None):
+        status, content, response = self.cbas_helper.operation_config_on_cbas(method="GET",
+                                                                              username=username,
+                                                                              password=password)
+        return status, content, response
+
+    def restart_cbas(self, username=None, password=None):
+        status, content, response = self.cbas_helper.restart_cbas(username=username, password=password)
+        return status, content, response
+
