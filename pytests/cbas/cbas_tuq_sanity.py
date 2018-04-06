@@ -105,10 +105,10 @@ class CBASTuqSanity(QuerySanityTests):
             WHERE user.hikes[0] > ceil(avghike);" % (bucket.name,bucket.name)
 
             actual_list = self.run_cbq_query()
-            actual_result = sorted(actual_list['results'])
+            actual_result = sorted(actual_list['results'])[0]
 
             expected_result = len([doc['hikes'][0] for doc in self.full_list if doc['hikes'][0] > actual_result['avghike']])
-            self.assertTrue(actual_result==expected_result, "With clause failed.")
+            self.assertTrue(actual_result["$1"]==expected_result, "With clause failed.")
             
     def test_array_length(self):
         for bucket in self.buckets:
@@ -597,8 +597,8 @@ class CBASTuqSanity(QuerySanityTests):
         expected = [
                       {
                         "day": 1463270400000,
-                        "month": 1462147200000,
-                        "year": 1451696400000
+                        "month": 1462060800000,
+                        "year": 1451606400000
                       }
                     ]
         self.assertTrue(res['results']==expected, "Query %s failed."%self.query)   

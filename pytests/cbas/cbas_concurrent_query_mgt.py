@@ -192,8 +192,9 @@ class CBASConcurrentQueryMgtTests(CBASBaseTest):
 
         self._setupForTest()
 
-        roles = [{"role": "ro_admin",
-                  "expected_status": 401},
+        roles = [
+#                 {"role": "ro_admin",
+#                   "expected_status": 401},
                  {"role": "cluster_admin",
                   "expected_status": 200},
                  {"role": "admin",
