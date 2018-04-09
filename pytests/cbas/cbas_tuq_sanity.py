@@ -84,6 +84,47 @@ class CBASTuqSanity(QuerySanityTests):
            "15:04:05+07:00",
            "15:04:05"]
 
+    def test_regex_replace(self):
+        for bucket in self.buckets:
+            self.query = "select name, REGEXP_REPLACE(email, '-mail', 'domain') as mail from %s" % (bucket.name)
+
+            actual_list = self.run_cbq_query()
+            actual_result = sorted(actual_list['results'])
+            expected_result = [{"name" : doc["name"],
+                                "mail" : doc["email"].replace('-mail', 'domain')}
+                               for doc in self.full_list]
+            expected_result = sorted(expected_result)
+            self._verify_results(actual_result, expected_result)
+            
+    def test_to_str(self):
+        for bucket in self.buckets:
+            self.query = "SELECT TOSTR(join_mo) month FROM %s" % bucket.name
+            actual_result = self.run_cbq_query()
+            actual_result = sorted(actual_result['results'])
+
+            expected_result = [{"month" : str(doc['join_mo'])} for doc in self.full_list]
+            expected_result = sorted(expected_result)
+            self._verify_results(actual_result, expected_result)
+
+    def test_substr(self):
+        indices_to_test = [0, 1, 2, 100]
+        for index in indices_to_test:
+            for bucket in self.buckets:
+                self.query = "select name, SUBSTR(email, %s) as DOMAIN from %s" % (
+                str(index), bucket.name)
+                query_result = self.run_cbq_query()
+                query_docs = query_result['results']
+                sorted_query_docs = sorted(query_docs,
+                                           key=lambda doc: (doc['name'], doc['DOMAIN']))
+
+                expected_result = [{"name": doc["name"],
+                                    "DOMAIN": self.expected_substr(doc['email'], 0, index)}
+                                   for doc in self.full_list]
+                sorted_expected_result = sorted(expected_result, key=lambda doc: (
+                doc['name'], doc['DOMAIN']))
+
+                self._verify_results(sorted_query_docs, sorted_expected_result)
+                
     def test_let_string(self):
         for bucket in self.buckets:
             self.query = "select name, join_date date from %s let join_date = tostr(join_yr) || '-' || tostr(join_mo)" % (bucket.name)
@@ -441,7 +482,7 @@ class CBASTuqSanity(QuerySanityTests):
             actual_result = self.run_cbq_query()
 
             expected_result = [{"name" : doc['name']} for doc in self.full_list
-                               if doc["join_mo"] >= -9223372036854775808 and doc["join_mo"] <= 9223372036854775807]
+                               if doc["join_mo"] >= -9223372036854775807 and doc["join_mo"] <= 9223372036854775807]
             expected_result = sorted(expected_result, key=lambda doc: (doc['name']))
             self._verify_results(actual_result['results'], expected_result)
 
@@ -449,7 +490,7 @@ class CBASTuqSanity(QuerySanityTests):
             actual_result = self.run_cbq_query()
 
             expected_result = [{"name" : doc['name']} for doc in self.full_list
-                               if not(doc["join_mo"] >= -9223372036854775808 and doc["join_mo"] <= 9223372036854775807)]
+                               if not(doc["join_mo"] >= -9223372036854775807 and doc["join_mo"] <= 9223372036854775807)]
             expected_result = sorted(expected_result, key=lambda doc: (doc['name']))
             self._verify_results(actual_result['results'], expected_result)
             

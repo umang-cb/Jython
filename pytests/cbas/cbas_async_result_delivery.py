@@ -1,5 +1,6 @@
 from cbas_base import *
 import datetime
+import mode
 
 class CBASAsyncResultDeliveryTests(CBASBaseTest):
     def setUp(self):
@@ -35,6 +36,25 @@ class CBASAsyncResultDeliveryTests(CBASBaseTest):
         # Allow ingestion to complete
         self.cbas_util.wait_for_ingestion_complete([self.cbas_dataset_name], self.travel_sample_docs_count, 300)
 
+    def test_mode_timeout(self):
+        self.setupForTest()
+        client_context_id = "abc"
+        statement = "select sleep(count(*),200000) from {0} where mutated=0;".format(
+            self.cbas_dataset_name)
+        import time
+        start_time = time.time()
+        end_time = start_time
+        diff = end_time - start_time
+        try:
+            status, metrics, errors, results, response_handle = self.cbas_util.execute_statement_on_cbas_util(
+            statement, mode=self.mode, client_context_id=client_context_id, timeout=75,analytics_timeout=120)
+        except Exception as e:
+            end_time=time.time()
+            diff = end_time - start_time
+        self.assertTrue(diff > 70 and diff < 80, "Request took %s seconds to timeout"%diff)
+        status = self.cbas_util.delete_request(client_context_id)
+        self.assertTrue(str(status)!="200", "Request is still running on the server even client is timed out.")
+        
     def test_mode(self):
         self.setupForTest()
 

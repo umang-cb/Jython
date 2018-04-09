@@ -106,6 +106,8 @@ class MemcachedHelper():
     # bucket { 'name' : 90,'password':,'port':1211'}
     @staticmethod
     def wait_for_memcached(node, bucket, timeout_in_seconds=300, log_msg=''):
+#         time.sleep(10)
+#         return True
         log = logger.Logger.get_logger()
         msg = "waiting for memcached bucket : {0} in {1} to accept set ops"
         log.info(msg.format(bucket, node.ip))
