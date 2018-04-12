@@ -17,6 +17,9 @@ from com.couchbase.client.deps.io.netty.buffer import Unpooled
 from com.couchbase.client.deps.io.netty.util import CharsetUtil
 from com.couchbase.client.java.document import BinaryDocument
 from com.couchbase.client.java.document import StringDocument
+from com.couchbase.client.java.document import JsonDocument
+from com.couchbase.client.java.document.json import JsonObject
+from com.couchbase.client.java.CouchbaseBucket import mutateIn
 
 from mc_bin_client import MemcachedError
 from java.util.concurrent import TimeUnit
@@ -25,6 +28,7 @@ from com.couchbase.client.java.error.subdoc import DocumentNotJsonException
 import Java_Connection
 import logger
 from java.util.logging import Logger, Level, ConsoleHandler
+from com.couchbase.client.java.subdoc import SubdocOptionsBuilder
 
 FMT_AUTO = "autoformat"
 
@@ -580,6 +584,28 @@ class SDKClient(object):
     def insert_string_document(self, keys):
         for key in keys:
             self.cb.upsert(StringDocument.create(key, '{value":"' + key + '"}'))
+
+    def insert_custom_json_documents(self, key_prefix, documents):
+        for index, data in enumerate(documents):
+            self.cb.insert(JsonDocument.create(key_prefix+str(index), JsonObject.create().put("content", data)))
+
+    def insert_xattr_attribute(self, document_id, path, value, xattr=True, create_parents=True):
+        mutateIn = self.cb.mutateIn(document_id)
+        sub_doc = SubdocOptionsBuilder().createParents(create_parents).xattr(xattr)
+        builder = mutateIn.insert(path, value, sub_doc)
+        builder.execute()
+    
+    def update_xattr_attribute(self, document_id, path, value, xattr=True, create_parents=True):
+        mutateIn = self.cb.mutateIn(document_id)
+        sub_doc = SubdocOptionsBuilder().createParents(create_parents).xattr(xattr)
+        builder = mutateIn.upsert(path, value, sub_doc)
+        builder.execute()
+        
+    def remove_xattr_attribute(self, document_id, path, xattr=True):
+        mutateIn = self.cb.mutateIn(document_id)
+        sub_doc = SubdocOptionsBuilder().xattr(xattr)
+        builder = mutateIn.remove(path, sub_doc)
+        builder.execute()
 
 class SDKSmartClient(object):
     def __init__(self, rest, bucket, info = None):

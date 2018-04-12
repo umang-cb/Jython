@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 """
 Created on 28-Mar-2018
 
@@ -7,7 +9,9 @@ import uuid
 import json
 import datetime
 
+import testconstants
 from couchbase_helper.documentgenerator import DocumentGenerator
+from couchbase_helper.tuq_generators import JsonGenerator
 from membase.helper.cluster_helper import ClusterOperationHelper
 
 from BucketLib.BucketOperations import BucketHelper
@@ -217,6 +221,9 @@ class CBASBacklogIngestion(CBASBaseTest):
             count_ds = results[0]["$1"]
             self.assertEqual(count_ds, count_n1ql, msg="result count mismatch between N1QL and Analytics")
 
+    def tearDown(self):
+        super(CBASBacklogIngestion, self).setUp()
+
 
 class BucketOperations(CBASBaseTest):
     CBAS_BUCKET_CONNECT_ERROR_MSG = "Maximum number of active writable datasets (8) exceeded"
@@ -391,7 +398,7 @@ class BucketOperations(CBASBaseTest):
         self.assertEqual(len(buckets), self.num_of_cb_buckets, msg="CB bucket count mismatch")
 
         self.log.info("Load data in the default bucket")
-        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items)
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items, batch_size=1000)
 
         self.log.info("Create connection to all buckets")
         for bucket in buckets:
@@ -460,5 +467,188 @@ class BucketOperations(CBASBaseTest):
                     self.cbas_util.validate_cbas_dataset_items_count(cbas_bucket + self.dataset_prefix + str(index),
                                                                      self.num_items))
 
-def tearDown(self):
-    super(BucketOperations, self).setUp()
+    def tearDown(self):
+        super(BucketOperations, self).setUp()
+
+
+class CBASDataOperations(CBASBaseTest):
+
+    @staticmethod
+    def generate_docs_bigdata(num_of_documents, start=0, document_size_in_mb=1):
+        json_generator = JsonGenerator()
+        return json_generator.generate_docs_bigdata(end=num_of_documents, start=start,
+                                                    value_size=1024000 * document_size_in_mb)
+
+    def setUp(self):
+        super(CBASDataOperations, self).setUp()
+
+    def fetch_test_case_arguments(self):
+        self.cb_bucket_name = self.input.param("cb_bucket_name", "default")
+        self.cbas_bucket_name = self.input.param("cbas_bucket_name", "default_cbas")
+        self.dataset_name = self.input.param("dataset_name", "ds")
+        self.default_bucket = self.input.param("default_bucket", False)
+        self.analytics_memory = self.input.param("analytics_memory", 1200)
+        self.document_size = self.input.param("document_size", 20)
+        self.batch_size = self.input.param("batch_size", 5)
+        self.secondary_index = self.input.param("secondary_index", False)
+        self.num_of_documents = self.input.param("num_of_documents", 10)
+
+    def cbas_dataset_setup(self):
+        self.log.info("Create connection")
+        self.cbas_util.createConn(self.cb_bucket_name)
+
+        self.log.info("Create a CBAS bucket")
+        self.assertTrue(self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
+                                                             cb_bucket_name=self.cb_bucket_name),
+                        msg="Failed to create CBAS bucket")
+
+        self.log.info("Create datasets")
+        self.assertTrue(self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+                                                                cbas_dataset_name=self.dataset_name),
+                        msg="Failed to create dataset {0}".format(self.dataset_name))
+
+        if self.secondary_index:
+            self.log.info("Create secondary index")
+            index_fields = ""
+            for index_field in self.index_fields:
+                index_fields += index_field + ","
+                index_fields = index_fields[:-1]
+            create_idx_statement = "create index {0} on {1}({2});".format(self.dataset_name + "_idx", self.dataset_name,
+                                                                          index_fields)
+            status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(create_idx_statement)
+            self.assertTrue(status == "success", "Create secondary index query failed")
+            self.assertTrue(self.cbas_util.verify_index_created(self.dataset_name + "_idx", self.index_fields,
+                                                                self.dataset_name)[0])
+
+        self.log.info("Connect to CBAS bucket")
+        self.assertTrue(self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name),
+                        msg="Failed to connect to cbas bucket")
+
+    '''
+    cbas.cbas_backlog_ingestion.CBASDataOperations.test_cbas_ingestion_with_documents_containing_multilingual_data,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=default_cbas,dataset_name=default_ds
+    cbas.cbas_backlog_ingestion.CBASDataOperations.test_cbas_ingestion_with_documents_containing_multilingual_data,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=default_cbas,dataset_name=default_ds,secondary_index=True,index_fields=content:string
+    '''
+
+    def test_cbas_ingestion_with_documents_containing_multilingual_data(self):
+        """
+        1. Create reference to SDK client
+        2. Add multilingual json documents to default bucket
+        3. Verify ingestion on dataset with and with out secondary index
+        """
+        multilingual_strings = [
+            'De flesta sagorna här är från Hans Hörner svenska översättning',
+            'Il était une fois une maman cochon qui avait trois petits cochons',
+            '森林里住着一只小兔子，它叫“丑丑”。它的眼睛红红的，像一对红宝石',
+            '外治オヒル回条フ聞定ッ加官言岸ムモヱツ求碁込ヌトホヒ舞高メ旅位',
+            'ان عدة الشهور عند الله اثنا عشر شهرا في',
+        ]
+
+        self.log.info("Fetch test case arguments")
+        self.fetch_test_case_arguments()
+
+        self.log.info("Create reference to SDK client")
+        client = SDKClient(scheme="couchbase", hosts=[self.master.ip], bucket=self.cb_bucket_name,
+                           password=self.master.rest_password)
+
+        self.log.info("Add multilingual documents to the default bucket")
+        client.insert_custom_json_documents("custom-key-", multilingual_strings)
+
+        self.log.info("Create connections, datasets and indexes")
+        self.cbas_dataset_setup()
+
+        self.log.info("Wait for ingestion to complete and verify count")
+        self.cbas_util.wait_for_ingestion_complete([self.dataset_name], len(multilingual_strings))
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, len(multilingual_strings)))
+
+    '''
+    cbas.cbas_backlog_ingestion.CBASDataOperations.test_cbas_ingestion_with_large_document_size_and_changing_analytics_memory_quota,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=default_cbas,dataset_name=default_ds,analytics_memory=1200,document_size=20,secondary_index=True,index_fields=name:string,batch_size=5
+    cbas.cbas_backlog_ingestion.CBASDataOperations.test_cbas_ingestion_with_large_document_size_and_changing_analytics_memory_quota,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=default_cbas,dataset_name=default_ds,analytics_memory=1200,document_size=20,batch_size=5
+    '''
+    def test_cbas_ingestion_with_large_document_size_and_changing_analytics_memory_quota(self):
+        """
+        1. Increase memory quota of Analytics to 1200 MB
+        2. Add large size documents each of size 20 MB such that they use up analytics RAM memory
+        3. Verify ingestion on dataset with and with out secondary index
+        4. Decrease the memory quota to default - 1024
+        5. Verify documents are not ingested from zero
+        6. Verify the document count again
+        """
+        self.log.info("Fetch test case arguments")
+        self.fetch_test_case_arguments()
+
+        self.log.info("Increase analytics memory quota")
+        self.rest.set_service_memoryQuota(service='cbasMemoryQuota', memoryQuota=self.analytics_memory)
+
+        self.log.info("Insert MB documents into default buckets")
+        start = 0
+        end = self.batch_size
+        total_documents = self.analytics_memory // self.document_size
+        while end <= total_documents:
+            load_gen = CBASDataOperations.generate_docs_bigdata(start=start, num_of_documents=end,
+                                                                document_size_in_mb=self.document_size)
+            tasks = self._async_load_all_buckets(server=self.master, kv_gen=load_gen, op_type="create", exp=0,
+                                                 batch_size=self.batch_size)
+            for task in tasks:
+                self.log.info("-------------------------------------------------------- " + str(task.get_result()))
+            start = end
+            end += self.batch_size
+
+        self.log.info("Create connections, datasets, indexes")
+        self.cbas_dataset_setup()
+
+        self.log.info("Wait for ingestion to complete and verify count")
+        self.cbas_util.wait_for_ingestion_complete([self.dataset_name], total_documents)
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, total_documents))
+
+        self.log.info("Decrease analytics memory quota to 1024 MB")
+        self.rest.set_service_memoryQuota(service='cbasMemoryQuota', memoryQuota=testconstants.CBAS_QUOTA)
+
+        self.log.info("Verify document count remains unchanged")
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, total_documents))
+
+    '''
+    cbas.cbas_backlog_ingestion.CBASDataOperations.test_ingestion_impact_for_documents_containing_xattr_meta_information,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=default_cbas,dataset_name=default_ds,num_of_documents=5
+    cbas.cbas_backlog_ingestion.CBASDataOperations.test_ingestion_impact_for_documents_containing_xattr_meta_information,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=default_cbas,dataset_name=default_ds,secondary_index=True,index_fields=name:string,num_of_documents=5
+    '''
+
+    def test_ingestion_impact_for_documents_containing_xattr_meta_information(self):
+
+        self.log.info("Fetch test case arguments")
+        self.fetch_test_case_arguments()
+
+        self.log.info("Create reference to SDK client")
+        client = SDKClient(scheme="couchbase", hosts=[self.master.ip], bucket="default",
+                           password=self.master.rest_password)
+
+        self.log.info("Insert custom data into default bucket")
+        documents = ['{"name":"value"}'] * self.num_of_documents
+        document_id_prefix = "id-"
+        client.insert_custom_json_documents(document_id_prefix, documents)
+
+        self.log.info("Create connections, datasets, indexes")
+        self.cbas_dataset_setup()
+
+        self.log.info("Wait for ingestion to complete and verify count")
+        self.cbas_util.wait_for_ingestion_complete([self.dataset_name], self.num_of_documents)
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_of_documents))
+
+        self.log.info("Insert xattr attribute for all the documents and assert document count on dataset")
+        for i in range(self.num_of_documents):
+            client.insert_xattr_attribute(document_id=document_id_prefix + str(i), path="a", value="{'xattr-value': 1}",
+                                          xattr=True, create_parents=True)
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_of_documents))
+
+        self.log.info("Update xattr attribute and assert document count on dataset")
+        for i in range(self.num_of_documents):
+            client.update_xattr_attribute(document_id=document_id_prefix + str(i), path="a",
+                                          value="{'xattr-value': 11}", xattr=True, create_parents=True)
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_of_documents))
+        
+        # TODO Uncomment the below lines once we figure out why removing xattr cause Couchbase OOM exception
+        #self.log.info("Delete xattr attribute and assert document count on dataset")
+        #for i in range(self.num_of_documents):
+            #client.remove_xattr_attribute(document_id=document_id_prefix + str(i), path="a", xattr=True)
+        #self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_of_documents))
+
+    def tearDown(self):
+        super(CBASDataOperations, self).setUp()
