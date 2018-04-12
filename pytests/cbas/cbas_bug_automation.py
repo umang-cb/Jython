@@ -121,7 +121,6 @@ class CBASBugAutomation(CBASBaseTest):
         for cbas_server in self.cbas_servers:
             if cc_ip != cbas_server.ip:
                 nc_cbas_node = cbas_server
-                print(nc_cbas_node.ip)
                 break
 
         if not nc_cbas_node:
