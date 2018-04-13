@@ -132,7 +132,7 @@ class QueryTests(BaseTestCase):
             self.skip_buckets_handle = True
             if self.analytics:
                 self.cluster.rebalance([self.master, self.cbas_node], [self.cbas_node], [], services=['cbas'])
-                self.sleep(10,'cool down after rebalance.')
+                self.sleep(30,'cool down after rebalance.')
                 self.setup_analytics()
                 self.sleep(30,'wait for analytics setup')
         except Exception, ex:
