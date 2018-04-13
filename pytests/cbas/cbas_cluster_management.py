@@ -2,6 +2,7 @@ from cbas_base import *
 from membase.api.rest_client import RestHelper
 from couchbase_cli import CouchbaseCLI
 from node_utils.node_ready_functions import NodeHelper
+from basetestcase import RemoteMachineShellConnection
 
 class CBASClusterManagement(CBASBaseTest):
     def setUp(self):
@@ -526,3 +527,150 @@ class CBASClusterManagement(CBASBaseTest):
         self.assertTrue(self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name, cb_bucket_password="password", cb_bucket_username="Administrator"),
                         "Connecting cbas bucket to cb bucket failed")
         self.assertTrue(self.cbas_util.wait_for_ingestion_complete([self.cbas_dataset_name], self.travel_sample_docs_count),"Data ingestion to cbas couldn't complete in 300 seconds.")
+
+
+class CBASServiceOperations(CBASBaseTest):
+
+    def setUp(self):
+        super(CBASServiceOperations, self).setUp()
+    
+    def fetch_test_case_arguments(self):
+        self.cb_bucket_name = self.input.param("cb_bucket_name", "default")
+        self.cbas_bucket_name = self.input.param("cbas_bucket_name", "default_cbas")
+        self.dataset_name = self.input.param("dataset_name", "ds")
+        self.default_bucket = self.input.param("default_bucket", True)
+        self.batch_size = self.input.param("batch_size", 5000)
+        self.num_items = self.input.param("items", 10000)
+
+    def set_up_test(self):
+        self.log.info("Fetch test params")
+        self.fetch_test_case_arguments()
+
+        self.log.info("Add a KV nodes")
+        result = self.add_node(self.servers[1], services=["kv"], rebalance=False)
+        self.assertTrue(result, msg="Failed to add KV node.")
+
+        self.log.info("Add a CBAS node")
+        result = self.add_node(self.cbas_servers[0], services=["cbas"], rebalance=True)
+        self.assertTrue(result, msg="Failed to add CBAS node.")
+
+        self.log.info("Load data in the default bucket")
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items, exp=0, batch_size=10)
+
+        self.log.info("Create primary index")
+        query = "CREATE PRIMARY INDEX ON {0} using gsi".format(self.cb_bucket_name)
+        self.rest.query_tool(query)
+
+        self.log.info("Create a connection")
+        self.cbas_util.createConn(self.cb_bucket_name)
+
+        self.log.info("Create a CBAS bucket")
+        self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
+                                             cb_bucket_name=self.cb_bucket_name)
+
+        self.log.info("Create a default data-set")
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+                                                cbas_dataset_name=self.dataset_name)
+
+        self.log.info("Connect to cbas bucket")
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
+                                         cb_bucket_password=self.cb_bucket_password)
+    '''
+    -t cbas.cbas_cluster_management.CBASServiceOperations.test_signal_impact_on_cbas,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=default_bucket,dataset_name=default_ds,items=10,batch_size=5000,process=java,service=/opt/couchbase/lib/cbas/runtime/bin/java
+    -t cbas.cbas_cluster_management.CBASServiceOperations.test_signal_impact_on_cbas,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=default_bucket,dataset_name=default_ds,items=10,batch_size=5000,process=cbas,service=/opt/couchbase/bin/cbas
+    '''
+    def test_signal_impact_on_cbas(self):
+        self.log.info("Add nodes, create cbas bucket and dataset")
+        self.set_up_test()
+        process = self.input.param("process", 'java')
+        service = self.input.param("service", '/opt/couchbase/lib/cbas/runtime/bin/java')
+
+        self.log.info("Wait for ingestion to complete and verify count")
+        self.cbas_util.wait_for_ingestion_complete([self.dataset_name], self.num_items)
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items))
+
+        self.log.info("Establish a remote connection")
+        con_cbas_node1 = RemoteMachineShellConnection(self.cbas_node)
+        con_cbas_node2 = RemoteMachineShellConnection(self.cbas_servers[0])
+
+        self.log.info("SIGSTOP ANALYTICS SERVICE")
+        con_cbas_node1.kill_process(process, service, 19)
+        con_cbas_node2.kill_process(process, service, 19)
+        
+        self.log.info("Add more documents in the default bucket")
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", self.num_items, self.num_items * 2, exp=0,
+                                               batch_size=self.batch_size)
+        
+        self.log.info("SIGCONT ANALYTICS")
+        con_cbas_node1.kill_process(process, service, 18)
+        con_cbas_node2.kill_process(process, service, 18)
+        self.sleep(15)
+
+        self.log.info("Wait for ingestion to complete and verify count")
+        self.cbas_util.wait_for_ingestion_complete([self.dataset_name], self.num_items * 2)
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items * 2))
+        
+        self.log.info("SIGSTOP ANALYTICS SERVICE")
+        con_cbas_node1.kill_process(process, service, 19)
+        con_cbas_node2.kill_process(process, service, 19)
+        
+        self.log.info("Delete documents in the default bucket")
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "delete", 0, self.num_items, exp=0,
+                                               batch_size=self.batch_size)
+
+        self.log.info("SIGCONT ANALYTICS")
+        con_cbas_node1.kill_process(process, service, 18)
+        con_cbas_node2.kill_process(process, service, 18)
+        self.sleep(15)
+
+        self.log.info("Wait for ingestion to complete and verify count")
+        self.cbas_util.wait_for_ingestion_complete([self.dataset_name], self.num_items)
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items))
+    
+    '''
+    -t cbas.cbas_cluster_management.CBASServiceOperations.test_restart_of_all_nodes,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=default_bucket,dataset_name=default_ds,items=10,batch_size=5000,restart_kv=true,restart_cbas=True
+    '''
+    def test_restart_of_all_nodes(self):
+        
+        self.log.info("Add nodes, create cbas bucket and dataset")
+        self.set_up_test()
+        
+        self.log.info("Wait for ingestion to complete and verify count")
+        self.cbas_util.wait_for_ingestion_complete([self.dataset_name], self.num_items)
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items))
+
+        self.log.info("Restart nodes")
+        restart_kv = self.input.param("restart_kv", True)
+        restart_cbas = self.input.param("restart_cbas", True)
+        self.restart_servers = []
+
+        if restart_kv:
+            for kv_server in self.kv_servers:
+                self.restart_servers.append(kv_server)
+        if restart_cbas:
+            self.restart_servers.append(self.cbas_node)
+            for cbas_server in self.cbas_servers:
+                self.restart_servers.append(cbas_server)
+
+        for restart_node in self.restart_servers:
+            NodeHelper.reboot_server(restart_node, self)
+
+        self.log.info("Add more documents in the default bucket")
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", self.num_items, self.num_items * 2, exp=0,
+                                               batch_size=self.batch_size)
+
+        self.log.info("Wait for ingestion to complete and verify count")
+        self.cbas_util.wait_for_ingestion_complete([self.dataset_name], self.num_items * 2)
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items * 2))
+
+        self.log.info("Delete documents in the default bucket")
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "delete", 0, self.num_items, exp=0,
+                                               batch_size=self.batch_size)
+
+        self.log.info("Wait for ingestion to complete and verify count")
+        self.cbas_util.wait_for_ingestion_complete([self.dataset_name], self.num_items)
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items))
+
+
+    def tearDown(self):
+        super(CBASServiceOperations, self).tearDown()
