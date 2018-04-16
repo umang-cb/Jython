@@ -576,8 +576,8 @@ class CBASServiceOperations(CBASBaseTest):
         self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                          cb_bucket_password=self.cb_bucket_password)
     '''
-    -t cbas.cbas_cluster_management.CBASServiceOperations.test_signal_impact_on_cbas,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=default_bucket,dataset_name=default_ds,items=10,batch_size=5000,process=java,service=/opt/couchbase/lib/cbas/runtime/bin/java
-    -t cbas.cbas_cluster_management.CBASServiceOperations.test_signal_impact_on_cbas,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=default_bucket,dataset_name=default_ds,items=10,batch_size=5000,process=cbas,service=/opt/couchbase/bin/cbas
+    -t cbas.cbas_cluster_management.CBASServiceOperations.test_signal_impact_on_cbas,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=default_bucket,dataset_name=default_ds,items=10,batch_size=5000,process=/opt/couchbase/lib/cbas/runtime/bin/java,service=java
+    -t cbas.cbas_cluster_management.CBASServiceOperations.test_signal_impact_on_cbas,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=default_bucket,dataset_name=default_ds,items=10,batch_size=5000,process=/opt/couchbase/bin/cbas,service=cbas
     '''
     def test_signal_impact_on_cbas(self):
         self.log.info("Add nodes, create cbas bucket and dataset")
@@ -670,7 +670,6 @@ class CBASServiceOperations(CBASBaseTest):
         self.log.info("Wait for ingestion to complete and verify count")
         self.cbas_util.wait_for_ingestion_complete([self.dataset_name], self.num_items)
         self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items))
-
 
     def tearDown(self):
         super(CBASServiceOperations, self).tearDown()

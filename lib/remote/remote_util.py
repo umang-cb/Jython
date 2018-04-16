@@ -502,7 +502,7 @@ class RemoteMachineShellConnection:
             self.log_command_output(o, r)
         else:
             log.info(self.execute_command("pgrep -l %s"%process_name))
-            o, r = self.execute_command("kill -%s $(ps aux | grep '%s' | awk '{print $2}')" % (signum, service_name))
+            o, r = self.execute_command("kill -%s $(pgrep %s)" % (signum, service_name))
             self.log_command_output(o, r)
             log.info(self.execute_command("pgrep -l %s"%process_name))
         return o, r
