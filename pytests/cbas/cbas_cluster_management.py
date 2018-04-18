@@ -1,3 +1,5 @@
+import datetime
+
 from cbas_base import *
 from membase.api.rest_client import RestHelper
 from couchbase_cli import CouchbaseCLI
@@ -541,6 +543,11 @@ class CBASServiceOperations(CBASBaseTest):
         self.default_bucket = self.input.param("default_bucket", True)
         self.batch_size = self.input.param("batch_size", 5000)
         self.num_items = self.input.param("items", 10000)
+        self.kill_on_nc = self.input.param("kill_on_nc", True)
+        self.kill_on_cc = self.input.param("kill_on_cc", True)
+        self.process = self.input.param('process', 'java')
+        self.service = self.input.param('service', '/opt/couchbase/lib/cbas/runtime/bin/java')
+        self.signum = self.input.param('signum', 9)
 
     def set_up_test(self):
         self.log.info("Fetch test params")
@@ -582,8 +589,6 @@ class CBASServiceOperations(CBASBaseTest):
     def test_signal_impact_on_cbas(self):
         self.log.info("Add nodes, create cbas bucket and dataset")
         self.set_up_test()
-        process = self.input.param("process", 'java')
-        service = self.input.param("service", '/opt/couchbase/lib/cbas/runtime/bin/java')
 
         self.log.info("Wait for ingestion to complete and verify count")
         self.cbas_util.wait_for_ingestion_complete([self.dataset_name], self.num_items)
@@ -594,16 +599,16 @@ class CBASServiceOperations(CBASBaseTest):
         con_cbas_node2 = RemoteMachineShellConnection(self.cbas_servers[0])
 
         self.log.info("SIGSTOP ANALYTICS SERVICE")
-        con_cbas_node1.kill_process(process, service, 19)
-        con_cbas_node2.kill_process(process, service, 19)
+        con_cbas_node1.kill_process(self.process, self.service, 19)
+        con_cbas_node2.kill_process(self.process, self.service, 19)
         
         self.log.info("Add more documents in the default bucket")
         self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", self.num_items, self.num_items * 2, exp=0,
                                                batch_size=self.batch_size)
         
         self.log.info("SIGCONT ANALYTICS")
-        con_cbas_node1.kill_process(process, service, 18)
-        con_cbas_node2.kill_process(process, service, 18)
+        con_cbas_node1.kill_process(self.process, self.service, 18)
+        con_cbas_node2.kill_process(self.process, self.service, 18)
         self.sleep(15)
 
         self.log.info("Wait for ingestion to complete and verify count")
@@ -611,16 +616,16 @@ class CBASServiceOperations(CBASBaseTest):
         self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items * 2))
         
         self.log.info("SIGSTOP ANALYTICS SERVICE")
-        con_cbas_node1.kill_process(process, service, 19)
-        con_cbas_node2.kill_process(process, service, 19)
+        con_cbas_node1.kill_process(self.process, self.service, 19)
+        con_cbas_node2.kill_process(self.process, self.service, 19)
         
         self.log.info("Delete documents in the default bucket")
         self.perform_doc_ops_in_all_cb_buckets(self.num_items, "delete", 0, self.num_items, exp=0,
                                                batch_size=self.batch_size)
 
         self.log.info("SIGCONT ANALYTICS")
-        con_cbas_node1.kill_process(process, service, 18)
-        con_cbas_node2.kill_process(process, service, 18)
+        con_cbas_node1.kill_process(self.process, self.service, 18)
+        con_cbas_node2.kill_process(self.process, self.service, 18)
         self.sleep(15)
 
         self.log.info("Wait for ingestion to complete and verify count")
@@ -670,6 +675,85 @@ class CBASServiceOperations(CBASBaseTest):
         self.log.info("Wait for ingestion to complete and verify count")
         self.cbas_util.wait_for_ingestion_complete([self.dataset_name], self.num_items)
         self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items))
+
+    def test_analytics_recovery_on_idle_system(self):
+
+        self.log.info("Load data, create cbas buckets, and datasets")
+        self.set_up_test()
+
+        self.log.info("Wait for ingestion to complete")
+        self.cbas_util.wait_for_ingestion_complete([self.dataset_name], self.num_items)
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items))
+
+        self.log.info("Get the nodes on which kill is to be run")
+        self.nodes_to_kill_service_on = []
+        if self.kill_on_cc:
+            self.nodes_to_kill_service_on.append(self.cbas_node)
+        if self.kill_on_nc:
+            for cbas_server in self.cbas_servers:
+                self.nodes_to_kill_service_on.append(cbas_server)
+
+        self.log.info("Establish a remote connection on node and kill service")
+        for node in self.nodes_to_kill_service_on:
+            shell = RemoteMachineShellConnection(node)
+            shell.kill_process(self.process, self.service, signum=self.signum)
+
+        self.log.info("Observe no reingestion on node after restart")
+        self.sleep(20, message="wait for service to be back again...")
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items))
+
+        self.log.info("Add more documents in the default bucket")
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", self.num_items, self.num_items * 2, exp=0,
+                                               batch_size=self.batch_size)
+
+        self.log.info("Wait for ingestion to complete")
+        self.cbas_util.wait_for_ingestion_complete([self.dataset_name], self.num_items * 2)
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items * 2))
+
+    def test_analytics_recovery_on_busy_system(self):
+
+        self.log.info("Load data, create cbas buckets, and datasets")
+        self.set_up_test()
+
+        self.log.info("Wait for ingestion to complete")
+        self.cbas_util.wait_for_ingestion_complete([self.dataset_name], self.num_items)
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items))
+
+        self.log.info("Get the nodes on which kill is to be run")
+        self.nodes_to_kill_service_on = []
+        if self.kill_on_cc:
+            neglect_failures = True
+            self.nodes_to_kill_service_on.append(self.cbas_node)
+        if self.kill_on_nc:
+            for cbas_server in self.cbas_servers:
+                self.nodes_to_kill_service_on.append(cbas_server)
+
+        self.log.info("Run concurrent queries to simulate busy system")
+        statement = "select sleep(count(*),50000) from {0} where mutated=0;".format(self.dataset_name)
+        try:
+            self.cbas_util._run_concurrent_queries(statement, "async", 500, batch_size=100)
+        except Exception as e:
+            if neglect_failures:
+                self.log.info("Neglecting failed queries, to handle killing Java/Cbas process kill on CC & NC node %s"%e)
+            else:
+                raise e
+
+        self.log.info("Establish a remote connection on node and kill service")
+        for node in self.nodes_to_kill_service_on:
+            shell = RemoteMachineShellConnection(node)
+            shell.kill_process(self.process, self.service, signum=self.signum)
+            self.sleep(20, message="wait for service to be back again...")
+
+        self.log.info("Observe no reingestion on node after restart")
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items))
+
+        self.log.info("Add more documents in the default bucket")
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", self.num_items, self.num_items * 2, exp=0,
+                                               batch_size=self.batch_size)
+
+        self.log.info("Wait for ingestion to complete")
+        self.cbas_util.wait_for_ingestion_complete([self.dataset_name], self.num_items * 2)
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items * 2))
 
     def tearDown(self):
         super(CBASServiceOperations, self).tearDown()

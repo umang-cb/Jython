@@ -1,9 +1,7 @@
 import datetime
 
-from basetestcase import RemoteMachineShellConnection
 from bucket_utils.bucket_ready_functions import bucket_utils
 from cbas.cbas_base import CBASBaseTest
-from membase.helper.rebalance_helper import RebalanceHelper
 from couchbase_helper.documentgenerator import DocumentGenerator
 
 
@@ -78,74 +76,6 @@ class CBASBugAutomation(CBASBaseTest):
             _, _, _, results, _ = self.cbas_util.execute_statement_on_cbas_util('select count(*) from `%s`' % (self.cbas_dataset_name + str(index)))
             count_ds = results[0]["$1"]
             self.assertEqual(count_ds, count_n1ql, msg="result count mismatch between N1QL and Analytics")
-
-
-    def test_data_ingestion_is_not_triggered_on_killing_cbas_java_processon_on_nc_nodes(self):
-
-        '''
-        -i b/resources/4-nodes-template.ini -t cbas.cbas_bug_automation.CBASBugAutomation.test_data_ingestion_is_not_triggered_on_killing_cbas_java_processon_on_nc_nodes,
-        default_bucket=False,cb_bucket_name=beer-sample,cbas_bucket_name=cbas_beer_sample,self.cbas_dataset_name=beer_sample_dataset,process_name=cbas,service_name=/opt/couchbase/lib/cbas/runtime/bin/java,add_all_cbas_nodes=True
-        '''
-
-        self.log.info("Load beer sample bucket")
-        result = self.load_sample_buckets(servers=list([self.master]),
-                                          bucketName=self.cb_bucket_name,
-                                          total_items=self.beer_sample_docs_count)
-        self.assertTrue(result, "Failed to load beer-sample bucket")
-
-        self.log.info("Create connection")
-        self.cbas_util.createConn(self.cb_bucket_name)
-
-        self.log.info("Create a CBAS bucket")
-        self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
-                                             cb_bucket_name=self.cb_bucket_name)
-
-        self.log.info("Create data-set")
-        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
-                                                cbas_dataset_name=self.cbas_dataset_name)
-
-        self.log.info("Connect to CBAS bucket")
-        self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
-                                         cb_bucket_password=self.cb_bucket_password)
-
-        self.log.info("Wait for ingestion to complete")
-        self.cbas_util.wait_for_ingestion_complete([self.cbas_dataset_name], self.beer_sample_docs_count)
-
-        self.log.info("Validate count in CBAS bucket")
-        items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
-        self.log.info("Items in cbas data set before killing process %s" % items_in_cbas_bucket)
-        self.assertEqual(items_in_cbas_bucket, self.beer_sample_docs_count)
-
-        self.log.info("Get the non-cc node to kill")
-        cc_ip = self.cbas_util.retrieve_cc_ip()
-        for cbas_server in self.cbas_servers:
-            if cc_ip != cbas_server.ip:
-                nc_cbas_node = cbas_server
-                break
-
-        if not nc_cbas_node:
-            self.fail("Cluster must have more than 1 cbas node")
-
-        self.log.info("Establish a remote connection on nc node")
-        shell = RemoteMachineShellConnection(nc_cbas_node)
-
-        self.log.info("kill non cc node with signum -15")
-        process_name = self.input.param('process_name', None)
-        service_name = self.input.param('service_name', None)
-        shell.kill_process(process_name, service_name, signum=15)
-
-        self.log.info("Observe no reingestion on node after restart")
-        items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
-        self.log.info("Items in cbas data set after kill -15 %s" % items_in_cbas_bucket)
-        self.assertEqual(items_in_cbas_bucket, self.beer_sample_docs_count)
-
-        self.log.info("kill non cc node with signum -9")
-        shell.kill_process(process_name, service_name)
-
-        self.log.info("Observe no reingestion on node after restart")
-        items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
-        self.log.info("Items in cbas data set after kill -9 %s" % items_in_cbas_bucket)
-        self.assertEqual(items_in_cbas_bucket, self.beer_sample_docs_count)
 
     def test_cbas_queries_in_parallel_with_data_ingestion_on_multiple_cb_buckets(self):
 
