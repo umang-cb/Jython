@@ -216,8 +216,8 @@ class analytics(CBASBaseTest):
         self.log.info("Get the available memory quota")
         bucket_util = bucket_utils(self.master)
         self.info = bucket_util.rest.get_nodes_self()
-        threadhold_memory = 400
-        total_memory_in_mb = self.info.memoryTotal / 1024 ** 2
+        threadhold_memory = 1024
+        total_memory_in_mb = self.info.memoryFree / 1024 ** 2
         total_available_memory_in_mb = total_memory_in_mb
         active_service = self.info.services
 
@@ -231,8 +231,10 @@ class analytics(CBASBaseTest):
             total_available_memory_in_mb -= self.info.eventingMemoryQuota
         
         print(total_memory_in_mb)
-        available_memory =  total_available_memory_in_mb - threadhold_memory 
+        available_memory =  total_available_memory_in_mb - threadhold_memory
         self.rest.set_service_memoryQuota(service='memoryQuota', memoryQuota=available_memory)
+        self.rest.set_service_memoryQuota(service='cbasMemoryQuota', memoryQuota=available_memory-1024)
+        self.rest.set_service_memoryQuota(service='indexMemoryQuota', memoryQuota=available_memory-1024)
 
         self.log.info("Create CB buckets")
 #         num_of_cb_buckets = self.input.param("num_of_cb_buckets", 4)
