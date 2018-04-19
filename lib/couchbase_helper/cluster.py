@@ -164,7 +164,7 @@ class Cluster(object):
 #         self.task_manager.schedule(_task)
 #         return _task
 
-    def async_rebalance(self, servers, to_add, to_remove, use_hostnames=False, services = None):
+    def async_rebalance(self, servers, to_add, to_remove, use_hostnames=False, services = None, check_vbucket_shuffling=True):
         """Asyncronously rebalances a cluster
 
         Parameters:
@@ -175,7 +175,7 @@ class Cluster(object):
 
         Returns:
             RebalanceTask - A task future that is a handle to the scheduled task"""
-        _task = conc.RebalanceTask(servers, self.task_manager, to_add, to_remove, use_hostnames=use_hostnames, services = services)
+        _task = conc.RebalanceTask(servers, self.task_manager, to_add, to_remove, use_hostnames=use_hostnames, services = services, check_vbucket_shuffling=check_vbucket_shuffling)
         self.task_manager.schedule(_task)
         return _task
 

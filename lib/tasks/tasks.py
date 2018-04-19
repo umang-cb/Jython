@@ -430,7 +430,7 @@ class BucketDeleteTask(Task):
 
 class RebalanceTask(Task):
     def __init__(self, servers, task_manager, to_add=[], to_remove=[], do_stop=False, progress=30,
-                 use_hostnames=False, services = None):
+                 use_hostnames=False, services = None, check_vbucket_shuffling=True):
         Task.__init__(self, "rebalance_task", task_manager=task_manager)
         self.servers = servers
         self.to_add = to_add
@@ -438,7 +438,7 @@ class RebalanceTask(Task):
         self.start_time = None
         self.services = services
         self.monitor_vbuckets_shuffling = False
-
+        self.check_vbucket_shuffling = check_vbucket_shuffling
         try:
             self.rest = RestConnection(self.servers[0])
         except ServerUnavailableException, e:
@@ -455,8 +455,9 @@ class RebalanceTask(Task):
             if len(self.to_add) and len(self.to_add) == len(self.to_remove):
                 node_version_check = self.rest.check_node_versions()
                 non_swap_servers = set(self.servers) - set(self.to_remove) - set(self.to_add)
-                self.old_vbuckets = RestHelper(self.rest)._get_vbuckets(non_swap_servers, None)
-                if self.old_vbuckets:
+                if self.check_vbucket_shuffling:
+                    self.old_vbuckets = BucketHelper(self.servers[0])._get_vbuckets(non_swap_servers, None)
+                if self.old_vbuckets and self.check_vbucket_shuffling:
                     self.monitor_vbuckets_shuffling = True
                 if self.monitor_vbuckets_shuffling and node_version_check and self.services:
                     for service_group in self.services:
@@ -524,6 +525,7 @@ class RebalanceTask(Task):
                             ejectedNodes.append(node.id)
                     elif server.ip == node.ip and int(server.port) == int(node.port):
                         ejectedNodes.append(node.id)
+                log.info("removing node {0}:{1} to cluster".format(node.ip, node.port))
         if self.rest.is_cluster_mixed():
             # workaround MB-8094
             log.warn("cluster is mixed. sleep for 15 seconds before rebalance")
