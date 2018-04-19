@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from cbas_base import *
+from couchbase_helper.tuq_generators import JsonGenerator
 from lib.memcached.helper.data_helper import MemcachedClientHelper
 from lib.remote.remote_util import RemoteMachineShellConnection
 from bucket_utils.bucket_ready_functions import bucket_utils
@@ -222,7 +223,7 @@ class CBASClusterOperations(CBASBaseTest):
 
         self.log.info("Rebalance in KV node")
         wait_for_rebalace_complete = self.input.param("wait_for_rebalace", False)
-        self.add_node(node=self.rebalanceServers[1], rebalance=True,
+        self.add_node(node=self.rebalanceServers[1], rebalance=False,
                       wait_for_rebalance_completion=wait_for_rebalace_complete)
 
         self.log.info("Rebalance in CBAS node")
@@ -325,6 +326,110 @@ class CBASClusterOperations(CBASBaseTest):
 
         if not c_utils.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items + (self.num_items//10) , 0):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
-    
+
+    def test_rebalance_in_multiple_cbas_on_a_busy_system(self):
+
+        self.log.info("Setup CBAS")
+        self.setup_for_test(skip_data_loading=True)
+
+        self.log.info("Run KV ops in async while rebalance is in progress")
+        json_generator = JsonGenerator()
+        generators = json_generator.generate_docs_simple(docs_per_day=self.num_items, start=0)
+        tasks = self._async_load_all_buckets(self.master, generators, "create", 0)
+        
+        self.log.info("Run concurrent queries to simulate busy system")
+        statement = "select sleep(count(*),5000) from {0} where mutated=0;".format(self.cbas_dataset_name)
+        self.cbas_util._run_concurrent_queries(statement, self.mode, self.num_concurrent_queries)
+
+        self.log.info("Rebalance in CBAS nodes")
+        self.add_node(node=self.rebalanceServers[1], services=["cbas"], rebalance=False, wait_for_rebalance_completion=False)
+        self.add_node(node=self.rebalanceServers[3], services=["cbas"], rebalance=True, wait_for_rebalance_completion=True)
+
+        self.log.info("Get KV ops result")
+        for task in tasks:
+            task.get_result()
+
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items, 0):
+            self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
+
+    def test_rebalance_out_multiple_cbas_on_a_busy_system(self):
+
+        self.log.info("Rebalance in CBAS nodes")
+        self.add_node(node=self.rebalanceServers[1], services=["cbas"])
+        self.add_node(node=self.rebalanceServers[3], services=["cbas"])
+
+        self.log.info("Setup CBAS")
+        self.setup_for_test(skip_data_loading=True)
+
+        self.log.info("Run KV ops in async while rebalance is in progress")
+        json_generator = JsonGenerator()
+        generators = json_generator.generate_docs_simple(docs_per_day=self.num_items, start=0)
+        tasks = self._async_load_all_buckets(self.master, generators, "create", 0)
+
+        self.log.info("Run concurrent queries to simulate busy system")
+        statement = "select sleep(count(*),5000) from {0} where mutated=0;".format(self.cbas_dataset_name)
+        self.cbas_util._run_concurrent_queries(statement, self.mode, self.num_concurrent_queries)
+
+        self.log.info("Fetch and remove nodes to rebalance out")
+        self.rebalance_cc = self.input.param("rebalance_cc", False)
+        out_nodes = []
+        nodes = self.rest.node_statuses()
+        for node in nodes:
+            if self.rebalance_cc and (node.ip == self.cbas_node.ip or node.ip == self.rebalanceServers[1].ip):
+                out_nodes.append(node)
+            elif node.ip == self.rebalanceServers[1].ip or node.ip == self.rebalanceServers[3].ip:
+                out_nodes.append(node)
+
+        self.log.info("Rebalance out CBAS nodes %s %s" % (out_nodes[0].ip,out_nodes[0].ip))
+        self.remove_node([out_nodes[0]], wait_for_rebalance=False)
+        self.remove_node([out_nodes[1]])
+
+        self.log.info("Get KV ops result")
+        for task in tasks:
+            task.get_result()
+
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items, 0):
+            self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
+
+    # TODO Refactor and add below test to conf once we have 6 node cluster so we can swap rebalance multiple cbas nodes
+    def test_rebalance_swap_multiple_cbas_on_a_busy_system(self):
+
+        self.log.info("Rebalance in CBAS nodes")
+        self.add_node(node=self.rebalanceServers[1], services=["cbas"], rebalance=False)
+        self.add_node(node=self.rebalanceServers[3], services=["cbas"], rebalance=False)
+
+        self.log.info("Setup CBAS")
+        self.setup_for_test(skip_data_loading=True)
+
+        self.log.info("Run KV ops in async while rebalance is in progress")
+        json_generator = JsonGenerator()
+        generators = json_generator.generate_docs_simple(docs_per_day=self.num_items, start=0)
+        tasks = self._async_load_all_buckets(self.master, generators, "create", 0)
+
+        self.log.info("Run concurrent queries to simulate busy system")
+        statement = "select sleep(count(*),5000) from {0} where mutated=0;".format(self.cbas_dataset_name)
+        self.cbas_util._run_concurrent_queries(statement, self.mode, self.num_concurrent_queries)
+
+        self.log.info("Fetch and remove nodes to rebalance out")
+        self.rebalance_cc = self.input.param("rebalance_cc", False)
+        out_nodes = []
+        nodes = self.rest.node_statuses()
+        for node in nodes:
+            if self.rebalance_cc and (node.ip == self.cbas_node.ip or node.ip == self.rebalanceServers[1].ip):
+                out_nodes.append(node)
+            elif node.ip == self.rebalanceServers[1].ip or node.ip == self.rebalanceServers[3].ip:
+                out_nodes.append(node)
+
+        self.log.info("Rebalance out CBAS nodes %s %s" % (out_nodes[0].ip, out_nodes[0].ip))
+        self.remove_node([out_nodes[0]], wait_for_rebalance=False)
+        self.remove_node([out_nodes[1]])
+
+        self.log.info("Get KV ops result")
+        for task in tasks:
+            task.get_result()
+
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items, 0):
+            self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
+
     def tearDown(self):
         super(CBASClusterOperations, self).setUp()       
