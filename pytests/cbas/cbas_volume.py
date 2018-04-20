@@ -1,3 +1,4 @@
+from com.couchbase.client.java.env import DefaultCouchbaseEnvironment
 import copy
 from com.couchbase.client.java import *;
 from com.couchbase.client.java.transcoder import JsonTranscoder
@@ -124,11 +125,11 @@ class GleambookMessages_Docloader(Callable):
             for i in xrange(self.num_items):
                 start_message_id = global_vars.message_id
                 if self.op_type == "create":
-                    for j in xrange(5):
+                    for j in xrange(random.randint(1,10)):
                         var = str(json.dumps(self.generate_GleambookMessages(i+self.start_from , global_vars.message_id)))
                         user = JsonTranscoder().stringToJsonObject(var);
 #                         print i+self.start_from,global_vars.message_id
-                        doc = JsonDocument.create(str(global_vars.message_id).zfill(12), user);
+                        doc = JsonDocument.create(str(global_vars.message_id), user);
                         try:
                             response = self.msg_bucket.insert(doc);
                         except:
@@ -138,11 +139,11 @@ class GleambookMessages_Docloader(Callable):
                 elif self.op_type == "update":
                     var = str(json.dumps(self.generate_GleambookMessages(i+self.start_from , i+start_message_id)))
                     user = JsonTranscoder().stringToJsonObject(var);
-                    doc = JsonDocument.create(str(i+start_message_id).zfill(12), user);
+                    doc = JsonDocument.create(str(i+start_message_id), user);
                     response = self.msg_bucket.upsert(doc);                    
                 elif self.op_type == "delete":
                     try:
-                        response = self.msg_bucket.remove(str(i+start_message_id).zfill(12));
+                        response = self.msg_bucket.remove(str(i+start_message_id));
                     except:
                         pass      
                 self.loaded += 1
@@ -194,7 +195,7 @@ class GleambookUser_Docloader(Callable):
             EmploymentType = {"organization":random.choice(organization),"start_date":start_date}
             employment.append(EmploymentType)
 
-        GleambookUserType = {"id":num,"alias":"Peter"+"%09d"%num,"name":"Peter Thomas","user_since":date+"T"+time,
+        GleambookUserType = {"id":num,"alias":"Peter"+"%05d"%num,"name":"Peter Thomas","user_since":date+"T"+time,
 #                              "friend_ids":random.sample(range(1000),random.choice(range(10))),
                             "employment":random.sample(employment,random.choice(range(6)))
                              }
@@ -225,16 +226,16 @@ class GleambookUser_Docloader(Callable):
                 if self.op_type == "create":
                     var = str(json.dumps(self.generate_GleambookUser(i+self.start_from)))
                     user = JsonTranscoder().stringToJsonObject(var);
-                    doc = JsonDocument.create(str(i+self.start_from).zfill(12), user);
+                    doc = JsonDocument.create(str(i+self.start_from), user);
                     response = self.bucket.insert(doc);
                 elif self.op_type == "update":
                     var = str(json.dumps(self.generate_GleambookUser(i+self.start_from)))
                     user = JsonTranscoder().stringToJsonObject(var);
-                    doc = JsonDocument.create(str(i+self.start_from).zfill(12), user);
+                    doc = JsonDocument.create(str(i+self.start_from), user);
                     response = self.bucket.upsert(doc);
                     
                 elif self.op_type == "delete":
-                    response = self.bucket.remove(str(i+self.start_from).zfill(12));
+                    response = self.bucket.remove(str(i+self.start_from));
                 self.loaded += 1
         except Exception, ex:
             import traceback
@@ -449,7 +450,7 @@ class analytics(CBASBaseTest):
 #         
     
     def test_analytics_volume(self):
-        queries = ['SELECT VALUE u FROM `GleambookUsers_ds` u WHERE u.user_since >= "2001-02-13T16-48-15" AND u.user_since < "2010-02-13T16-48-15" AND (SOME e IN u.employment SATISFIES e.end_date IS UNKNOWN) LIMIT 100;',
+        queries = ['SELECT VALUE u FROM `GleambookUsers_ds` u WHERE u.user_since >= "2010-02-13T16-48-15" AND u.user_since < "2010-10-13T16-48-15" AND (SOME e IN u.employment SATISFIES e.end_date IS UNKNOWN) LIMIT 100;',
            'SELECT VALUE u FROM `GleambookUsers_ds` u WHERE u.user_since >= "2010-02-13T16-48-15" AND u.user_since < "2010-12-13T16-48-15" limit 100;',
            'SELECT META(u).id AS id, COUNT(*) AS count FROM `GleambookUsers_ds` u, `GleambookMessages_ds` m WHERE TO_STRING(META(u).id) = m.author_id \
            AND u.user_since >= "2008-02-13T16-48-15" AND u.user_since < "2010-02-13T16-48-15" AND m.send_time >= "2009-02-01T12-23-09" AND \
@@ -483,7 +484,8 @@ class analytics(CBASBaseTest):
         
         ########################################################################################################################
         self.log.info("Step 3: Create 10M docs average of 1k docs for 8 couchbase buckets.")
-        cluster = CouchbaseCluster.create(self.master.ip);
+        env = DefaultCouchbaseEnvironment.builder().mutationTokensEnabled(True).computationPoolSize(5).socketConnectTimeout(100000).connectTimeout(100000).maxRequestLifetime(TimeUnit.SECONDS.toMillis(300)).build();
+        cluster = CouchbaseCluster.create(env, self.master.ip);
         cluster.authenticate("Administrator","password")
         bucket = cluster.openBucket("GleambookUsers");
         msg_bucket = cluster.openBucket("GleambookMessages")

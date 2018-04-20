@@ -519,13 +519,16 @@ class RebalanceTask(Task):
                 if cluster_run:
                     if int(server.port) == int(node.port):
                         ejectedNodes.append(node.id)
+                        log.info("removing node {0}:{1} to cluster".format(node.ip, node.port))
                 else:
                     if self.use_hostnames:
                         if server.hostname == node.ip and int(server.port) == int(node.port):
                             ejectedNodes.append(node.id)
+                            log.info("removing node {0}:{1} to cluster".format(node.ip, node.port))
                     elif server.ip == node.ip and int(server.port) == int(node.port):
                         ejectedNodes.append(node.id)
-                log.info("removing node {0}:{1} to cluster".format(node.ip, node.port))
+                        log.info("removing node {0}:{1} to cluster".format(node.ip, node.port))
+                
         if self.rest.is_cluster_mixed():
             # workaround MB-8094
             log.warn("cluster is mixed. sleep for 15 seconds before rebalance")
