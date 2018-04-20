@@ -124,11 +124,11 @@ class GleambookMessages_Docloader(Callable):
             for i in xrange(self.num_items):
                 start_message_id = global_vars.message_id
                 if self.op_type == "create":
-                    for j in xrange(random.randint(1,10)):
+                    for j in xrange(5):
                         var = str(json.dumps(self.generate_GleambookMessages(i+self.start_from , global_vars.message_id)))
                         user = JsonTranscoder().stringToJsonObject(var);
 #                         print i+self.start_from,global_vars.message_id
-                        doc = JsonDocument.create(str(global_vars.message_id), user);
+                        doc = JsonDocument.create(str(global_vars.message_id).zfill(12), user);
                         try:
                             response = self.msg_bucket.insert(doc);
                         except:
@@ -138,11 +138,11 @@ class GleambookMessages_Docloader(Callable):
                 elif self.op_type == "update":
                     var = str(json.dumps(self.generate_GleambookMessages(i+self.start_from , i+start_message_id)))
                     user = JsonTranscoder().stringToJsonObject(var);
-                    doc = JsonDocument.create(str(i+start_message_id), user);
+                    doc = JsonDocument.create(str(i+start_message_id).zfill(12), user);
                     response = self.msg_bucket.upsert(doc);                    
                 elif self.op_type == "delete":
                     try:
-                        response = self.msg_bucket.remove(str(i+start_message_id));
+                        response = self.msg_bucket.remove(str(i+start_message_id).zfill(12));
                     except:
                         pass      
                 self.loaded += 1
@@ -194,7 +194,7 @@ class GleambookUser_Docloader(Callable):
             EmploymentType = {"organization":random.choice(organization),"start_date":start_date}
             employment.append(EmploymentType)
 
-        GleambookUserType = {"id":num,"alias":"Peter"+"%05d"%num,"name":"Peter Thomas","user_since":date+"T"+time,
+        GleambookUserType = {"id":num,"alias":"Peter"+"%09d"%num,"name":"Peter Thomas","user_since":date+"T"+time,
 #                              "friend_ids":random.sample(range(1000),random.choice(range(10))),
                             "employment":random.sample(employment,random.choice(range(6)))
                              }
@@ -225,16 +225,16 @@ class GleambookUser_Docloader(Callable):
                 if self.op_type == "create":
                     var = str(json.dumps(self.generate_GleambookUser(i+self.start_from)))
                     user = JsonTranscoder().stringToJsonObject(var);
-                    doc = JsonDocument.create(str(i+self.start_from), user);
+                    doc = JsonDocument.create(str(i+self.start_from).zfill(12), user);
                     response = self.bucket.insert(doc);
                 elif self.op_type == "update":
                     var = str(json.dumps(self.generate_GleambookUser(i+self.start_from)))
                     user = JsonTranscoder().stringToJsonObject(var);
-                    doc = JsonDocument.create(str(i+self.start_from), user);
+                    doc = JsonDocument.create(str(i+self.start_from).zfill(12), user);
                     response = self.bucket.upsert(doc);
                     
                 elif self.op_type == "delete":
-                    response = self.bucket.remove(str(i+self.start_from));
+                    response = self.bucket.remove(str(i+self.start_from).zfill(12));
                 self.loaded += 1
         except Exception, ex:
             import traceback
@@ -588,7 +588,7 @@ class analytics(CBASBaseTest):
         ########################################################################################################################
         self.log.info("Step 13: Wait for rebalance to complete.")
         rebalance.get_result()
-        reached = RestHelper(self.rest).rebalance_reached()
+        reached = RestHelper(self.rest).rebalance_reached(wait_step=120)
         self.assertTrue(reached, "rebalance failed, stuck or did not complete")
         self.sleep(20)
          
@@ -682,7 +682,7 @@ class analytics(CBASBaseTest):
         futures = pool.invokeAll(executors)
         self.log.info("Step 23: Wait for rebalance.")
         rebalance.get_result()
-        reached = RestHelper(self.rest).rebalance_reached()
+        reached = RestHelper(self.rest).rebalance_reached(wait_step=120)
         self.assertTrue(reached, "rebalance failed, stuck or did not complete")
         self.sleep(20)
          
@@ -727,7 +727,7 @@ class analytics(CBASBaseTest):
  
         self.log.info("Step 27: Wait for rebalance to complete.")
         rebalance.get_result()
-        reached = RestHelper(self.rest).rebalance_reached()
+        reached = RestHelper(self.rest).rebalance_reached(wait_step=120)
         self.assertTrue(reached, "rebalance failed, stuck or did not complete")
          
         ########################################################################################################################
@@ -792,7 +792,7 @@ class analytics(CBASBaseTest):
         ########################################################################################################################
         self.log.info("Step 33: Wait for rebalance to complete.")
         rebalance.get_result()
-        reached = RestHelper(self.rest).rebalance_reached()
+        reached = RestHelper(self.rest).rebalance_reached(wait_step=120)
         self.assertTrue(reached, "rebalance failed, stuck or did not complete")
         self.sleep(20)
  
@@ -856,7 +856,7 @@ class analytics(CBASBaseTest):
         ########################################################################################################################
         self.log.info("Step 39: Wait for rebalance to complete.")
         rebalance.get_result()
-        reached = RestHelper(self.rest).rebalance_reached()
+        reached = RestHelper(self.rest).rebalance_reached(wait_step=120)
         self.assertTrue(reached, "rebalance failed, stuck or did not complete")
         self.sleep(20)
          
@@ -913,9 +913,7 @@ class analytics(CBASBaseTest):
         ###################################################### NEED TO BE UPDATED ##################################################################
         self.log.info("Step 44: When 43 is in progress do a KV+CBAS Rebalance IN.")
         rebalance = self.cluster.async_rebalance(nodes_in_cluster, [self.cbas_node], [],services=["cbas"])
-        rebalance.get_result()
         nodes_in_cluster += [self.cbas_node]
-        reached = RestHelper(self.rest).rebalance_reached()
         self.assertTrue(reached, "rebalance failed, stuck or did not complete")
         rebalance = self.cluster.async_rebalance(nodes_in_cluster, [self.kv_servers[1]], [])
         nodes_in_cluster += [self.kv_servers[1]]
@@ -928,7 +926,7 @@ class analytics(CBASBaseTest):
         ########################################################################################################################
         self.log.info("Step 45: Wait for rebalance to complete.")
         rebalance.get_result()
-        reached = RestHelper(self.rest).rebalance_reached()
+        reached = RestHelper(self.rest).rebalance_reached(wait_step=120)
         self.assertTrue(reached, "rebalance failed, stuck or did not complete")
         self.sleep(20)
          
@@ -998,7 +996,7 @@ class analytics(CBASBaseTest):
         ########################################################################################################################
         self.log.info("Step 51: Wait for rebalance to complete.")
         rebalance.get_result()
-        reached = RestHelper(self.rest).rebalance_reached()
+        reached = RestHelper(self.rest).rebalance_reached(wait_step=120)
         self.assertTrue(reached, "rebalance failed, stuck or did not complete")
         self.sleep(20)
         updates_from = items_start_from
@@ -1058,7 +1056,8 @@ class analytics(CBASBaseTest):
 #         rebalance.get_result()
         nodes_in_cluster.remove(self.cbas_node)
         nodes_in_cluster.remove(self.kv_servers[2])
-        nodes_in_cluster = [node for node in nodes_in_cluster if node not in self.cbas_servers[-1:]] + [self.kv_servers[1]]
+        nodes_in_cluster = [node for node in nodes_in_cluster if node not in self.cbas_servers[-1:]]
+        nodes_in_cluster += [self.kv_servers[1]]
          
         futures = pool.invokeAll(executors)
         for future in futures:
@@ -1069,7 +1068,7 @@ class analytics(CBASBaseTest):
         ########################################################################################################################
         self.log.info("Step 57: Wait for rebalance to complete.")
         rebalance.get_result()
-        reached = RestHelper(self.rest).rebalance_reached()
+        reached = RestHelper(self.rest).rebalance_reached(wait_step=120)
         self.assertTrue(reached, "rebalance failed, stuck or did not complete")
         self.sleep(20)
          
