@@ -1,3 +1,4 @@
+import bulk_doc_operations.doc_ops as doc_op
 from com.couchbase.client.java.env import DefaultCouchbaseEnvironment
 import copy
 from com.couchbase.client.java import *;
@@ -73,7 +74,7 @@ class QueryRunner(Callable):
         return self
 
 class GleambookMessages_Docloader(Callable):
-    def __init__(self, bucket, msg_bucket, num_items, start_from,op_type="create"):
+    def __init__(self, bucket, msg_bucket, num_items, start_from,op_type="create",batch_size=1000):
         self.bucket = bucket
         self.msg_bucket = msg_bucket
         self.num_items = num_items
@@ -87,6 +88,7 @@ class GleambookMessages_Docloader(Callable):
         self.year = range(2001,2018)
         self.month = range(1,12)
         self.day = range(1,28)
+        self.batch_size = batch_size
         
     def generate_GleambookMessages(self, num=None,message_id=None):
 
@@ -122,6 +124,8 @@ class GleambookMessages_Docloader(Callable):
         self.thread_used = threading.currentThread().getName()
         self.started = time.time()
         try:
+            temp=0
+            docs=[]
             for i in xrange(self.num_items):
                 start_message_id = global_vars.message_id
                 if self.op_type == "create":
@@ -130,17 +134,31 @@ class GleambookMessages_Docloader(Callable):
                         user = JsonTranscoder().stringToJsonObject(var);
 #                         print i+self.start_from,global_vars.message_id
                         doc = JsonDocument.create(str(global_vars.message_id), user);
-                        try:
-                            response = self.msg_bucket.insert(doc);
-                        except:
-                            pass
+                        docs.append(doc)
+                        temp+=1
+                        if temp == self.batch_size:
+                            try:
+                                doc_op().bulkSet(self.msg_bucket, docs)
+                            except:
+                                time.sleep(20)
+                                doc_op().bulkUpsert(self.msg_bucket, docs)
+                            temp = 0
+                            docs=[]
                         global_vars.message_id += 1
                     end_message_id = global_vars.message_id
                 elif self.op_type == "update":
                     var = str(json.dumps(self.generate_GleambookMessages(i+self.start_from , i+start_message_id)))
                     user = JsonTranscoder().stringToJsonObject(var);
                     doc = JsonDocument.create(str(i+start_message_id), user);
-                    response = self.msg_bucket.upsert(doc);                    
+                    docs.append(doc)
+                    if temp == self.batch_size:
+                        try:
+                            doc_op().bulkUpsert(self.msg_bucket, docs)
+                        except:
+                            time.sleep(20)
+                            doc_op().bulkUpsert(self.msg_bucket, docs)
+                        temp = 0
+                        docs=[]           
                 elif self.op_type == "delete":
                     try:
                         response = self.msg_bucket.remove(str(i+start_message_id));
@@ -157,7 +175,7 @@ class GleambookMessages_Docloader(Callable):
         return self
     
 class GleambookUser_Docloader(Callable):
-    def __init__(self, bucket, msg_bucket, num_items, start_from,op_type="create"):
+    def __init__(self, bucket, msg_bucket, num_items, start_from,op_type="create", batch_size=2000):
         self.bucket = bucket
         self.msg_bucket = msg_bucket
         self.num_items = num_items
@@ -174,6 +192,7 @@ class GleambookUser_Docloader(Callable):
         self.hr = range(0,24)
         self.min = range(0,60)
         self.sec = range(0,60)
+        self.batch_size = batch_size
         
     def generate_GleambookUser(self, num=None):
         organization = ["Wipro","Infosys","TCS","Tech Mahindra","CTS","Microsoft"]
@@ -222,17 +241,38 @@ class GleambookUser_Docloader(Callable):
         self.thread_used = threading.currentThread().getName()
         self.started = time.time()
         try:
+            docs=[]
+            temp=0
             for i in xrange(self.num_items):
                 if self.op_type == "create":
                     var = str(json.dumps(self.generate_GleambookUser(i+self.start_from)))
                     user = JsonTranscoder().stringToJsonObject(var);
                     doc = JsonDocument.create(str(i+self.start_from), user);
-                    response = self.bucket.insert(doc);
+                    docs.append(doc)
+                    temp += 1
+                    if temp == self.batch_size:
+                        try:
+                            doc_op().bulkSet(self.bucket, docs)
+                        except:
+                            time.sleep(20)
+                            doc_op().bulkUpsert(self.bucket, docs)
+                        temp = 0
+                        docs=[]
+#                     response = self.bucket.insert(doc);
                 elif self.op_type == "update":
                     var = str(json.dumps(self.generate_GleambookUser(i+self.start_from)))
                     user = JsonTranscoder().stringToJsonObject(var);
                     doc = JsonDocument.create(str(i+self.start_from), user);
-                    response = self.bucket.upsert(doc);
+                    docs.append(doc)
+                    temp += 1
+                    if temp == self.batch_size:
+                        try:
+                            doc_op().bulkUpsert(self.bucket, docs)
+                        except:
+                            time.sleep(20)
+                            doc_op().bulkUpsert(self.bucket, docs)
+                        temp = 0
+                        docs=[]
                     
                 elif self.op_type == "delete":
                     response = self.bucket.remove(str(i+self.start_from));
