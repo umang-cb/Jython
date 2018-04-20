@@ -184,5 +184,57 @@ class CBASBugAutomation(CBASBaseTest):
             count_n1ql = self.rest.query_tool('select count(*) from `%s`' % ("default" + str(i)))['results'][0]['$1']
             result = self.cbas_util.validate_cbas_dataset_items_count(dataset_name="cbas_default_ds" + str(i), expected_count=count_n1ql, expected_mutated_count=count_n1ql-num_of_documents_per_insert_update)
 
+    '''
+    cbas.cbas_bug_automation.CBASBugAutomation.test_analytics_queries_using_cbq,cb_bucket_name=default,items=1000,cbas_bucket_name=default_cbas,cbas_dataset_name=ds,cb_bucket_name=default
+    '''
+
+    def test_analytics_queries_using_cbq(self):
+
+        self.log.info("Load data in the default bucket")
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items, exp=0, batch_size=10)
+
+        self.log.info("Create primary index")
+        query = "CREATE PRIMARY INDEX ON {0} using gsi".format(self.cb_bucket_name)
+        self.rest.query_tool(query)
+
+        self.log.info("Create a connection")
+        self.cbas_util.createConn(self.cb_bucket_name)
+
+        self.log.info("Create a CBAS bucket")
+        query = 'create bucket %s with {"name":"%s"}' % (self.cbas_bucket_name, self.cb_bucket_name)
+        result = self.analytics_helper.run_commands_using_cbq_shell(query, self.cbas_node, 8095)
+        self.assertTrue(result['status'] == "success", "Query %s failed." % query)
+
+        self.log.info("Create a default data-set")
+        query = 'create dataset %s on default_cbas' % self.cbas_dataset_name
+        result = self.analytics_helper.run_commands_using_cbq_shell(query, self.cbas_node, 8095)
+        self.assertTrue(result['status'] == "success", "Query %s failed." % query)
+
+        self.log.info("Connect to cbas bucket")
+        query = 'connect bucket %s' % self.cbas_bucket_name
+        result = self.analytics_helper.run_commands_using_cbq_shell(query, self.cbas_node, 8095)
+        self.assertTrue(result['status'] == "success", "Query %s failed." % query)
+
+        self.log.info("Fetch dataset count")
+        query = 'select count(*) from %s' % self.cbas_dataset_name
+        result = self.analytics_helper.run_commands_using_cbq_shell(query, self.cbas_node, 8095)
+        self.assertTrue(result['results'][0]['$1'] == self.num_items,
+                        "Number of items incorrect %s != %s" % (result["results"][0], self.num_items))
+
+        self.log.info("Disconnect cbas bucket")
+        query = 'disconnect bucket %s' % self.cbas_bucket_name
+        result = self.analytics_helper.run_commands_using_cbq_shell(query, self.cbas_node, 8095)
+        self.assertTrue(result['status'] == "success", "Query %s failed." % query)
+
+        self.log.info("Drop a dataset")
+        query = 'drop dataset %s' % self.cbas_dataset_name
+        result = self.analytics_helper.run_commands_using_cbq_shell(query, self.cbas_node, 8095)
+        self.assertTrue(result['status'] == "success", "Query %s failed." % query)
+
+        self.log.info("Drop bucket")
+        query = 'drop bucket %s' % self.cbas_bucket_name
+        result = self.analytics_helper.run_commands_using_cbq_shell(query, self.cbas_node, 8095)
+        self.assertTrue(result['status'] == "success", "Query %s failed." % query)
+                
     def tearDown(self):
         super(CBASBugAutomation, self).tearDown()

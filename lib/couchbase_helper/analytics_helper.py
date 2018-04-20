@@ -453,6 +453,43 @@ class AnalyticsHelper():
                 try_count += 1
         return "ran query with success and validated results" , check
 
+    def run_commands_using_cbq_shell(self, command, server, port, username='Administrator', password='password'):
+        """
+        command line shell to run commands on N1QL or Analytics.
+        :param command:
+        :param server:
+        :param port:
+        :param username:
+        :param password:
+        :return: Json response for the command
+        """
+        log = logger.Logger.get_logger()
+        shell = RemoteMachineShellConnection(server)
+        os = shell.extract_remote_info().type.lower()
+        if os != 'windows':
+            couchbase_path = testconstants.LINUX_COUCHBASE_BIN_PATH
+        else:
+            couchbase_path = testconstants.WIN_COUCHBASE_BIN_PATH
+        cmd = "%s/cbq -u=%s -p=%s -engine=http://%s:%s/ -s='%s'" % (
+            couchbase_path, username, password, server.ip, port, command)
+        output = shell.execute_command(cmd)
+        log.info(output)
+        response = ""
+        for line in output[0][5:]:
+            # There is a extra line with text Unspecified error in case of error, removing in-order to parse JSON
+            if "Unspecified error." not in line:
+                response += line
+        result = json.loads(response)
+
+        # Handle error
+        if isinstance(result, str) or 'errors' in result:
+            error_result = str(result)
+            length_display = len(error_result)
+            if length_display > 500:
+                error_result = error_result[:500]
+            raise CBQError(error_result, server.ip)
+
+        return json.loads(response)
 
     def run_cbq_query(self, query=None, min_output_size=10, server=None, query_params = {}, is_prepared=False, scan_consistency = None, scan_vector = None, verbose= True):
         if query is None:
@@ -499,7 +536,7 @@ class AnalyticsHelper():
             #query = query.replace('"', '\\"')
             #query = query.replace('`', '\\`')
             #if os == "linux":
-            cmd = "%s/cbq  -engine=http://%s:8093/" % (testconstants.LINUX_COUCHBASE_BIN_PATH,server.ip)
+            cmd = "%s/cbq  -engine=http://%s:8093/" % (testconstants.LINUX_COUCHBASE_BIN_PATH, server.ip)
             output = shell.execute_commands_inside(cmd,query,"","","","","")
             print "--------------------------------------------------------------------------------------------------------------------------------"
             print output
