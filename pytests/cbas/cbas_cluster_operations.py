@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import datetime
+
 from cbas_base import *
 from couchbase_helper.tuq_generators import JsonGenerator
 from lib.memcached.helper.data_helper import MemcachedClientHelper
@@ -431,5 +433,82 @@ class CBASClusterOperations(CBASBaseTest):
         if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items, 0):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
 
+    '''
+    test_fail_over_node_followed_by_rebalance_out_or_add_back,cb_bucket_name=default,graceful_failover=True,cbas_bucket_name=default_cbas,cbas_dataset_name=default_ds,items=10000,nodeType=KV,rebalance_out=True,concurrent_batch_size=500
+    test_fail_over_node_followed_by_rebalance_out_or_add_back,cb_bucket_name=default,graceful_failover=True,cbas_bucket_name=default_cbas,cbas_dataset_name=default_ds,items=10000,nodeType=KV,rebalance_out=False,recovery_strategy=full,concurrent_batch_size=500
+    test_fail_over_node_followed_by_rebalance_out_or_add_back,cb_bucket_name=default,graceful_failover=True,cbas_bucket_name=default_cbas,cbas_dataset_name=default_ds,items=10000,nodeType=KV,rebalance_out=False,recovery_strategy=delta,concurrent_batch_size=500
+
+    test_fail_over_node_followed_by_rebalance_out_or_add_back,cb_bucket_name=default,graceful_failover=False,cbas_bucket_name=default_cbas,cbas_dataset_name=default_ds,items=10000,nodeType=KV,rebalance_out=True,concurrent_batch_size=500
+    test_fail_over_node_followed_by_rebalance_out_or_add_back,cb_bucket_name=default,graceful_failover=False,cbas_bucket_name=default_cbas,cbas_dataset_name=default_ds,items=10000,nodeType=KV,rebalance_out=False,recovery_strategy=full,concurrent_batch_size=500
+    test_fail_over_node_followed_by_rebalance_out_or_add_back,cb_bucket_name=default,graceful_failover=False,cbas_bucket_name=default_cbas,cbas_dataset_name=default_ds,items=10000,nodeType=KV,rebalance_out=False,recovery_strategy=delta,concurrent_batch_size=500
+
+    test_fail_over_node_followed_by_rebalance_out_or_add_back,cb_bucket_name=default,graceful_failover=False,cbas_bucket_name=default_cbas,cbas_dataset_name=default_ds,items=10000,nodeType=CBAS,rebalance_out=True,concurrent_batch_size=500
+    test_fail_over_node_followed_by_rebalance_out_or_add_back,cb_bucket_name=default,graceful_failover=False,cbas_bucket_name=default_cbas,cbas_dataset_name=default_ds,items=10000,nodeType=CBAS,rebalance_out=False,recovery_strategy=full,concurrent_batch_size=500
+    '''
+
+    def test_fail_over_node_followed_by_rebalance_out_or_add_back(self):
+        """
+        1. Start with an initial setup, having 1 KV and 1 CBAS
+        2. Add a node that will be failed over - KV/CBAS
+        3. Create CBAS buckets and dataset
+        4. Fail over the KV node based in graceful_failover parameter specified
+        5. Rebalance out/add back based on input param specified in conf file
+        6. Perform doc operations
+        7. run concurrent queries
+        8. Verify document count on dataset post failover
+        """
+        self.log.info("Add an extra node to fail-over")
+        self.add_node(node=self.rebalanceServers[1])
+
+        self.log.info("Read the failure out type to be performed")
+        graceful_failover = self.input.param("graceful_failover", True)
+
+        self.log.info("Set up test - Create cbas buckets and data-sets")
+        self.setup_for_test()
+
+        self.log.info("Perform Async doc operations on KV")
+        json_generator = JsonGenerator()
+        generators = json_generator.generate_docs_simple(docs_per_day=self.num_items * 3 / 2, start=self.num_items)
+        kv_task = self._async_load_all_buckets(self.master, generators, "create", 0)
+
+        self.log.info("Run concurrent queries on CBAS")
+        query = "select count(*) from {0};".format(self.cbas_dataset_name)
+        self.cbas_util._run_concurrent_queries(query, "async", 10, batch_size=self.concurrent_batch_size)
+
+        self.log.info("fail-over the node")
+        fail_task = self._cb_cluster.async_failover(self.input.servers, [self.rebalanceServers[1]], graceful_failover)
+        fail_task.get_result()
+
+        self.log.info("Read input param to decide on add back or rebalance out")
+        self.rebalance_out = self.input.param("rebalance_out", False)
+        if self.rebalance_out:
+            self.log.info("Rebalance out the fail-over node")
+            self.rebalance()
+        else:
+            self.recovery_strategy = self.input.param("recovery_strategy", "full")
+            self.log.info("Performing %s recovery" % self.recovery_strategy)
+            success = False
+            end_time = datetime.datetime.now() + datetime.timedelta(minutes=int(1))
+            while datetime.datetime.now() < end_time or not success:
+                try:
+                    self.sleep(10, message="Wait for fail over complete")
+                    self.rest.set_recovery_type('ns_1@' + self.rebalanceServers[1].ip, self.recovery_strategy)
+                    success = True
+                except Exception:
+                    self.log.info("Fail over in progress. Re-try after 10 seconds.")
+                    pass
+            if not success:
+                self.fail("Recovery %s failed." % self.recovery_strategy)
+            self.rest.add_back_node('ns_1@' + self.rebalanceServers[1].ip)
+            self.rebalance()
+
+        self.log.info("Get KV ops result")
+        for task in kv_task:
+            task.get_result()
+
+        self.log.info("Validate dataset count on CBAS")
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items * 3 / 2, 0):
+            self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
+            
     def tearDown(self):
         super(CBASClusterOperations, self).setUp()       
