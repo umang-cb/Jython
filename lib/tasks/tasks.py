@@ -49,7 +49,7 @@ import testconstants
 #from sdk_client import SDKSmartClient as VBucketAwareMemcached
 from sdk_client import SDKSmartClient as VBucketAwareMemcached
 from CbasLib.CBASOperations import CBASHelper
-
+CHECK_FLAG = False
 
 PENDING = 'PENDING'
 EXECUTING = 'EXECUTING'
@@ -294,6 +294,16 @@ class BucketCreateTask(Task):
         self.enable_replica_index = bucket_params['enable_replica_index']
         self.eviction_policy = bucket_params['eviction_policy']
         self.lww = bucket_params['lww']
+        
+        if 'maxTTL' in bucket_params:
+            self.maxttl = bucket_params['maxTTL']
+        else:
+            self.maxttl = 0
+        if 'compressionMode' in bucket_params:
+            self.compressionMode = bucket_params['compressionMode']
+        else:
+            self.compressionMode = 'passive'
+            
         self.flush_enabled = bucket_params['flush_enabled']
         if bucket_params['bucket_priority'] is None or bucket_params['bucket_priority'].lower() is 'low':
             self.bucket_priority = 3
@@ -339,8 +349,9 @@ class BucketCreateTask(Task):
                                flushEnabled=self.flush_enabled,
                                evictionPolicy=self.eviction_policy,
                                threadsNumber=self.bucket_priority,
-                               lww=self.lww
-                               )
+                               lww=self.lww,
+                               maxTTL=self.maxttl,
+                               compressionMode=self.compressionMode)
             else:
                 BucketHelper(self.server).create_bucket(bucket=self.bucket,
                                ramQuotaMB=self.size,
@@ -352,7 +363,9 @@ class BucketCreateTask(Task):
                                replica_index=self.enable_replica_index,
                                flushEnabled=self.flush_enabled,
                                evictionPolicy=self.eviction_policy,
-                               lww=self.lww)
+                               lww=self.lww,
+                               maxTTL=self.maxttl,
+                               compressionMode=self.compressionMode)
             self.state = CHECKING
             self.call()
 
@@ -709,7 +722,7 @@ class StatsWaitTask(Task):
         return False
 
 class GenericLoadingTask(Thread, Task):
-    def __init__(self, server, task_manager, bucket, kv_store, batch_size=1, pause_secs=1, timeout_secs=60):
+    def __init__(self, server, task_manager, bucket, kv_store, batch_size=1, pause_secs=1, timeout_secs=60, compression=True):
         Thread.__init__(self)
         Task.__init__(self, "load_gen_task", task_manager=task_manager)
         self.kv_store = kv_store
@@ -718,7 +731,10 @@ class GenericLoadingTask(Thread, Task):
         self.timeout = timeout_secs
         self.server = server
         self.bucket = bucket
-        self.client = VBucketAwareMemcached(RestConnection(server), bucket, info=self.server)
+        if CHECK_FLAG:
+            self.client = VBucketAwareMemcached(RestConnection(server), bucket, info=self.server)
+        else:
+            self.client = VBucketAwareMemcached(RestConnection(server), bucket, info=self.server, compression=compression)
         self.process_concurrency = THROUGHPUT_CONCURRENCY
         # task queue's for synchronization
         #process_manager = Manager()
@@ -982,9 +998,10 @@ class GenericLoadingTask(Thread, Task):
 class LoadDocumentsTask(GenericLoadingTask):
 
     def __init__(self, server, task_manager, bucket, generator, kv_store, op_type, exp, flag=0,
-                 only_store_hash=True, proxy_client=None, batch_size=1, pause_secs=1, timeout_secs=30):
+                 only_store_hash=True, proxy_client=None, batch_size=1, pause_secs=1, timeout_secs=30,
+                 compression=True):
         GenericLoadingTask.__init__(self, server, task_manager, bucket, kv_store, batch_size=batch_size,pause_secs=pause_secs,
-                                    timeout_secs=timeout_secs)
+                                    timeout_secs=timeout_secs, compression=compression)
 
         self.generator = generator
         self.op_type = op_type
@@ -1042,9 +1059,10 @@ class LoadDocumentsTask(GenericLoadingTask):
 
 class LoadDocumentsGeneratorsTask(LoadDocumentsTask):
     def __init__(self, server, task_manager, bucket, generators, kv_store, op_type, exp, flag=0, only_store_hash=True,
-                 batch_size=1,pause_secs=1, timeout_secs=60):
+                 batch_size=1,pause_secs=1, timeout_secs=60, compression=True):
         LoadDocumentsTask.__init__(self, server, task_manager, bucket, generators[0], kv_store, op_type, exp, flag=flag,
-                    only_store_hash=only_store_hash, batch_size=batch_size, pause_secs=pause_secs, timeout_secs=timeout_secs)
+                    only_store_hash=only_store_hash, batch_size=batch_size, pause_secs=pause_secs, 
+                    timeout_secs=timeout_secs, compression=compression)
 #         log.info("BATCH SIZE for documents load: %s" % batch_size)
         if batch_size == 1:
             self.generators = generators
@@ -1070,7 +1088,9 @@ class LoadDocumentsGeneratorsTask(LoadDocumentsTask):
             self.op_types = op_type
         if isinstance(bucket, list):
             self.buckets = bucket
-
+        
+        self.compression = compression
+        
     def run(self):
         if self.op_types:
             if len(self.op_types) != len(self.generators):
@@ -1168,9 +1188,17 @@ class LoadDocumentsGeneratorsTask(LoadDocumentsTask):
         rv = {"err": None, "partitions": None}
 
         try:
-            client = VBucketAwareMemcached(
-                    RestConnection(self.server),
-                    self.bucket)
+#             client = VBucketAwareMemcached(
+#                     RestConnection(self.server),
+#                     self.bucket)
+            if CHECK_FLAG:
+                client = VBucketAwareMemcached(
+                        RestConnection(self.server),
+                        self.bucket)
+            else:
+                client = VBucketAwareMemcached(
+                     RestConnection(self.server),
+                    self.bucket, compression=self.compression)
             if self.op_types:
                 self.op_type = self.op_types[iterator]
             if self.buckets:
@@ -1748,8 +1776,9 @@ class CBASQueryExecuteTask(Task):
 
 
 class ValidateDataTask(GenericLoadingTask):
-    def __init__(self, server, bucket, kv_store, max_verify=None, only_store_hash=True, replica_to_read=None, task_manager=None):
-        GenericLoadingTask.__init__(self, server, task_manager, bucket, kv_store)
+    def __init__(self, server, bucket, kv_store, max_verify=None, only_store_hash=True, replica_to_read=None, task_manager=None,
+                 compression=True):
+        GenericLoadingTask.__init__(self, server, task_manager, bucket, kv_store, compression=compression)
         self.valid_keys, self.deleted_keys = kv_store.key_set()
         self.num_valid_keys = len(self.valid_keys)
         self.num_deleted_keys = len(self.deleted_keys)
@@ -1841,8 +1870,9 @@ class ValidateDataTask(GenericLoadingTask):
         self.kv_store.release_partition(key)
         
 class BatchedValidateDataTask(GenericLoadingTask):
-    def __init__(self, server, bucket, kv_store, max_verify=None, only_store_hash=True, batch_size=100, timeout_sec=5, task_manager=None):
-        GenericLoadingTask.__init__(self, server, task_manager, bucket, kv_store)
+    def __init__(self, server, bucket, kv_store, max_verify=None, only_store_hash=True, batch_size=100, timeout_sec=5, task_manager=None,
+                 compression=True):
+        GenericLoadingTask.__init__(self, server, task_manager, bucket, kv_store, compression=compression)
         self.valid_keys, self.deleted_keys = kv_store.key_set()
         self.num_valid_keys = len(self.valid_keys)
         self.num_deleted_keys = len(self.deleted_keys)

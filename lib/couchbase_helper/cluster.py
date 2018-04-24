@@ -138,12 +138,12 @@ class Cluster(object):
         return _task
 
     def async_load_gen_docs(self, server, bucket, generator, kv_store, op_type, exp=0, flag=0, only_store_hash=True,
-                            batch_size=1, pause_secs=1, timeout_secs=5, proxy_client=None):
+                            batch_size=1, pause_secs=1, timeout_secs=5, proxy_client=None, compression=True):
         log.info("BATCH SIZE for documents load: %s" % batch_size)
         if isinstance(generator, list):
-                _task = conc.LoadDocumentsGeneratorsTask(server, self.task_manager, bucket, generator, kv_store, op_type, exp, flag, only_store_hash, batch_size)
+                _task = conc.LoadDocumentsGeneratorsTask(server, self.task_manager, bucket, generator, kv_store, op_type, exp, flag, only_store_hash, batch_size, compression=compression)
         else:
-                _task = conc.LoadDocumentsGeneratorsTask(server, self.task_manager, bucket, [generator], kv_store, op_type, exp, flag, only_store_hash, batch_size)
+                _task = conc.LoadDocumentsGeneratorsTask(server, self.task_manager, bucket, [generator], kv_store, op_type, exp, flag, only_store_hash, batch_size, compression=compression)
 
         self.task_manager.schedule(_task)
         return _task
@@ -279,21 +279,24 @@ class Cluster(object):
         return _task.get_result(timeout)
 
     def load_gen_docs(self, server, bucket, generator, kv_store, op_type, exp=0, timeout=None,
-                      flag=0, only_store_hash=True, batch_size=1, proxy_client=None):
+                      flag=0, only_store_hash=True, batch_size=1, proxy_client=None, compression=True):
         _task = self.async_load_gen_docs(server, bucket, generator, kv_store, op_type, exp, flag,
-                                         only_store_hash=only_store_hash, batch_size=batch_size, proxy_client=proxy_client)
+                                         only_store_hash=only_store_hash, batch_size=batch_size, 
+                                         proxy_client=proxy_client, compression=compression)
         return _task.get_result(timeout)
 
-    def verify_data(self, server, bucket, kv_store, timeout=None):
-        _task = self.async_verify_data(server, bucket, kv_store)
+    def verify_data(self, server, bucket, kv_store, timeout=None, compression=True):
+        _task = self.async_verify_data(server, bucket, kv_store, compression=compression)
         return _task.result(timeout)
 
     def async_verify_data(self, server, bucket, kv_store, max_verify=None,
-                          only_store_hash=True, batch_size=1, replica_to_read=None, timeout_sec=5):
+                          only_store_hash=True, batch_size=1, replica_to_read=None, timeout_sec=5, compression=True):
         if batch_size > 1:
-            _task = conc.BatchedValidateDataTask(server, bucket, kv_store, max_verify, only_store_hash, batch_size, timeout_sec, self.task_manager)
+            _task = conc.BatchedValidateDataTask(server, bucket, kv_store, max_verify, only_store_hash, batch_size, 
+                                                 timeout_sec, self.task_manager, compression=compression)
         else:
-            _task = conc.ValidateDataTask(server, bucket, kv_store, max_verify, only_store_hash, replica_to_read, self.task_manager)
+            _task = conc.ValidateDataTask(server, bucket, kv_store, max_verify, only_store_hash, replica_to_read, 
+                                          self.task_manager, compression=compression)
         self.task_manager.schedule(_task)
         return _task
     

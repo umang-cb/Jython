@@ -40,7 +40,11 @@ class SDKClient(object):
 
     def __init__(self, bucket, hosts=["localhost"] , scheme="couchbase",
                  ssl_path=None, uhm_options=None, password=None,
-                 quiet=True, certpath = None, transcoder = None):
+                 quiet=True, certpath = None, transcoder = None, compression=True):
+        
+        self.connection_string = \
+            self._createString(scheme = scheme, bucket = bucket, hosts = hosts,
+                               certpath = certpath, uhm_options = uhm_options, compression=compression)
         self.hosts = hosts
         self.password = password
         self.bucket = bucket
@@ -51,7 +55,36 @@ class SDKClient(object):
         self.cluster = None
         self._createConn()
         #couchbase.set_json_converters(json.dumps, json.loads)
-
+        
+    def _createString(self, scheme ="couchbase", bucket = None, hosts = ["localhost"], certpath = None,
+                      uhm_options = "", ipv6=False, compression=True):
+        connection_string = "{0}://{1}".format(scheme, ", ".join(hosts).replace(" ",""))
+        # if bucket != None:
+        #     connection_string = "{0}/{1}".format(connection_string, bucket)
+        if uhm_options != None:
+            connection_string = "{0}?{1}".format(connection_string, uhm_options)
+        if ipv6 == True:
+            if "?" in connection_string:
+                connection_string = "{0},ipv6=allow".format(connection_string)
+            else:
+                connection_string = "{0}?ipv6=allow".format(connection_string)
+        if compression == True:
+            if "?" in connection_string:
+                connection_string = "{0},compression=on".format(connection_string)
+            else:
+                connection_string = "{0}?compression=on".format(connection_string)
+        else:
+            if "?" in connection_string:
+                connection_string = "{0},compression=off".format(connection_string)
+            else:
+                connection_string = "{0}?compression=off".format(connection_string)
+        if scheme == "couchbases":
+            if "?" in connection_string:
+                connection_string = "{0},certpath={1}".format(connection_string, certpath)
+            else:
+                connection_string = "{0}?certpath={1}".format(connection_string, certpath)
+        return connection_string
+    
     def _createConn(self):
         try:
             logger = Logger.getLogger("com.couchbase.client");
@@ -59,7 +92,8 @@ class SDKClient(object):
             for h in logger.getParent().getHandlers():
                 if isinstance(h, ConsoleHandler) :
                     h.setLevel(Level.SEVERE);
-            self.cluster = CouchbaseCluster.create(Java_Connection.env, self.hosts)
+#             self.cluster = CouchbaseCluster.create(Java_Connection.env, self.hosts)
+            self.cluster = CouchbaseCluster.fromConnectionString(Java_Connection.env, self.connection_string);
             self.cluster.authenticate("Administrator", self.password)
             self.cb = self.cluster.openBucket(self.bucket)
         except CouchbaseException:
@@ -608,7 +642,7 @@ class SDKClient(object):
         builder.execute()
 
 class SDKSmartClient(object):
-    def __init__(self, rest, bucket, info = None):
+    def __init__(self, rest, bucket, compression=True, info = None):
         self.rest = rest
         self.server = info
         if hasattr(bucket, 'name'):
@@ -627,13 +661,15 @@ class SDKSmartClient(object):
         else:
             self.host = rest.ip
             self.scheme = "couchbase"
-        self.client = SDKClient(self.bucket, hosts=[self.host], scheme=self.scheme, password=rest.password)
+        self.client = SDKClient(self.bucket, hosts=[self.host], scheme=self.scheme, password=rest.password, 
+                                compression=compression)
 
     def close(self):
         self.client.close()
 
-    def reset(self):
-        self.client = SDKClient(self.bucket, hosts=[self.host], scheme=self.scheme, password=self.saslPassword)
+    def reset(self,compression=True):
+        self.client = SDKClient(self.bucket, hosts=[self.host], scheme=self.scheme, password=self.saslPassword,
+                                compression=compression)
 
     def memcached(self):
         return self.client

@@ -79,7 +79,9 @@ class BucketHelper(bucket_helper_rest, SDKClient):
                       threadsNumber=3,
                       flushEnabled=1,
                       evictionPolicy='valueOnly',
-                      lww=False):
+                      lww=False,
+                      maxTTL=None,
+                      compressionMode=None):
         log.info("Connecting Cluster")
         self.connectCluster()        
         try:

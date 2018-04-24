@@ -159,6 +159,9 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
             # for ephemeral buckets it
             self.sasl_password = self.input.param("sasl_password", 'password')
             self.lww = self.input.param("lww", False)  # only applies to LWW but is here because the bucket is created here
+            self.maxttl = self.input.param("maxttl", None)
+            self.compression_mode = self.input.param("compression_mode", 'passive')
+            self.sdk_compression = self.input.param("sdk_compression", True)
             self.sasl_bucket_name = "bucket"
             self.sasl_bucket_priority = self.input.param("sasl_bucket_priority", None)
             self.standard_bucket_priority = self.input.param("standard_bucket_priority", None)
@@ -192,7 +195,8 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
                                                        replicas=self.num_replicas,
                                                        enable_replica_index=self.enable_replica_index,
                                                        eviction_policy=self.eviction_policy, bucket_priority=None,
-                                                       lww=self.lww)
+                                                       lww=self.lww, maxttl=self.maxttl,
+                                                       compression_mode=self.compression_mode)
 
             membase_params = copy.deepcopy(shared_params)
             membase_params['bucket_type'] = 'membase'
@@ -825,7 +829,7 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
                                                           gens_load[bucket],
                                                           bucket.kvs[kv_store], op_type, exp, flag,
                                                           only_store_hash, batch_size, pause_secs,
-                                                          timeout_secs))
+                                                          timeout_secs, compression=self.sdk_compression))
         for task in tasks:
             task.get_result()
         self.num_items = items + start_items

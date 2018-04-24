@@ -273,7 +273,9 @@ class BucketHelper(RestConnection):
                       threadsNumber=3,
                       flushEnabled=1,
                       evictionPolicy='valueOnly',
-                      lww=False):
+                      lww=False,
+                      maxTTL=None,
+                      compressionMode='passive'):
 
 
         api = '{0}{1}'.format(self.baseUrl, 'pools/default/buckets')
@@ -321,7 +323,11 @@ class BucketHelper(RestConnection):
         if lww:
             init_params['conflictResolutionType'] = 'lww'
 
-
+        if maxTTL:
+            init_params['maxTTL'] = maxTTL
+        if compressionMode:
+            init_params['compressionMode'] = compressionMode
+            
         if bucketType == 'ephemeral':
             del init_params['replicaIndex']     # does not apply to ephemeral buckets, and is even rejected
 
@@ -369,7 +375,10 @@ class BucketHelper(RestConnection):
                       proxyPort=None,
                       replicaIndex=None,
                       flushEnabled=None,
-                      timeSynchronization=None):
+                      timeSynchronization=None,
+                      maxTTL=None,
+                      compressionMode=None):
+        
         api = '{0}{1}{2}'.format(self.baseUrl, 'pools/default/buckets/', bucket)
         if isinstance(bucket, Bucket):
             api = '{0}{1}{2}'.format(self.baseUrl, 'pools/default/buckets/', bucket.name)
@@ -393,7 +402,11 @@ class BucketHelper(RestConnection):
             params_dict["flushEnabled"] = flushEnabled
         if timeSynchronization:
             params_dict["timeSynchronization"] = timeSynchronization
-
+        if maxTTL:
+            params_dict["maxTTL"] = maxTTL
+        if compressionMode:
+            params_dict["compressionMode"] = compressionMode
+            
         params = urllib.urlencode(params_dict)
 
         log.info("%s with param: %s" % (api, params))
