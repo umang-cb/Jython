@@ -507,9 +507,13 @@ class analytics(CBASBaseTest):
 
         self.log.info("Add a N1QL/Index nodes")
         self.query_node = self.servers[1]
+        rest = RestConnection(self.query_node)
+        rest.set_data_path(data_path=self.query_node.data_path,index_path=self.query_node.index_path,cbas_path=self.query_node.cbas_path)
         result = self.add_node(self.query_node, rebalance=False)
         self.assertTrue(result, msg="Failed to add N1QL/Index node.")
         self.log.info("Add a KV nodes")
+        rest = RestConnection(self.kv_servers[1])
+        rest.set_data_path(data_path=self.kv_servers[1].data_path,index_path=self.kv_servers[1].index_path,cbas_path=self.kv_servers[1].cbas_path)
         result = self.add_node(self.kv_servers[1], services=["kv"], rebalance=False)
         self.assertTrue(result, msg="Failed to add KV node.")
          
@@ -601,6 +605,8 @@ class analytics(CBASBaseTest):
          
         ########################################################################################################################
         self.log.info("Step 12: When 11 is in progress do a KV Rebalance in of 1 nodes.")
+        rest = RestConnection(self.kv_servers[2])
+        rest.set_data_path(data_path=self.kv_servers[2].data_path,index_path=self.kv_servers[2].index_path,cbas_path=self.kv_servers[2].cbas_path)
         rebalance = self.cluster.async_rebalance(nodes_in_cluster, [self.kv_servers[2]], [])
         nodes_in_cluster += [self.kv_servers[2]]
         ########################################################################################################################
@@ -755,6 +761,9 @@ class analytics(CBASBaseTest):
          
         ##################################################### NEED TO BE UPDATED ##################################################################
         self.log.info("Step 25: When 24 is in progress do a CBAS Rebalance in of 2 nodes.")
+        for node in self.cbas_servers[2:]:
+            rest = RestConnection(node)
+            rest.set_data_path(data_path=node.data_path,index_path=node.index_path,cbas_path=node.cbas_path)
         rebalance = self.cluster.async_rebalance(nodes_in_cluster, self.cbas_servers[2:],[])
         nodes_in_cluster = nodes_in_cluster + self.cbas_servers[2:]
         futures = pool.invokeAll(executors)
@@ -886,6 +895,9 @@ class analytics(CBASBaseTest):
          
         ###################################################### NEED TO BE UPDATED ##################################################################
         self.log.info("Step 38: When 37 is in progress do a CBAS SWAP Rebalance of 2 nodes.")
+        for node in self.cbas_servers[-1:]:
+            rest = RestConnection(node)
+            rest.set_data_path(data_path=node.data_path,index_path=node.index_path,cbas_path=node.cbas_path)
         rebalance = self.cluster.async_rebalance(nodes_in_cluster,self.cbas_servers[-1:], [self.cbas_node],services=["cbas"],check_vbucket_shuffling=False)
         nodes_in_cluster += self.cbas_servers[-1:]
         nodes_in_cluster.remove(self.cbas_node)
@@ -954,9 +966,13 @@ class analytics(CBASBaseTest):
          
         ###################################################### NEED TO BE UPDATED ##################################################################
         self.log.info("Step 44: When 43 is in progress do a KV+CBAS Rebalance IN.")
+        rest = RestConnection(self.cbas_node)
+        rest.set_data_path(data_path=self.cbas_node.data_path,index_path=self.cbas_node.index_path,cbas_path=self.cbas_node.cbas_path)
         rebalance = self.cluster.async_rebalance(nodes_in_cluster, [self.cbas_node], [],services=["cbas"])
         nodes_in_cluster += [self.cbas_node]
         self.assertTrue(reached, "rebalance failed, stuck or did not complete")
+        rest = RestConnection(self.kv_servers[1])
+        rest.set_data_path(data_path=self.kv_servers[1].data_path,index_path=self.kv_servers[1].index_path,cbas_path=self.kv_servers[1].cbas_path)
         rebalance = self.cluster.async_rebalance(nodes_in_cluster, [self.kv_servers[1]], [])
         nodes_in_cluster += [self.kv_servers[1]]
         futures = pool.invokeAll(executors)
@@ -1024,6 +1040,8 @@ class analytics(CBASBaseTest):
          
         ########################################################################################################################
         self.log.info("Step 50: When 49 is in progress do a KV+CBAS Rebalance OUT.")
+        rest = RestConnection(self.kv_servers[2])
+        rest.set_data_path(data_path=self.kv_servers[2].data_path,index_path=self.kv_servers[2].index_path,cbas_path=self.kv_servers[2].cbas_path)
         rebalance = self.cluster.async_rebalance(nodes_in_cluster, [self.kv_servers[2]], self.cbas_servers[-1:]+[self.kv_servers[1]])
 #         rebalance.get_result()
         nodes_in_cluster = [node for node in nodes_in_cluster if node not in self.cbas_servers[-1:]] + self.kv_servers[2]
@@ -1094,6 +1112,11 @@ class analytics(CBASBaseTest):
          
         ########################################################################################################################
         self.log.info("Step 56: When 55 is in progress do a KV+CBAS SWAP Rebalance .")
+        for node in self.cbas_servers[-1:]:
+            rest = RestConnection(node)
+            rest.set_data_path(data_path=node.data_path,index_path=node.index_path,cbas_path=node.cbas_path)
+        rest = RestConnection(self.kv_servers[1])
+        rest.set_data_path(data_path=self.kv_servers[1].data_path,index_path=self.kv_servers[1].index_path,cbas_path=self.kv_servers[1].cbas_path)
         rebalance = self.cluster.async_rebalance(nodes_in_cluster, self.cbas_servers[-1:]+[self.kv_servers[1]], [self.cbas_node, self.kv_servers[2]],services=["cbas","kv"])
 #         rebalance.get_result()
         nodes_in_cluster.remove(self.cbas_node)

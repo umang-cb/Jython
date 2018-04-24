@@ -30,7 +30,9 @@ class CBASBaseTest(BaseTestCase):
                 self.cbas_servers.append(server)
             if "kv" in server.services:
                 self.kv_servers.append(server)
-        
+            rest = RestConnection(server)
+            rest.set_data_path(data_path=server.data_path,index_path=server.index_path,cbas_path=server.cbas_path)
+            
         self.analytics_helper = AnalyticsHelper()
         self._cb_cluster = self.cluster
         self.travel_sample_docs_count = 31591
