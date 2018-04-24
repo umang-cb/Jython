@@ -3,21 +3,23 @@ Created on Sep 26, 2017
 
 @author: riteshagarwal
 '''
-import uuid
 from collections import defaultdict
 import copy
 import exceptions
 import json
 import random
-import time
 import string
 from subprocess import call
-from lib.mc_bin_client import MemcachedClient
-from remote.remote_util import RemoteMachineShellConnection
+import time
+import uuid
+
+from BucketLib.BucketOperations import BucketHelper
+from TestInput import TestInputSingleton
 from couchbase_helper.documentgenerator import BlobGenerator
 from couchbase_helper.documentgenerator import DocumentGenerator
 from couchbase_helper.stats_tools import StatsCommon
 import crc32
+from lib.mc_bin_client import MemcachedClient
 import logger
 import mc_bin_client
 from membase.api.exception import ServerUnavailableException
@@ -27,13 +29,13 @@ from membase.helper.rebalance_helper import RebalanceHelper
 import memcacheConstants
 from memcached.helper.data_helper import MemcachedClientHelper
 from memcached.helper.data_helper import VBucketAwareMemcached
+from remote.remote_util import RemoteMachineShellConnection
 from testconstants import MAX_COMPACTION_THRESHOLD
 from testconstants import MIN_COMPACTION_THRESHOLD
 from testconstants import STANDARD_BUCKET_PORT
 
-from BucketLib.BucketOperations import BucketHelper
+
 log = logger.Logger.get_logger()
-from TestInput import TestInputSingleton
 
 class bucket_utils():
     def __init__(self, server):
@@ -205,7 +207,7 @@ class bucket_utils():
                            proxyPort=port,
                            authType=authType,
                            saslPassword=password,
-                           maxttl=self.maxttl, compression_mode=self.compression_mode)
+                           maxTTL=self.maxttl, compressionMode=self.compression_mode)
         msg = 'create_bucket succeeded but bucket "{0}" does not exist'
         bucket_created = self.wait_for_bucket_creation(name, bucket_conn)
         if not bucket_created:
@@ -250,12 +252,14 @@ class bucket_utils():
                                        saslPassword=saslPassword,
                                        proxyPort=port,
                                        bucketType=bucketType,
-                                       evictionPolicy=evictionPolicy)
+                                       evictionPolicy=evictionPolicy,
+                                       maxTTL=self.maxttl, compressionMode=self.compression_mode)
                 else:
                     bucket_conn.create_bucket(bucket=name,
                                        ramQuotaMB=bucket_ram,
                                        replicaNumber=replica,
-                                       proxyPort=port)
+                                       proxyPort=port,
+                                       maxTTL=self.maxttl, compressionMode=self.compression_mode)
                 port += 1
                 msg = "create_bucket succeeded but bucket \"{0}\" does not exist"
                 bucket_created = self.wait_for_bucket_creation(name, bucket_conn)
@@ -328,7 +332,8 @@ class bucket_utils():
         standard_params = self._create_bucket_params(server=server, size=bucket_size,
                                                      replicas=self.num_replicas, bucket_type=self.bucket_type,
                                                      enable_replica_index=self.enable_replica_index,
-                                                     eviction_policy=self.eviction_policy, lww=self.lww)
+                                                     eviction_policy=self.eviction_policy, lww=self.lww,
+                                                     maxttl=self.maxttl, compression_mode=self.compression_mode)
 
         for bucket_name in bucket_list:
             self.log.info(" Creating bucket {0}".format(bucket_name))
@@ -1212,7 +1217,8 @@ class bucket_utils():
             ip_rest.create_bucket(bucket='default',
                                ramQuotaMB=256,
                                replicaNumber=number_of_replicas,
-                               proxyPort=11220)
+                               proxyPort=11220,
+                               maxTTL=self.maxttl, compressionMode=self.compression_mode)
             msg = 'create_bucket succeeded but bucket "default" does not exist'
             removed_all_buckets = self.wait_for_bucket_creation('default', ip_rest)
             if not removed_all_buckets:
