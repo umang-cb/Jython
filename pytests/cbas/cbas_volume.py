@@ -1044,9 +1044,9 @@ class analytics(CBASBaseTest):
         rest.set_data_path(data_path=self.kv_servers[2].data_path,index_path=self.kv_servers[2].index_path,cbas_path=self.kv_servers[2].cbas_path)
         rebalance = self.cluster.async_rebalance(nodes_in_cluster, [self.kv_servers[2]], self.cbas_servers[-1:]+[self.kv_servers[1]])
 #         rebalance.get_result()
-        nodes_in_cluster = [node for node in nodes_in_cluster if node not in self.cbas_servers[-1:]] + self.kv_servers[2]
+        nodes_in_cluster = [node for node in nodes_in_cluster if node not in self.cbas_servers[-1:]] + [self.kv_servers[2]]
         nodes_in_cluster.remove(self.kv_servers[1])
-         
+        
         futures = pool.invokeAll(executors)
         for future in futures:
             print future.get(num_executors, TimeUnit.SECONDS)
