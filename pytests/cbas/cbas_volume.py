@@ -427,6 +427,8 @@ class analytics(CBASBaseTest):
         self.log.info("Items in CB GleambookMessages bucket: %s"%items_GleambookMessages)
         self.log.info("Items in CB ChirpMessages bucket: %s"%items_ChirpMessages)
         
+        self.sleep(300)
+        
         if not self.cbas_util.validate_cbas_dataset_items_count("GleambookUsers_ds",items_GleambookUsers):
             self.fail("No. of items in GleambookUsers dataset do not match that in the CB bucket")
         
