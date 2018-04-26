@@ -429,22 +429,22 @@ class analytics(CBASBaseTest):
         
         self.sleep(300)
         
-        if not self.cbas_util.validate_cbas_dataset_items_count("GleambookUsers_ds",items_GleambookUsers):
+        if not self.cbas_util.validate_cbas_dataset_items_count("GleambookUsers_ds",items_GleambookUsers, num_tries=100):
             self.fail("No. of items in GleambookUsers dataset do not match that in the CB bucket")
         
-        if not self.cbas_util.validate_cbas_dataset_items_count("GleambookMessages_ds",items_GleambookMessages):
+        if not self.cbas_util.validate_cbas_dataset_items_count("GleambookMessages_ds",items_GleambookMessages, num_tries=100):
             self.fail("No. of items in GleambookMessages dataset do not match that in the CB bucket")        
          
-        if not self.cbas_util.validate_cbas_dataset_items_count("ChirpMessages_ds",items_ChirpMessages):
+        if not self.cbas_util.validate_cbas_dataset_items_count("ChirpMessages_ds",items_ChirpMessages, num_tries=100):
             self.fail("No. of items in ChirpMessages dataset do not match that in the CB bucket")
 
-        if not self.cbas_util.validate_cbas_dataset_items_count("GleambookUsers_ds1",items_GleambookUsers):
+        if not self.cbas_util.validate_cbas_dataset_items_count("GleambookUsers_ds1",items_GleambookUsers, num_tries=100):
             self.fail("No. of items in GleambookUsers dataset do not match that in the CB bucket")
         
-        if not self.cbas_util.validate_cbas_dataset_items_count("GleambookMessages_ds1",items_GleambookMessages):
+        if not self.cbas_util.validate_cbas_dataset_items_count("GleambookMessages_ds1",items_GleambookMessages, num_tries=100):
             self.fail("No. of items in GleambookMessages dataset do not match that in the CB bucket")        
          
-        if not self.cbas_util.validate_cbas_dataset_items_count("ChirpMessages_ds1",items_ChirpMessages):
+        if not self.cbas_util.validate_cbas_dataset_items_count("ChirpMessages_ds1",items_ChirpMessages, num_tries=100):
             self.fail("No. of items in ChirpMessages dataset do not match that in the CB bucket")
     
 #     def create_10M_docs(self):

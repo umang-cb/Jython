@@ -278,12 +278,12 @@ class cbas_utils():
 
         return total_items, mutated_items
 
-    def validate_cbas_dataset_items_count(self, dataset_name, expected_count, expected_mutated_count=0):
+    def validate_cbas_dataset_items_count(self, dataset_name, expected_count, expected_mutated_count=0, num_tries = 12):
         """
         Compares the count of CBAS dataset total and mutated items with the expected values.
         """
         count, mutated_count = self.get_num_items_in_cbas_dataset(dataset_name)
-        tries = 12
+        tries = num_tries
         if expected_mutated_count:
             while (count != expected_count or mutated_count != expected_mutated_count) and tries > 0:
                 time.sleep(10)
