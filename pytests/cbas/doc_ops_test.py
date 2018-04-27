@@ -319,7 +319,7 @@ class volume(BaseTestCase):
         self.assertTrue(result['status'] == "success")
         
     def test_volume(self):
-        nodes_in_cluster= [self.servers[0],self.cbas_node]
+        nodes_in_cluster= [self.servers[0]]
         print "Start Time: %s"%str(time.strftime("%H:%M:%S", time.gmtime(time.time())))
         
         ########################################################################################################################
@@ -334,7 +334,7 @@ class volume(BaseTestCase):
         result = self.add_node(self.servers[2], services=["kv"], rebalance=True)
         self.assertTrue(result, msg="Failed to add KV node.")
          
-        nodes_in_cluster = nodes_in_cluster + [self.servers[1]]
+        nodes_in_cluster = nodes_in_cluster + [self.servers[1], self.servers[2]]
         ########################################################################################################################
         self.log.info("Step 2: Create Couchbase buckets.")
         self.create_required_buckets()
