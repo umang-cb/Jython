@@ -496,7 +496,7 @@ class volume(BaseTestCase):
         for i in xrange(doc_executors):
             executors.append(GleambookUser_Docloader(bucket, num_items, items_start_from+i*num_items,batch_size=2000))
             executors.append(GleambookMessages_Docloader(msg_bucket, num_items, items_start_from+i*num_items,batch_size=2000))
-        rebalance = self.cluster.async_rebalance(nodes_in_cluster, [self.servers[3]], [self.servers[2]])
+        rebalance = self.cluster.async_rebalance(nodes_in_cluster, [self.servers[3]], [self.servers[2]], check_vbucket_shuffling=False)
         nodes_in_cluster = nodes_in_cluster + [self.servers[3]]
         nodes_in_cluster.remove(self.servers[2])
         futures = pool.invokeAll(executors)
