@@ -272,9 +272,9 @@ class volume(BaseTestCase):
         self.log.info("Get the available memory quota")
         bucket_util = bucket_utils(self.master)
         self.info = bucket_util.rest.get_nodes_self()
-        threadhold_memory = 400
+        threadhold_memory = 1024
         total_memory_in_mb = self.info.memoryFree / 1024 ** 2
-        total_available_memory_in_mb = 1500
+        total_available_memory_in_mb = total_memory_in_mb
         active_service = self.info.services
 
         if "index" in active_service:
@@ -309,6 +309,14 @@ class volume(BaseTestCase):
         result = RestConnection(self.query_node).query_tool("CREATE PRIMARY INDEX idx_ChirpMessages ON ChirpMessages;")
         self.sleep(10, "wait for index creation.")
         self.assertTrue(result['status'] == "success")
+
+    def validate_items_count(self):
+        items_GleambookUsers = RestConnection(self.query_node).query_tool('select count(*) from GleambookUsers')['results'][0]['$1']
+        items_GleambookMessages = RestConnection(self.query_node).query_tool('select count(*) from GleambookMessages')['results'][0]['$1']
+        items_ChirpMessages = RestConnection(self.query_node).query_tool('select count(*) from ChirpMessages')['results'][0]['$1']
+        self.log.info("Items in CB GleanBookUsers bucket: %s"%items_GleambookUsers)
+        self.log.info("Items in CB GleambookMessages bucket: %s"%items_GleambookMessages)
+        self.log.info("Items in CB ChirpMessages bucket: %s"%items_ChirpMessages)
         
     def test_volume(self):
         nodes_in_cluster= [self.servers[0]]
@@ -377,7 +385,8 @@ class volume(BaseTestCase):
             print future.get(num_executors, TimeUnit.SECONDS)
         print "Executors completed!!"
         shutdown_and_await_termination(pool, num_executors)
-         
+        self.validate_items_count()
+        
         ########################################################################################################################
         self.sleep(20,"Sleeping after 2nd cycle.")
         pool = Executors.newFixedThreadPool(5)
@@ -405,7 +414,8 @@ class volume(BaseTestCase):
         updates_from = items_start_from
         deletes_from = items_start_from + total_num_items/10
         items_start_from += total_num_items        
-
+        self.validate_items_count()
+        
         ########################################################################################################################
         self.sleep(20,"Sleeping after 1st cycle.")
         self.log.info("Step 8: Delete 1M docs. Update 1M docs.")
@@ -424,7 +434,8 @@ class volume(BaseTestCase):
             print future.get(num_executors, TimeUnit.SECONDS)
         print "Executors completed!!"
         shutdown_and_await_termination(pool, num_executors)
-         
+        self.validate_items_count()
+        
         ########################################################################################################################
         self.sleep(20,"Sleeping after 3rd cycle.")
         pool = Executors.newFixedThreadPool(5)
@@ -451,7 +462,8 @@ class volume(BaseTestCase):
         updates_from = items_start_from
         deletes_from = items_start_from + total_num_items/10
         items_start_from += total_num_items
-
+        self.validate_items_count()
+        
         ########################################################################################################################
         self.sleep(20,"Sleeping after 1st cycle.")
         self.log.info("Step 8: Delete 1M docs. Update 1M docs.")
@@ -470,7 +482,8 @@ class volume(BaseTestCase):
             print future.get(num_executors, TimeUnit.SECONDS)
         print "Executors completed!!"
         shutdown_and_await_termination(pool, num_executors)
-         
+        self.validate_items_count()
+        
         ########################################################################################################################
         self.sleep(20,"Sleeping after 4th cycle.")
         pool = Executors.newFixedThreadPool(5)
@@ -498,7 +511,8 @@ class volume(BaseTestCase):
         updates_from = items_start_from
         deletes_from = items_start_from + total_num_items/10
         items_start_from += total_num_items
-
+        self.validate_items_count()
+        
         ########################################################################################################################
         self.sleep(20,"Sleeping after 1st cycle.")
         self.log.info("Step 8: Delete 1M docs. Update 1M docs.")
@@ -517,7 +531,8 @@ class volume(BaseTestCase):
             print future.get(num_executors, TimeUnit.SECONDS)
         print "Executors completed!!"
         shutdown_and_await_termination(pool, num_executors)
-         
+        self.validate_items_count()
+        
         ########################################################################################################################
         self.sleep(20,"Sleeping after 5th cycle.")
         pool = Executors.newFixedThreadPool(5)
@@ -544,7 +559,8 @@ class volume(BaseTestCase):
         updates_from = items_start_from
         deletes_from = items_start_from + total_num_items/10
         items_start_from += total_num_items
-
+        self.validate_items_count()
+        
         ########################################################################################################################
         self.sleep(20,"Sleeping after 1st cycle.")
         self.log.info("Step 8: Delete 1M docs. Update 1M docs.")
@@ -563,7 +579,8 @@ class volume(BaseTestCase):
             print future.get(num_executors, TimeUnit.SECONDS)
         print "Executors completed!!"
         shutdown_and_await_termination(pool, num_executors)
-         
+        self.validate_items_count()
+        
         ########################################################################################################################
         self.sleep(20,"Sleeping after 6th cycle.")
         pool = Executors.newFixedThreadPool(5)
@@ -590,7 +607,8 @@ class volume(BaseTestCase):
         updates_from = items_start_from
         deletes_from = items_start_from + total_num_items/10
         items_start_from += total_num_items
-
+        self.validate_items_count()
+        
         ########################################################################################################################
         self.sleep(20,"Sleeping after 1st cycle.")
         self.log.info("Step 8: Delete 1M docs. Update 1M docs.")
@@ -609,7 +627,8 @@ class volume(BaseTestCase):
             print future.get(num_executors, TimeUnit.SECONDS)
         print "Executors completed!!"
         shutdown_and_await_termination(pool, num_executors)
-         
+        self.validate_items_count()
+        
         ########################################################################################################################
         self.sleep(20,"Sleeping after 7th cycle.")
         pool = Executors.newFixedThreadPool(5)
@@ -637,7 +656,8 @@ class volume(BaseTestCase):
         updates_from = items_start_from
         deletes_from = items_start_from + total_num_items/10
         items_start_from += total_num_items
-                
+        self.validate_items_count()
+        
         bucket.close()
         msg_bucket.close()
         
