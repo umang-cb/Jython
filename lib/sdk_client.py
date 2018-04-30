@@ -642,7 +642,7 @@ class SDKClient(object):
         builder.execute()
 
 class SDKSmartClient(object):
-    def __init__(self, rest, bucket, compression=True, info = None):
+    def __init__(self, rest, bucket, info = None, compression=True):
         self.rest = rest
         self.server = info
         if hasattr(bucket, 'name'):
