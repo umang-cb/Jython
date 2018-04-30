@@ -8,7 +8,6 @@ from lib.remote.remote_util import RemoteMachineShellConnection
 from bucket_utils.bucket_ready_functions import bucket_utils
 from sdk_client import SDKClient
 
-
 class CBASClusterOperations(CBASBaseTest):
     def setUp(self):
         self.input = TestInputSingleton.input
@@ -568,6 +567,60 @@ class CBASClusterOperations(CBASBaseTest):
         self.log.info("Validate dataset count on CBAS")
         if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items * 3 / 2, 0):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
+    
+    '''
+    test_rebalance_on_nodes_running_multiple_services,cb_bucket_name=default,cbas_bucket_name=default_bucket,cbas_dataset_name=default_ds,items=10,nodeType=KV,num_queries=10,rebalance_type=in
+    test_rebalance_on_nodes_running_multiple_services,cb_bucket_name=default,cbas_bucket_name=default_bucket,cbas_dataset_name=default_ds,items=10,nodeType=KV,num_queries=10,rebalance_type=out
+    test_rebalance_on_nodes_running_multiple_services,cb_bucket_name=default,cbas_bucket_name=default_bucket,cbas_dataset_name=default_ds,items=10,num_queries=10,rebalance_type=swap,rebalance_cbas_and_kv=True
+    '''
+    def test_rebalance_on_nodes_running_multiple_services(self):
 
+        self.log.info("Pick the incoming and outgoing nodes during rebalance")
+        active_services = ['cbas,fts,kv']
+        self.rebalance_type = self.input.param("rebalance_type", "in")
+        nodes_to_add = [self.rebalanceServers[1]]
+        nodes_to_remove = []
+        if self.rebalance_type == 'out':
+            # This node will be rebalanced out
+            nodes_to_remove.append(self.rebalanceServers[1])
+            # Will be running services as specified in the list - active_services
+            self.add_node(nodes_to_add[0], services=active_services)
+            # No nodes to remove so making the add notes empty
+            nodes_to_add = []
+        elif self.rebalance_type == 'swap':
+            # Below node will be swapped with the incoming node specified in nodes_to_add
+            self.add_node(nodes_to_add[0], services=active_services)
+            nodes_to_add = []
+            nodes_to_add.append(self.rebalanceServers[3])
+            # Below node will be removed and swapped with node that was added earlier
+            nodes_to_remove.append(self.rebalanceServers[1])
+            
+        self.log.info("Incoming nodes - %s, outgoing nodes - %s. For rebalance type %s " % (
+        nodes_to_add, nodes_to_remove, self.rebalance_type))
+
+        self.log.info("Creates cbas buckets and dataset")
+        dataset_count_query = "select count(*) from {0};".format(self.cbas_dataset_name)
+        self.setup_for_test()
+
+        self.log.info("Perform async doc operations on KV")
+        json_generator = JsonGenerator()
+        generators = json_generator.generate_docs_simple(docs_per_day=self.num_items * 3 / 2, start=self.num_items)
+        kv_task = self._async_load_all_buckets(self.master, generators, "create", 0, batch_size=5000)
+
+        self.log.info("Run concurrent queries on CBAS")
+        self.cbas_util._run_concurrent_queries(dataset_count_query, "async", self.num_concurrent_queries)
+
+        self.log.info("Rebalance nodes")
+        # Do not add node to nodes_to_add if already added as add_node earlier
+        self.cluster.rebalance(self.servers, nodes_to_add, nodes_to_remove, services=active_services)
+
+        self.log.info("Get KV ops result")
+        for task in kv_task:
+            task.get_result()
+
+        self.log.info("Validate dataset count on CBAS")
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items * 3 / 2, 0):
+            self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
+                
     def tearDown(self):
         super(CBASClusterOperations, self).setUp()       
