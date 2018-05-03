@@ -263,6 +263,7 @@ class MetadataReplication(CBASBaseTest):
         if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,self.num_items*2):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
         self.ingest_more_data()
+        
     def test_cc_swap_rebalance(self):
         self.restart_rebalance = self.input.param('restart_rebalance',False)
         
@@ -278,14 +279,20 @@ class MetadataReplication(CBASBaseTest):
         self.cbas_node = self.cbas_servers[0]
         
         self.cluster_util.add_node(node=self.cbas_servers[-1],rebalance=False)
-        self.cluster_util.remove_node([self.otpNodes[0]],wait_for_rebalance=False)
+        swap_nc = self.input.param('swap_nc', False)
+        if not swap_nc:
+            out_nodes = [self.otpNodes[0]]
+        else:
+            out_nodes = [self.otpNodes[1]]    
+        
+        self.cluster_util.remove_node(out_nodes, wait_for_rebalance=False)
         self.sleep(2, "Wait for sometime after rebalance started.")
         if self.restart_rebalance:
             if self.rest._rebalance_progress_status() == "running":
                 self.assertTrue(self.rest.stop_rebalance(wait_timeout=120), "Failed while stopping rebalance.")
             else:
                 self.fail("Rebalance completed before the test could have stopped rebalance.")
-            self.rebalance(ejected_nodes=[node.id for node in [self.otpNodes[0]]], wait_for_completion=False)
+            self.rebalance(ejected_nodes=[node.id for node in out_nodes], wait_for_completion=False)
         self.sleep(5)
         str_time = time.time()
         while self.rest._rebalance_progress_status() == "running" and time.time()<str_time+300:
@@ -352,7 +359,8 @@ class MetadataReplication(CBASBaseTest):
         
         if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,self.num_items*2):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
-        self.ingest_more_data()       
+        self.ingest_more_data()
+           
     def test_reboot_nodes(self):
         #Test for reboot CC and reboot all nodes.
         self.setup_for_test(skip_data_loading=True)

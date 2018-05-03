@@ -395,11 +395,15 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         self.ingestion_in_progress()
         
         # Add the code for stop network here:
-        if self.cbas_node_type == "CC":
-            node_in_test = self.cbas_node
-            self.cbas_util = cbas_utils(self.master, self.cbas_servers[0])
+        if self.cbas_node_type:
+            if self.cbas_node_type == "CC":
+                node_in_test = self.cbas_node
+                self.cbas_util = cbas_utils(self.master, self.cbas_servers[0])
+            else:
+                node_in_test = self.cbas_servers[0]
+        # Stop network on KV node to mimic n/w partition on KV
         else:
-            node_in_test = self.cbas_servers[0]
+            node_in_test = self.master
         
         items_in_cbas_bucket_before, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
         self.log.info("Intems before network down: %s"%items_in_cbas_bucket_before)
