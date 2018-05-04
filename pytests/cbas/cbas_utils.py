@@ -833,3 +833,6 @@ class cbas_utils():
         status, content, response = self.cbas_helper.restart_cbas(username=username, password=password)
         return status, content, response
 
+    def fetch_cbas_stats(self, username=None, password=None):
+        status, content, response = self.cbas_helper.fetch_cbas_stats(username=username, password=password)
+        return status, content, response

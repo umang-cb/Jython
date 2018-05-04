@@ -32,6 +32,8 @@ from testconstants import MIN_KV_QUOTA, INDEX_QUOTA, FTS_QUOTA, COUCHBASE_FROM_4
 from BucketLib.BucketOperations import BucketHelper
 from BucketLib.MemcachedOperations import MemcachedHelper
 import testconstants
+import sys, traceback
+
 # try:
 #     CHECK_FLAG = False
 #     if (testconstants.TESTRUNNER_CLIENT in os.environ.keys()) and os.environ[testconstants.TESTRUNNER_CLIENT] == testconstants.PYTHON_SDK:
@@ -1697,10 +1699,10 @@ class CompactBucketTask(Task):
         log.info("Disk size is = %d" % total_disk_size)
         return total_disk_size
 
-class CBASQueryExecuteTask(Task):
-    def __init__(self, master, cbas_server, task_manager, cbas_endpoint, statement, mode=None, pretty=True):
+class  CBASQueryExecuteTask(Task):
+    def __init__(self, master, cbas_server, task_manager, cbas_endpoint, statement, bucket, mode=None, pretty=True):
         Task.__init__(self, "cbas_query_execute_task", task_manager)
-        self.server = cbas_server
+        self.cbas_server = cbas_server
         self.master = master
         self.cbas_endpoint = cbas_endpoint
         self.statement = statement
@@ -1708,17 +1710,21 @@ class CBASQueryExecuteTask(Task):
         self.pretty = pretty
         self.response = {}
         self.passed = True
+        self.bucket = bucket
 
     def execute(self):
         try:
-            rest = CBASHelper(self.master,self.server)
-            self.response = json.loads(rest.execute_statement_on_cbas(self.statement,
-                                           self.mode, self.pretty, 70))
+            from cbas.cbas_utils import cbas_utils
+            utils = cbas_utils(self.master, self.cbas_server)
+            utils.createConn(self.bucket)
+            self.response, self.metrics, self.errors, self.results, self.handle = utils.execute_statement_on_cbas_util(self.statement)
+
             if self.response:
                 self.state = CHECKING
                 self.call()
             else:
                 log.info("Some error")
+                traceback.print_exc(file=sys.stdout)
                 self.state = FINISHED
                 self.passed = False
                 self.set_result(False)
@@ -1731,24 +1737,8 @@ class CBASQueryExecuteTask(Task):
 
     def check(self):
         try:
-            if "errors" in self.response:
-                errors = self.response["errors"]
-            else:
-                errors = None
-
-            if "results" in self.response:
-                results = self.response["results"]
-            else:
-                results = None
-
-            if "handle" in self.response:
-                handle = self.response["handle"]
-            else:
-                handle = None
-
             if self.mode != "async":
-                print self.response
-                if self.response["status"] == "success":
+                if self.response:
                     self.set_result(True)
                     self.passed = True
                 else:
@@ -1756,7 +1746,6 @@ class CBASQueryExecuteTask(Task):
                     self.passed = False
                     self.set_result(False)
             else:
-                print self.response
                 if self.response["status"] == "started":
                     self.set_result(True)
                     self.passed = True

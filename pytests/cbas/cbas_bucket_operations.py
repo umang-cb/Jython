@@ -384,3 +384,33 @@ class CBASBucketOperations(CBASBaseTest):
         if items_in_cb_bucket != items_in_cbas_bucket:
             self.fail(
                 "After Rollback : # Items in CBAS bucket does not match that in the CB bucket")
+    
+    '''
+    cbas.cbas_bucket_operations.CBASBucketOperations.test_bucket_flush_while_index_are_created,cb_bucket_name=default,cbas_bucket_name=default_bucket,cbas_dataset_name=default_ds,items=100000,index_fields=profession:String-first_name:String
+    '''
+    def test_bucket_flush_while_index_are_created(self):
+
+        self.log.info('Add documents, create CBAS buckets, dataset and validate count')
+        self.setup_for_test()
+
+        self.log.info('Disconnect CBAS bucket')
+        self.cbas_util.disconnect_from_bucket(self.cbas_bucket_name)
+
+        self.log.info('Create secondary index in Async')
+        index_fields = self.input.param("index_fields", None)
+        index_fields = index_fields.replace('-', ',')
+        query = "create index {0} on {1}({2});".format("sec_idx", self.cbas_dataset_name, index_fields)
+        create_index_task = self.cluster.async_cbas_query_execute(self.master, self.cbas_node, None, query, 'default')
+        
+        self.log.info('Flush bucket while index are getting created')
+        self.cluster.bucket_flush(server=self.master, bucket=self.cb_bucket_name)
+        
+        self.log.info('Get result on index creation')
+        create_index_task.get_result()
+        
+        self.log.info('Connect back cbas bucket')
+        self.cbas_util.connect_to_bucket(self.cbas_bucket_name)
+
+        self.log.info('Validate no. of items in CBAS dataset')
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, 0):
+            self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
