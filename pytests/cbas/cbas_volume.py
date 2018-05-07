@@ -421,23 +421,23 @@ class analytics(CBASBaseTest):
     def create_cbas_indexes(self):
         #create Indexes
         status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
-            "CREATE INDEX usrSinceIdx ON `GleambookUsers_ds`(user_since: string);")
+            "CREATE INDEX usrSinceIdx ON `GleambookUsers_ds`(user_since: string);",timeout=300,analytics_timeout=300)
         self.assertTrue(status == "success", "Create Index query failed")
         status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
-            "CREATE INDEX authorIdIdx ON `GleambookMessages_ds`(author_id: string);")
+            "CREATE INDEX authorIdIdx ON `GleambookMessages_ds`(author_id: string);",timeout=300,analytics_timeout=300)
         self.assertTrue(status == "success", "Create Index query failed")
         status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
-            "CREATE INDEX sndTimeIdx  ON `ChirpMessages_ds`(send_time: string);")
+            "CREATE INDEX sndTimeIdx  ON `ChirpMessages_ds`(send_time: string);",timeout=300,analytics_timeout=300)
         self.assertTrue(status == "success", "Create Index query failed")
 
         status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
-            "CREATE INDEX usrSinceIdx1 ON `GleambookUsers_ds1`(user_since: string);")
+            "CREATE INDEX usrSinceIdx1 ON `GleambookUsers_ds1`(user_since: string);",timeout=300,analytics_timeout=300)
         self.assertTrue(status == "success", "Create Index query failed")
         status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
-            "CREATE INDEX authorIdIdx1 ON `GleambookMessages_ds1`(author_id: string);")
+            "CREATE INDEX authorIdIdx1 ON `GleambookMessages_ds1`(author_id: string);",timeout=300,analytics_timeout=300)
         self.assertTrue(status == "success", "Create Index query failed")
         status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
-            "CREATE INDEX sndTimeIdx1  ON `ChirpMessages_ds1`(send_time: string);")
+            "CREATE INDEX sndTimeIdx1  ON `ChirpMessages_ds1`(send_time: string);",timeout=300,analytics_timeout=300)
         self.assertTrue(status == "success", "Create Index query failed")    
             
     def validate_items_count(self):
