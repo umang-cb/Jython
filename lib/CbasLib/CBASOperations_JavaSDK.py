@@ -10,7 +10,8 @@ import logger
 import json
 from com.couchbase.client.java.analytics import AnalyticsQuery, AnalyticsParams
 from java.lang import System, RuntimeException
-from java.util.concurrent import TimeoutException, RejectedExecutionException
+from java.util.concurrent import TimeoutException, RejectedExecutionException,\
+    TimeUnit
 from com.couchbase.client.core import RequestCancelledException,\
     CouchbaseException
 import sys, time, traceback
@@ -96,7 +97,7 @@ class CBASHelper(CBAS_helper_rest, SDKClient):
             if mode or "EXPLAIN" in statement:
                 return CBAS_helper_rest.execute_statement_on_cbas(self, statement, mode, pretty, timeout, client_context_id, username, password)
             
-            result = self.bucket.query(q)
+            result = self.bucket.query(q,timeout,TimeUnit.SECONDS)
             
             output["status"] = result.status()
             output["metrics"] = str(result.info().asJsonObject())

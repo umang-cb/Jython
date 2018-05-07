@@ -251,7 +251,7 @@ class cbas_utils():
                 
         return False
 
-    def get_num_items_in_cbas_dataset(self, dataset_name):
+    def get_num_items_in_cbas_dataset(self, dataset_name, timeout=300, analytics_timeout=300):
         """
         Gets the count of docs in the cbas dataset
         """
@@ -261,7 +261,7 @@ class cbas_utils():
         cmd_get_num_mutated_items = "select count(*) from %s where mutated>0;" % dataset_name
 
         status, metrics, errors, results, _ = self.execute_statement_on_cbas_util(
-            cmd_get_num_items)
+            cmd_get_num_items,timeout=timeout,analytics_timeout=analytics_timeout)
         if status != "success":
             self.log.error("Query failed")
         else:
@@ -269,7 +269,7 @@ class cbas_utils():
             total_items = results[0]['$1']
 
         status, metrics, errors, results, _ = self.execute_statement_on_cbas_util(
-            cmd_get_num_mutated_items)
+            cmd_get_num_mutated_items,timeout=timeout,analytics_timeout=analytics_timeout)
         if status != "success":
             self.log.error("Query failed")
         else:
@@ -278,16 +278,16 @@ class cbas_utils():
 
         return total_items, mutated_items
 
-    def validate_cbas_dataset_items_count(self, dataset_name, expected_count, expected_mutated_count=0, num_tries = 12):
+    def validate_cbas_dataset_items_count(self, dataset_name, expected_count, expected_mutated_count=0, num_tries = 12, timeout=300,analytics_timeout=300):
         """
         Compares the count of CBAS dataset total and mutated items with the expected values.
         """
-        count, mutated_count = self.get_num_items_in_cbas_dataset(dataset_name)
+        count, mutated_count = self.get_num_items_in_cbas_dataset(dataset_name,timeout=timeout,analytics_timeout=analytics_timeout)
         tries = num_tries
         if expected_mutated_count:
             while (count != expected_count or mutated_count != expected_mutated_count) and tries > 0:
                 time.sleep(10)
-                count, mutated_count = self.get_num_items_in_cbas_dataset(dataset_name)
+                count, mutated_count = self.get_num_items_in_cbas_dataset(dataset_name,timeout=timeout,analytics_timeout=analytics_timeout)
                 tries -= 1
         else :
             while count != expected_count and tries > 0:
@@ -718,8 +718,9 @@ class cbas_utils():
             shell.disconnect()    
             
         for partition in response:
-            if 'replicas' in partition:
+            if 'replicas' in partition and len(partition['replicas'])>0:
                 return partition['replicas']
+        return []
     
     def get_replicas_info(self,shell=None):
         cc__metadata_replicas_info = []
