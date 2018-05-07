@@ -3,6 +3,8 @@ import datetime
 from bucket_utils.bucket_ready_functions import bucket_utils
 from cbas.cbas_base import CBASBaseTest
 from couchbase_helper.documentgenerator import DocumentGenerator
+from memcached.helper.data_helper import MemcachedClientHelper
+from remote.remote_util import RemoteMachineShellConnection
 
 
 class CBASBugAutomation(CBASBaseTest):
@@ -235,6 +237,56 @@ class CBASBugAutomation(CBASBaseTest):
         query = 'drop bucket %s' % self.cbas_bucket_name
         result = self.analytics_helper.run_commands_using_cbq_shell(query, self.cbas_node, 8095)
         self.assertTrue(result['status'] == "success", "Query %s failed." % query)
-                
+    
+    '''
+    cbas.cbas_bug_automation.CBASBugAutomation.test_partial_rollback_via_memcached_restart_and_persistance_stopped,cb_bucket_name=default,items=10,cbas_bucket_name=default_cbas,cbas_dataset_name=ds,number_of_times_memcached_restart=16
+    '''
+    def test_partial_rollback_via_memcached_restart_and_persistance_stopped(self):
+        self.log.info("Load data in the default bucket")
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items, exp=0, batch_size=10)
+        
+        self.log.info("Create connection")
+        self.cbas_util.createConn(self.cb_bucket_name)
+        
+        self.log.info("Create bucket on CBAS")
+        self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
+                                             cb_bucket_name=self.cb_bucket_name,
+                                             cb_server_ip=self.cb_server_ip)
+
+        self.log.info("Create dataset on the CBAS bucket")
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+                                                cbas_dataset_name=self.cbas_dataset_name)
+
+        self.log.info("Connect to Bucket")
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
+                                         cb_bucket_password=self.cb_bucket_password)
+        
+        self.log.info("Validate count on CBAS")
+        self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items)
+        
+        self.log.info("Establish remote shell to master node")
+        shell = RemoteMachineShellConnection(self.master)
+        
+        number_of_times_memcached_restart = self.input.param("number_of_times_memcached_restart", 16)
+        for i in range(number_of_times_memcached_restart):
+            
+            self.log.info("Stop persistance on KV node")
+            mem_client = MemcachedClientHelper.direct_client(self.master,
+                                                         self.cb_bucket_name)
+            mem_client.stop_persistence()
+            
+            self.log.info("Add documents with persistance stopped")
+            self.perform_doc_ops_in_all_cb_buckets(self.num_items / 2, "create", self.num_items, self.num_items + (self.num_items / 2), exp=0)
+            
+            self.log.info("Validate count on CBAS")
+            self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items+ (self.num_items / 2))
+            
+            self.log.info("Kill memcached on KV node %s" %str(i))
+            shell.kill_memcached()
+            self.sleep(10, "Wait for for DCP rollback sent to CBAS and memcached restart")
+            
+            self.log.info("Validate count on CBAS")
+            self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items), msg="Count mismatch")
+            
     def tearDown(self):
         super(CBASBugAutomation, self).tearDown()

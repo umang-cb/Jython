@@ -222,7 +222,7 @@ class CBASBacklogIngestion(CBASBaseTest):
             self.assertEqual(count_ds, count_n1ql, msg="result count mismatch between N1QL and Analytics")
 
     def tearDown(self):
-        super(CBASBacklogIngestion, self).setUp()
+        super(CBASBacklogIngestion, self).tearDown()
 
 
 class BucketOperations(CBASBaseTest):
@@ -468,7 +468,7 @@ class BucketOperations(CBASBaseTest):
                                                                      self.num_items))
 
     def tearDown(self):
-        super(BucketOperations, self).setUp()
+        super(BucketOperations, self).tearDown()
 
 
 class CBASDataOperations(CBASBaseTest):
@@ -651,4 +651,4 @@ class CBASDataOperations(CBASBaseTest):
         #self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_of_documents))
 
     def tearDown(self):
-        super(CBASDataOperations, self).setUp()
+        super(CBASDataOperations, self).tearDown()
