@@ -398,7 +398,7 @@ class BucketOperations(CBASBaseTest):
         self.assertEqual(len(buckets), self.num_of_cb_buckets, msg="CB bucket count mismatch")
 
         self.log.info("Load data in the default bucket")
-        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items, batch_size=1000)
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items)
 
         self.log.info("Create connection to all buckets")
         for bucket in buckets:
