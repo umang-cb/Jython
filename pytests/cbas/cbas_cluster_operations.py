@@ -329,7 +329,8 @@ class CBASClusterOperations(CBASBaseTest):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
 
     def test_rebalance_in_multiple_cbas_on_a_busy_system(self):
-
+        node_services = [] 
+        node_services.append(self.input.param('service',"cbas"))
         self.log.info("Setup CBAS")
         self.setup_for_test(skip_data_loading=True)
 
@@ -339,12 +340,12 @@ class CBASClusterOperations(CBASBaseTest):
         tasks = self._async_load_all_buckets(self.master, generators, "create", 0)
         
         self.log.info("Run concurrent queries to simulate busy system")
-        statement = "select sleep(count(*),5000) from {0} where mutated=0;".format(self.cbas_dataset_name)
+        statement = "select sleep(count(*),50000) from {0} where mutated=0;".format(self.cbas_dataset_name)
         self.cbas_util._run_concurrent_queries(statement, self.mode, self.num_concurrent_queries)
 
         self.log.info("Rebalance in CBAS nodes")
-        self.add_node(node=self.rebalanceServers[1], services=["cbas"], rebalance=False, wait_for_rebalance_completion=False)
-        self.add_node(node=self.rebalanceServers[3], services=["cbas"], rebalance=True, wait_for_rebalance_completion=True)
+        self.add_node(node=self.rebalanceServers[1], services=node_services, rebalance=False, wait_for_rebalance_completion=False)
+        self.add_node(node=self.rebalanceServers[3], services=node_services, rebalance=True, wait_for_rebalance_completion=True)
 
         self.log.info("Get KV ops result")
         for task in tasks:
@@ -354,10 +355,11 @@ class CBASClusterOperations(CBASBaseTest):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
 
     def test_rebalance_out_multiple_cbas_on_a_busy_system(self):
-
+        node_services = [] 
+        node_services.append(self.input.param('service',"cbas"))
         self.log.info("Rebalance in CBAS nodes")
-        self.add_node(node=self.rebalanceServers[1], services=["cbas"])
-        self.add_node(node=self.rebalanceServers[3], services=["cbas"])
+        self.add_node(node=self.rebalanceServers[1], services=node_services)
+        self.add_node(node=self.rebalanceServers[3], services=node_services)
 
         self.log.info("Setup CBAS")
         self.setup_for_test(skip_data_loading=True)
@@ -368,7 +370,7 @@ class CBASClusterOperations(CBASBaseTest):
         tasks = self._async_load_all_buckets(self.master, generators, "create", 0)
 
         self.log.info("Run concurrent queries to simulate busy system")
-        statement = "select sleep(count(*),5000) from {0} where mutated=0;".format(self.cbas_dataset_name)
+        statement = "select sleep(count(*),50000) from {0} where mutated=0;".format(self.cbas_dataset_name)
         self.cbas_util._run_concurrent_queries(statement, self.mode, self.num_concurrent_queries)
 
         self.log.info("Fetch and remove nodes to rebalance out")
