@@ -30,6 +30,8 @@ from lib.membase.api.rest_client import RestConnection, RestHelper
 from TestInput import TestInputSingleton
 from bucket_utils.bucket_ready_functions import bucket_utils
 from basetestcase import BaseTestCase
+from lib.remote.remote_util import RemoteMachineShellConnection
+from node_utils.node_ready_functions import NodeHelper
 
 class global_vars:
     
@@ -104,8 +106,13 @@ class GleambookMessages_Docloader(Callable):
                             try:
                                 doc_op().bulkSet(self.msg_bucket, docs)
                             except:
+                                print "Sleeping for 20 secs"
                                 time.sleep(20)
-                                doc_op().bulkUpsert(self.msg_bucket, docs)
+                                try:
+                                    doc_op().bulkUpsert(self.msg_bucket, docs)
+                                except:
+                                    print "skipping %s documents upload"%len(docs)
+                                    pass
                             temp = 0
                             docs=[]
                         global_vars.message_id += 1
@@ -119,8 +126,13 @@ class GleambookMessages_Docloader(Callable):
                         try:
                             doc_op().bulkUpsert(self.msg_bucket, docs)
                         except:
+                            print "Sleeping for 20 secs"
                             time.sleep(20)
-                            doc_op().bulkUpsert(self.msg_bucket, docs)
+                            try:
+                                doc_op().bulkUpsert(self.msg_bucket, docs)
+                            except:
+                                print "skipping %s documents upload"%len(docs)
+                                pass
                         temp = 0
                         docs=[]           
                 elif self.op_type == "delete":
@@ -219,7 +231,11 @@ class GleambookUser_Docloader(Callable):
                         except:
                             print "Exception from Java SDK - create"
                             time.sleep(20)
-                            doc_op().bulkUpsert(self.bucket, docs)
+                            try:
+                                doc_op().bulkUpsert(self.bucket, docs)
+                            except:
+                                print "skipping %s documents upload"%len(docs)
+                                pass
                         temp = 0
                         docs=[]
 #                     response = self.bucket.insert(doc);
@@ -233,9 +249,13 @@ class GleambookUser_Docloader(Callable):
                         try:
                             doc_op().bulkUpsert(self.bucket, docs)
                         except:
-                            print "Exception from Java SDK - update"
+                            print "Exception from Java SDK - create"
                             time.sleep(20)
-                            doc_op().bulkUpsert(self.bucket, docs)
+                            try:
+                                doc_op().bulkUpsert(self.bucket, docs)
+                            except:
+                                print "skipping %s documents upload"%len(docs)
+                                pass
                         temp = 0
                         docs=[]
                     
@@ -301,11 +321,18 @@ class volume(BaseTestCase):
         self.rest.set_service_memoryQuota(service='indexMemoryQuota', memoryQuota=available_memory-1024)
 
         self.log.info("Create CB buckets")
-            
+
         self.create_bucket(self.master, "GleambookUsers",bucket_ram=available_memory/3)
         self.create_bucket(self.master, "GleambookMessages",bucket_ram=available_memory/3)
         self.create_bucket(self.master, "ChirpMessages",bucket_ram=available_memory/3)
-        
+        shell = RemoteMachineShellConnection(self.master)
+        command = 'curl -i -u Administrator:password --data \'ns_bucket:update_bucket_props("ChirpMessages", [{extra_config_string, "cursor_dropping_upper_mark=70;cursor_dropping_lower_mark=50"}]).\' http://%s:8091/diag/eval'%self.master
+        shell.execute_command(command)
+        command = 'curl -i -u Administrator:password --data \'ns_bucket:update_bucket_props("GleambookMessages", [{extra_config_string, "cursor_dropping_upper_mark=70;cursor_dropping_lower_mark=50"}]).\' http://%s:8091/diag/eval'%self.master
+        shell.execute_command(command)
+        command = 'curl -i -u Administrator:password --data \'ns_bucket:update_bucket_props("GleambookUsers", [{extra_config_string, "cursor_dropping_upper_mark=70;cursor_dropping_lower_mark=50"}]).\' http://%s:8091/diag/eval'%self.master
+        shell.execute_command(command)
+
         result = RestConnection(self.query_node).query_tool("CREATE PRIMARY INDEX idx_GleambookUsers ON GleambookUsers;")
         self.sleep(10, "wait for index creation.")
         self.assertTrue(result['status'] == "success")
@@ -338,7 +365,9 @@ class volume(BaseTestCase):
         ########################################################################################################################
         self.log.info("Step 2: Create Couchbase buckets.")
         self.create_required_buckets()
-        
+        for node in nodes_in_cluster:
+            NodeHelper.do_a_warm_up(node)
+            NodeHelper.wait_service_started(node)
         ########################################################################################################################
         self.log.info("Step 3: Create 10M docs average of 1k docs for 8 couchbase buckets.")
         env = DefaultCouchbaseEnvironment.builder().mutationTokensEnabled(True).computationPoolSize(5).socketConnectTimeout(100000).connectTimeout(100000).maxRequestLifetime(TimeUnit.SECONDS.toMillis(300)).build();

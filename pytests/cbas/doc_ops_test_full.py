@@ -96,10 +96,15 @@ class GleambookMessages_Docloader(Callable):
                         try:
                             doc_op().bulkSet(self.msg_bucket, docs)
                         except:
+                            print "Sleeping for 20 secs"
                             time.sleep(20)
-                            doc_op().bulkUpsert(self.msg_bucket, docs)
+                            try:
+                                doc_op().bulkUpsert(self.msg_bucket, docs)
+                            except:
+                                print "skipping %s documents upload"%len(docs)
+                                pass
                         temp = 0
-                        docs=[]
+                        docs=[]   
 #                         global_vars.message_id += 1
 #                     end_message_id = global_vars.message_id
                 elif self.op_type == "update":
@@ -111,8 +116,13 @@ class GleambookMessages_Docloader(Callable):
                         try:
                             doc_op().bulkUpsert(self.msg_bucket, docs)
                         except:
+                            print "Sleeping for 20 secs"
                             time.sleep(20)
-                            doc_op().bulkUpsert(self.msg_bucket, docs)
+                            try:
+                                doc_op().bulkUpsert(self.msg_bucket, docs)
+                            except:
+                                print "skipping %s documents upload"%len(docs)
+                                pass
                         temp = 0
                         docs=[]           
                 elif self.op_type == "delete":
@@ -212,7 +222,11 @@ class GleambookUser_Docloader(Callable):
                         except:
                             print "Exception from Java SDK - create"
                             time.sleep(20)
-                            doc_op().bulkUpsert(self.bucket, docs)
+                            try:
+                                doc_op().bulkUpsert(self.bucket, docs)
+                            except:
+                                print "skipping %s documents upload"%len(docs)
+                                pass
                         temp = 0
                         docs=[]
 #                     response = self.bucket.insert(doc);
@@ -226,9 +240,13 @@ class GleambookUser_Docloader(Callable):
                         try:
                             doc_op().bulkUpsert(self.bucket, docs)
                         except:
-                            print "Exception from Java SDK - update"
+                            print "Exception from Java SDK - create"
                             time.sleep(20)
-                            doc_op().bulkUpsert(self.bucket, docs)
+                            try:
+                                doc_op().bulkUpsert(self.bucket, docs)
+                            except:
+                                print "skipping %s documents upload"%len(docs)
+                                pass
                         temp = 0
                         docs=[]
                 elif self.op_type == "delete":
@@ -341,7 +359,7 @@ class volume(BaseTestCase):
         
         ########################################################################################################################
         self.log.info("Step 3: Create 10M docs average of 1k docs for 8 couchbase buckets.")
-        env = DefaultCouchbaseEnvironment.builder().mutationTokensEnabled(True).computationPoolSize(5).socketConnectTimeout(100000).connectTimeout(100000).maxRequestLifetime(TimeUnit.SECONDS.toMillis(300)).build();
+        env = DefaultCouchbaseEnvironment.builder().mutationTokensEnabled(True).computationPoolSize(5).socketConnectTimeout(10000000).connectTimeout(10000000).maxRequestLifetime(TimeUnit.SECONDS.toMillis(1200)).build();
         cluster = CouchbaseCluster.create(env, self.master.ip);
         cluster.authenticate("Administrator","password")
         bucket = cluster.openBucket("GleambookUsers");

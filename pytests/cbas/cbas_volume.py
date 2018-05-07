@@ -74,8 +74,7 @@ class QueryRunner(Callable):
         return self
 
 class GleambookMessages_Docloader(Callable):
-    def __init__(self, bucket, msg_bucket, num_items, start_from,op_type="create",batch_size=1000):
-        self.bucket = bucket
+    def __init__(self, msg_bucket, num_items, start_from,op_type="create",batch_size=1000):
         self.msg_bucket = msg_bucket
         self.num_items = num_items
         self.start_from = start_from
@@ -140,8 +139,13 @@ class GleambookMessages_Docloader(Callable):
                             try:
                                 doc_op().bulkSet(self.msg_bucket, docs)
                             except:
+                                print "Sleeping for 20 secs"
                                 time.sleep(20)
-                                doc_op().bulkUpsert(self.msg_bucket, docs)
+                                try:
+                                    doc_op().bulkUpsert(self.msg_bucket, docs)
+                                except:
+                                    print "skipping %s documents upload"%len(docs)
+                                    pass
                             temp = 0
                             docs=[]
                         global_vars.message_id += 1
@@ -155,8 +159,13 @@ class GleambookMessages_Docloader(Callable):
                         try:
                             doc_op().bulkUpsert(self.msg_bucket, docs)
                         except:
+                            print "Sleeping for 20 secs"
                             time.sleep(20)
-                            doc_op().bulkUpsert(self.msg_bucket, docs)
+                            try:
+                                doc_op().bulkUpsert(self.msg_bucket, docs)
+                            except:
+                                print "skipping %s documents upload"%len(docs)
+                                pass
                         temp = 0
                         docs=[]           
                 elif self.op_type == "delete":
@@ -175,9 +184,8 @@ class GleambookMessages_Docloader(Callable):
         return self
     
 class GleambookUser_Docloader(Callable):
-    def __init__(self, bucket, msg_bucket, num_items, start_from,op_type="create", batch_size=2000):
+    def __init__(self, bucket, num_items, start_from,op_type="create", batch_size=2000):
         self.bucket = bucket
-        self.msg_bucket = msg_bucket
         self.num_items = num_items
         self.start_from = start_from
         self.started = None
@@ -254,8 +262,13 @@ class GleambookUser_Docloader(Callable):
                         try:
                             doc_op().bulkSet(self.bucket, docs)
                         except:
+                            print "Exception from Java SDK - create"
                             time.sleep(20)
-                            doc_op().bulkUpsert(self.bucket, docs)
+                            try:
+                                doc_op().bulkUpsert(self.bucket, docs)
+                            except:
+                                print "skipping %s documents upload"%len(docs)
+                                pass
                         temp = 0
                         docs=[]
 #                     response = self.bucket.insert(doc);
@@ -269,13 +282,21 @@ class GleambookUser_Docloader(Callable):
                         try:
                             doc_op().bulkUpsert(self.bucket, docs)
                         except:
+                            print "Exception from Java SDK - create"
                             time.sleep(20)
-                            doc_op().bulkUpsert(self.bucket, docs)
+                            try:
+                                doc_op().bulkUpsert(self.bucket, docs)
+                            except:
+                                print "skipping %s documents upload"%len(docs)
+                                pass
                         temp = 0
                         docs=[]
                     
                 elif self.op_type == "delete":
-                    response = self.bucket.remove(str(i+self.start_from));
+                    try:
+                        response = self.bucket.remove(str(i+self.start_from));
+                    except:
+                        print "Exception from Java SDK - remove"
                 self.loaded += 1
         except Exception, ex:
             import traceback
@@ -427,79 +448,82 @@ class analytics(CBASBaseTest):
         self.log.info("Items in CB GleambookMessages bucket: %s"%items_GleambookMessages)
         self.log.info("Items in CB ChirpMessages bucket: %s"%items_ChirpMessages)
         
-        self.sleep(300)
+        self.sleep(60)
+        result = False
+        tries = 10
+        while tries>0:
+            try:
+                result = self.cbas_util.validate_cbas_dataset_items_count("GleambookUsers_ds",items_GleambookUsers, num_tries=100)
+                break
+            except:
+                pass
+            tries -= 1
+        self.assertTrue(result,"No. of items in GleambookUsers dataset do not match that in the CB bucket")
         
-        if not self.cbas_util.validate_cbas_dataset_items_count("GleambookUsers_ds",items_GleambookUsers, num_tries=100):
-            self.fail("No. of items in GleambookUsers dataset do not match that in the CB bucket")
+        result = False
+        tries = 10
+        while tries>0:
+            try:
+                result = self.cbas_util.validate_cbas_dataset_items_count("GleambookMessages_ds",items_GleambookMessages, num_tries=100)
+                break
+            except:
+                pass
+            tries -= 1
+        self.assertTrue(result,"No. of items in GleambookMessages dataset do not match that in the CB bucket")
         
-        if not self.cbas_util.validate_cbas_dataset_items_count("GleambookMessages_ds",items_GleambookMessages, num_tries=100):
-            self.fail("No. of items in GleambookMessages dataset do not match that in the CB bucket")        
-         
-        if not self.cbas_util.validate_cbas_dataset_items_count("ChirpMessages_ds",items_ChirpMessages, num_tries=100):
-            self.fail("No. of items in ChirpMessages dataset do not match that in the CB bucket")
+        result = False
+        tries = 10
+        while tries>0:
+            try:
+                result = self.cbas_util.validate_cbas_dataset_items_count("ChirpMessages_ds",items_ChirpMessages, num_tries=100)
+                break
+            except:
+                pass
+            tries -= 1
+        self.assertTrue(result,"No. of items in ChirpMessages dataset do not match that in the CB bucket")
 
-        if not self.cbas_util.validate_cbas_dataset_items_count("GleambookUsers_ds1",items_GleambookUsers, num_tries=100):
-            self.fail("No. of items in GleambookUsers dataset do not match that in the CB bucket")
-        
-        if not self.cbas_util.validate_cbas_dataset_items_count("GleambookMessages_ds1",items_GleambookMessages, num_tries=100):
-            self.fail("No. of items in GleambookMessages dataset do not match that in the CB bucket")        
-         
-        if not self.cbas_util.validate_cbas_dataset_items_count("ChirpMessages_ds1",items_ChirpMessages, num_tries=100):
-            self.fail("No. of items in ChirpMessages dataset do not match that in the CB bucket")
-    
-#     def create_10M_docs(self):
-#         pool = Executors.newFixedThreadPool(5)
-#         items_start_from = 0
-#         total_num_items = self.input.param("num_items",5000)
-#         num_query = self.input.param("num_query",500)
-#         executors=[]
-#         num_executors = 5
-#         doc_executors = 5
-#         num_items = total_num_items / num_executors
-#         query_executors = num_executors - doc_executors
-#         for i in xrange(doc_executors):
-#             executors.append(Docloader(self.bucket, self.msg_bucket, num_items, items_start_from+i*num_items))
-#         for i in xrange(query_executors):
-#             executors.append(QueryRunner(self.bucket,random.choice(self.queries),num_query,self.cbas_util))
-#         futures = pool.invokeAll(executors)
-#         for future in futures:
-#             print future.get(num_executors, TimeUnit.SECONDS)
-#         print "Executors completed!!"
-#         shutdown_and_await_termination(pool, num_executors)
-#         
-#         self.updates_from = self.items_start_from
-#         self.deletes_from = self.items_start_from + self.total_num_items/10
-#         self.items_start_from += self.total_num_items
-#         
-#     def update_delete_1M_docs(self):
-#         pool = Executors.newFixedThreadPool(5)
-#         num_items = self.input.param("num_items",5000)
-#         executors=[]
-#         num_executors = 3
-#         doc_executors = 2
-#         query_executors = num_executors - doc_executors
-#          
-#         executors.append(Docloader(self.bucket, self.msg_bucket, num_items/10, self.updates_from,"update"))
-#         executors.append(Docloader(self.bucket, self.msg_bucket, num_items/10, self.deletes_from,"delete"))
-#          
-#         for i in xrange(query_executors):
-#             executors.append(QueryRunner(bucket,random.choice(self.queries),self.num_query,self.cbas_util))
-#         futures = pool.invokeAll(executors)
-#         for future in futures:
-#             print future.get(num_executors, TimeUnit.SECONDS)
-#         print "Executors completed!!"
-#         shutdown_and_await_termination(pool, num_executors)
-#         
-    
+        result = False
+        tries = 10
+        while tries>0:
+            try:
+                result = self.cbas_util.validate_cbas_dataset_items_count("GleambookUsers_ds1",items_GleambookUsers, num_tries=100)
+                break
+            except:
+                pass
+            tries -= 1
+        self.assertTrue(result,"No. of items in GleambookUsers dataset do not match that in the CB bucket")
+
+        result = False
+        tries = 10
+        while tries>0:
+            try:
+                result = self.cbas_util.validate_cbas_dataset_items_count("GleambookMessages_ds1",items_GleambookMessages, num_tries=100)
+                break
+            except:
+                pass
+            tries -= 1
+        self.assertTrue(result,"No. of items in GleambookMessages dataset do not match that in the CB bucket")
+
+        result = False
+        tries = 10
+        while tries>0:
+            try:
+                result = self.cbas_util.validate_cbas_dataset_items_count("ChirpMessages_ds1",items_ChirpMessages, num_tries=100)
+                break
+            except:
+                pass
+            tries -= 1
+        self.assertTrue(result,"No. of items in ChirpMessages dataset do not match that in the CB bucket")
+                
     def test_analytics_volume(self):
         queries = ['SELECT VALUE u FROM `GleambookUsers_ds` u WHERE u.user_since >= "2010-02-13T16-48-15" AND u.user_since < "2010-10-13T16-48-15" AND (SOME e IN u.employment SATISFIES e.end_date IS UNKNOWN) LIMIT 100;',
            'SELECT VALUE u FROM `GleambookUsers_ds` u WHERE u.user_since >= "2010-02-13T16-48-15" AND u.user_since < "2010-12-13T16-48-15" limit 100;',
            'SELECT META(u).id AS id, COUNT(*) AS count FROM `GleambookUsers_ds` u, `GleambookMessages_ds` m WHERE TO_STRING(META(u).id) = m.author_id \
-           AND u.user_since >= "2008-02-13T16-48-15" AND u.user_since < "2010-02-13T16-48-15" AND m.send_time >= "2009-02-01T12-23-09" AND \
-           m.send_time < "2011-02-01T12-23-09" GROUP BY META(u).id;',
+           AND u.user_since >= "2010-02-13T16-48-15" AND u.user_since < "2010-03-13T16-48-15" AND m.send_time >= "2011-02-01T12-23-09" AND \
+           m.send_time < "2011-03-01T12-23-09" GROUP BY META(u).id;',
            'SELECT META(u).id AS id, COUNT(*) AS count FROM `GleambookUsers_ds` u, `GleambookMessages_ds` m WHERE TO_STRING(META(u).id) = m.author_id \
-           AND u.user_since >= "2001-02-13T16-48-15" AND u.user_since < "2010-06-13T16-48-15" AND m.send_time >= "2011-10-01T12-23-09" \
-           AND m.send_time < "2011-02-01T12-23-09" GROUP BY META(u).id ORDER BY count LIMIT 10;'
+           AND u.user_since >= "2010-02-13T16-48-15" AND u.user_since < "2010-03-13T16-48-15" AND m.send_time >= "2011-10-01T12-23-09" \
+           AND m.send_time < "2011-08-01T12-23-09" GROUP BY META(u).id ORDER BY count LIMIT 10;'
            ]
         nodes_in_cluster= [self.servers[0],self.cbas_node]
         print "Start Time: %s"%str(time.strftime("%H:%M:%S", time.gmtime(time.time())))
@@ -546,8 +570,8 @@ class analytics(CBASBaseTest):
         num_items = total_num_items / num_executors
         query_executors = num_executors - doc_executors
         for i in xrange(doc_executors):
-            executors.append(GleambookUser_Docloader(bucket, msg_bucket, num_items, items_start_from+i*num_items))
-            executors.append(GleambookMessages_Docloader(bucket, msg_bucket, num_items, items_start_from+i*num_items))
+            executors.append(GleambookUser_Docloader(bucket, num_items, items_start_from+i*num_items))
+            executors.append(GleambookMessages_Docloader(msg_bucket, num_items, items_start_from+i*num_items))
         for i in xrange(query_executors):
             executors.append(QueryRunner(bucket,random.choice(queries),num_query,self.cbas_util))
         futures = pool.invokeAll(executors)
@@ -585,10 +609,10 @@ class analytics(CBASBaseTest):
         doc_executors = 4
         query_executors = num_executors - doc_executors
           
-        executors.append(GleambookUser_Docloader(bucket, msg_bucket, num_items/10, updates_from,"update"))
-        executors.append(GleambookUser_Docloader(bucket, msg_bucket, num_items/10, deletes_from,"delete"))
-        executors.append(GleambookMessages_Docloader(bucket, msg_bucket, num_items/10, updates_from,"update"))
-        executors.append(GleambookMessages_Docloader(bucket, msg_bucket, num_items/10, deletes_from,"delete"))
+        executors.append(GleambookUser_Docloader(bucket, num_items/10, updates_from,"update"))
+        executors.append(GleambookUser_Docloader(bucket, num_items/10, deletes_from,"delete"))
+        executors.append(GleambookMessages_Docloader(msg_bucket, num_items/10, updates_from,"update"))
+        executors.append(GleambookMessages_Docloader(msg_bucket, num_items/10, deletes_from,"delete"))
         for i in xrange(query_executors):
             executors.append(QueryRunner(bucket,random.choice(queries),num_query,self.cbas_util))
         futures = pool.invokeAll(executors)
@@ -621,8 +645,8 @@ class analytics(CBASBaseTest):
         doc_executors = 4
         num_items = total_num_items / doc_executors
         for i in xrange(doc_executors):
-            executors.append(GleambookUser_Docloader(bucket, msg_bucket, num_items, items_start_from+i*num_items))
-            executors.append(GleambookMessages_Docloader(bucket, msg_bucket, num_items, items_start_from+i*num_items))
+            executors.append(GleambookUser_Docloader(bucket, num_items, items_start_from+i*num_items))
+            executors.append(GleambookMessages_Docloader(msg_bucket, num_items, items_start_from+i*num_items))
         for i in xrange(query_executors):
             executors.append(QueryRunner(bucket,random.choice(queries),num_query,self.cbas_util))
         futures = pool.invokeAll(executors)
@@ -655,10 +679,10 @@ class analytics(CBASBaseTest):
         doc_executors = 4
         query_executors = num_executors - doc_executors
          
-        executors.append(GleambookUser_Docloader(bucket, msg_bucket, num_items/10, updates_from,"update"))
-        executors.append(GleambookUser_Docloader(bucket, msg_bucket, num_items/10, deletes_from,"delete"))
-        executors.append(GleambookMessages_Docloader(bucket, msg_bucket, num_items/10, updates_from,"update"))
-        executors.append(GleambookMessages_Docloader(bucket, msg_bucket, num_items/10, deletes_from,"delete"))
+        executors.append(GleambookUser_Docloader(bucket, num_items/10, updates_from,"update"))
+        executors.append(GleambookUser_Docloader(bucket, num_items/10, deletes_from,"delete"))
+        executors.append(GleambookMessages_Docloader(msg_bucket, num_items/10, updates_from,"update"))
+        executors.append(GleambookMessages_Docloader(msg_bucket, num_items/10, deletes_from,"delete"))
          
         for i in xrange(query_executors):
             executors.append(QueryRunner(bucket,random.choice(queries),num_query,self.cbas_util))
@@ -685,8 +709,8 @@ class analytics(CBASBaseTest):
         doc_executors = 4
         num_items = total_num_items / doc_executors
         for i in xrange(doc_executors):
-            executors.append(GleambookUser_Docloader(bucket, msg_bucket, num_items, items_start_from+i*num_items))
-            executors.append(GleambookMessages_Docloader(bucket, msg_bucket, num_items, items_start_from+i*num_items))
+            executors.append(GleambookUser_Docloader(bucket, num_items, items_start_from+i*num_items))
+            executors.append(GleambookMessages_Docloader(msg_bucket, num_items, items_start_from+i*num_items))
         for i in xrange(query_executors):
             executors.append(QueryRunner(bucket,random.choice(queries),num_query,self.cbas_util))
         futures = pool.invokeAll(executors)
@@ -752,8 +776,8 @@ class analytics(CBASBaseTest):
         query_executors = 1
         num_items = total_num_items / doc_executors
         for i in xrange(doc_executors):
-            executors.append(GleambookUser_Docloader(bucket, msg_bucket, num_items, items_start_from+i*num_items))
-            executors.append(GleambookMessages_Docloader(bucket, msg_bucket, num_items, items_start_from+i*num_items))
+            executors.append(GleambookUser_Docloader(bucket, num_items, items_start_from+i*num_items))
+            executors.append(GleambookMessages_Docloader(msg_bucket, num_items, items_start_from+i*num_items))
         for i in xrange(query_executors):
             executors.append(QueryRunner(bucket,random.choice(queries),num_query,self.cbas_util))
          
@@ -796,10 +820,10 @@ class analytics(CBASBaseTest):
         doc_executors = 4
         query_executors = num_executors - doc_executors
          
-        executors.append(GleambookUser_Docloader(bucket, msg_bucket, num_items/10, updates_from,"update"))
-        executors.append(GleambookUser_Docloader(bucket, msg_bucket, num_items/10, deletes_from,"delete"))
-        executors.append(GleambookMessages_Docloader(bucket, msg_bucket, num_items/10, updates_from,"update"))
-        executors.append(GleambookMessages_Docloader(bucket, msg_bucket, num_items/10, deletes_from,"delete"))
+        executors.append(GleambookUser_Docloader(bucket, num_items/10, updates_from,"update"))
+        executors.append(GleambookUser_Docloader(bucket, num_items/10, deletes_from,"delete"))
+        executors.append(GleambookMessages_Docloader(msg_bucket, num_items/10, updates_from,"update"))
+        executors.append(GleambookMessages_Docloader(msg_bucket, num_items/10, deletes_from,"delete"))
          
         for i in xrange(query_executors):
             executors.append(QueryRunner(bucket,random.choice(queries),num_query,self.cbas_util))
@@ -823,8 +847,8 @@ class analytics(CBASBaseTest):
         query_executors = 1
         num_items = total_num_items / doc_executors
         for i in xrange(doc_executors):
-            executors.append(GleambookUser_Docloader(bucket, msg_bucket, num_items, items_start_from+i*num_items))
-            executors.append(GleambookMessages_Docloader(bucket, msg_bucket, num_items, items_start_from+i*num_items))
+            executors.append(GleambookUser_Docloader(bucket, num_items, items_start_from+i*num_items))
+            executors.append(GleambookMessages_Docloader(msg_bucket, num_items, items_start_from+i*num_items))
         for i in xrange(query_executors):
             executors.append(QueryRunner(bucket,random.choice(queries),num_query,self.cbas_util))
          
@@ -862,10 +886,10 @@ class analytics(CBASBaseTest):
         doc_executors = 4
         query_executors = num_executors - doc_executors
          
-        executors.append(GleambookUser_Docloader(bucket, msg_bucket, num_items/10, updates_from,"update"))
-        executors.append(GleambookUser_Docloader(bucket, msg_bucket, num_items/10, deletes_from,"delete"))
-        executors.append(GleambookMessages_Docloader(bucket, msg_bucket, num_items/10, updates_from,"update"))
-        executors.append(GleambookMessages_Docloader(bucket, msg_bucket, num_items/10, deletes_from,"delete"))
+        executors.append(GleambookUser_Docloader(bucket, num_items/10, updates_from,"update"))
+        executors.append(GleambookUser_Docloader(bucket, num_items/10, deletes_from,"delete"))
+        executors.append(GleambookMessages_Docloader(msg_bucket, num_items/10, updates_from,"update"))
+        executors.append(GleambookMessages_Docloader(msg_bucket, num_items/10, deletes_from,"delete"))
         
         for i in xrange(query_executors):
             executors.append(QueryRunner(bucket,random.choice(queries),num_query,self.cbas_util))
@@ -890,8 +914,8 @@ class analytics(CBASBaseTest):
         query_executors = 1
         num_items = total_num_items / doc_executors
         for i in xrange(doc_executors):
-            executors.append(GleambookUser_Docloader(bucket, msg_bucket, num_items, items_start_from+i*num_items))
-            executors.append(GleambookMessages_Docloader(bucket, msg_bucket, num_items, items_start_from+i*num_items))
+            executors.append(GleambookUser_Docloader(bucket, num_items, items_start_from+i*num_items))
+            executors.append(GleambookMessages_Docloader(msg_bucket, num_items, items_start_from+i*num_items))
         for i in xrange(query_executors):
             executors.append(QueryRunner(bucket,random.choice(queries),num_query,self.cbas_util))
          
@@ -933,10 +957,10 @@ class analytics(CBASBaseTest):
         doc_executors = 4
         query_executors = num_executors - doc_executors
          
-        executors.append(GleambookUser_Docloader(bucket, msg_bucket, num_items/10, updates_from,"update"))
-        executors.append(GleambookUser_Docloader(bucket, msg_bucket, num_items/10, deletes_from,"delete"))
-        executors.append(GleambookMessages_Docloader(bucket, msg_bucket, num_items/10, updates_from,"update"))
-        executors.append(GleambookMessages_Docloader(bucket, msg_bucket, num_items/10, deletes_from,"delete"))
+        executors.append(GleambookUser_Docloader(bucket, num_items/10, updates_from,"update"))
+        executors.append(GleambookUser_Docloader(bucket, num_items/10, deletes_from,"delete"))
+        executors.append(GleambookMessages_Docloader(msg_bucket, num_items/10, updates_from,"update"))
+        executors.append(GleambookMessages_Docloader(msg_bucket, num_items/10, deletes_from,"delete"))
          
         for i in xrange(query_executors):
             executors.append(QueryRunner(bucket,random.choice(queries),num_query,self.cbas_util))
@@ -961,8 +985,8 @@ class analytics(CBASBaseTest):
         query_executors = 1
         num_items = total_num_items / doc_executors
         for i in xrange(doc_executors):
-            executors.append(GleambookUser_Docloader(bucket, msg_bucket, num_items, items_start_from+i*num_items))
-            executors.append(GleambookMessages_Docloader(bucket, msg_bucket, num_items, items_start_from+i*num_items))
+            executors.append(GleambookUser_Docloader(bucket, num_items, items_start_from+i*num_items))
+            executors.append(GleambookMessages_Docloader(msg_bucket, num_items, items_start_from+i*num_items))
         for i in xrange(query_executors):
             executors.append(QueryRunner(bucket,random.choice(queries),num_query,self.cbas_util))
          
@@ -1007,10 +1031,10 @@ class analytics(CBASBaseTest):
         doc_executors = 4
         query_executors = num_executors - doc_executors
         
-        executors.append(GleambookUser_Docloader(bucket, msg_bucket, num_items/10, updates_from,"update"))
-        executors.append(GleambookUser_Docloader(bucket, msg_bucket, num_items/10, deletes_from,"delete"))
-        executors.append(GleambookMessages_Docloader(bucket, msg_bucket, num_items/10, updates_from,"update"))
-        executors.append(GleambookMessages_Docloader(bucket, msg_bucket, num_items/10, deletes_from,"delete"))
+        executors.append(GleambookUser_Docloader(bucket, num_items/10, updates_from,"update"))
+        executors.append(GleambookUser_Docloader(bucket, num_items/10, deletes_from,"delete"))
+        executors.append(GleambookMessages_Docloader(msg_bucket, num_items/10, updates_from,"update"))
+        executors.append(GleambookMessages_Docloader(msg_bucket, num_items/10, deletes_from,"delete"))
          
         for i in xrange(query_executors):
             executors.append(QueryRunner(bucket,random.choice(queries),num_query,self.cbas_util))
@@ -1035,8 +1059,8 @@ class analytics(CBASBaseTest):
         query_executors = 1
         num_items = total_num_items / doc_executors
         for i in xrange(doc_executors):
-            executors.append(GleambookUser_Docloader(bucket, msg_bucket, num_items, items_start_from+i*num_items))
-            executors.append(GleambookMessages_Docloader(bucket, msg_bucket, num_items, items_start_from+i*num_items))
+            executors.append(GleambookUser_Docloader(bucket, num_items, items_start_from+i*num_items))
+            executors.append(GleambookMessages_Docloader(msg_bucket, num_items, items_start_from+i*num_items))
         for i in xrange(query_executors):
             executors.append(QueryRunner(bucket,random.choice(queries),num_query,self.cbas_util))
          
@@ -1078,10 +1102,10 @@ class analytics(CBASBaseTest):
         doc_executors = 4
         query_executors = num_executors - doc_executors
          
-        executors.append(GleambookUser_Docloader(bucket, msg_bucket, num_items/10, updates_from,"update"))
-        executors.append(GleambookUser_Docloader(bucket, msg_bucket, num_items/10, deletes_from,"delete"))
-        executors.append(GleambookMessages_Docloader(bucket, msg_bucket, num_items/10, updates_from,"update"))
-        executors.append(GleambookMessages_Docloader(bucket, msg_bucket, num_items/10, deletes_from,"delete"))
+        executors.append(GleambookUser_Docloader(bucket, num_items/10, updates_from,"update"))
+        executors.append(GleambookUser_Docloader(bucket, num_items/10, deletes_from,"delete"))
+        executors.append(GleambookMessages_Docloader(msg_bucket, num_items/10, updates_from,"update"))
+        executors.append(GleambookMessages_Docloader(msg_bucket, num_items/10, deletes_from,"delete"))
          
         for i in xrange(query_executors):
             executors.append(QueryRunner(bucket,random.choice(queries),num_query,self.cbas_util))
@@ -1107,8 +1131,8 @@ class analytics(CBASBaseTest):
         query_executors = 1
         num_items = total_num_items / doc_executors
         for i in xrange(doc_executors):
-            executors.append(GleambookUser_Docloader(bucket, msg_bucket, num_items, items_start_from+i*num_items))
-            executors.append(GleambookMessages_Docloader(bucket, msg_bucket, num_items, items_start_from+i*num_items))
+            executors.append(GleambookUser_Docloader(bucket, num_items, items_start_from+i*num_items))
+            executors.append(GleambookMessages_Docloader(msg_bucket, num_items, items_start_from+i*num_items))
         for i in xrange(query_executors):
             executors.append(QueryRunner(bucket,random.choice(queries),num_query,self.cbas_util))
          
@@ -1156,11 +1180,11 @@ class analytics(CBASBaseTest):
         doc_executors = 4
         query_executors = num_executors - doc_executors
          
-        executors.append(GleambookUser_Docloader(bucket, msg_bucket, num_items/10, updates_from,"update"))
-        executors.append(GleambookUser_Docloader(bucket, msg_bucket, num_items/10, deletes_from,"delete"))
-        executors.append(GleambookMessages_Docloader(bucket, msg_bucket, num_items/10, updates_from,"update"))
-        executors.append(GleambookMessages_Docloader(bucket, msg_bucket, num_items/10, deletes_from,"delete"))
-         
+        executors.append(GleambookUser_Docloader(bucket, num_items/10, updates_from,"update"))
+        executors.append(GleambookUser_Docloader(bucket, num_items/10, deletes_from,"delete"))
+        executors.append(GleambookMessages_Docloader(msg_bucket, num_items/10, updates_from,"update"))
+        executors.append(GleambookMessages_Docloader(msg_bucket, num_items/10, deletes_from,"delete"))
+        
         for i in xrange(query_executors):
             executors.append(QueryRunner(bucket,random.choice(queries),num_query,self.cbas_util))
         futures = pool.invokeAll(executors)
