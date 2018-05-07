@@ -130,11 +130,11 @@ class PartialRollback_CBAS(CBASBaseTest):
         shell.kill_memcached()
         self.sleep(2,"Wait for 2 secs for DCP rollback sent to CBAS.")
         curr = time.time()
-        while items_in_cbas_bucket != 0 and items_in_cbas_bucket >= items_before_persistence_stop:
+        while items_in_cbas_bucket != 0 and items_in_cbas_bucket > items_before_persistence_stop:
             items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
             if curr+120 < time.time():
                 break
-        self.assertTrue(items_in_cbas_bucket<items_before_persistence_stop, "Roll-back did not happen.")
+        self.assertTrue(items_in_cbas_bucket<=items_before_persistence_stop, "Roll-back did not happen.")
         self.log.info("#######BINGO########\nROLLBACK HAPPENED")
         
         items_in_cb_bucket = 0
@@ -270,8 +270,13 @@ class PartialRollback_CBAS(CBASBaseTest):
         shell.kill_memcached()
 #         self.sleep(10,"Wait for 10 secs for memcached restarts.")
         
-        
-        self.cbas_util.connect_to_bucket(self.cbas_bucket_name)
+        tries = 10
+        result = False
+        while tries >0 and not result:
+            result = self.cbas_util.connect_to_bucket(self.cbas_bucket_name)
+            tries -= 1
+            self.sleep(2)
+        self.assertTrue(result, "CBAS connect bucket failed after memcached killed on KV node.")
         curr = time.time()
         while items_in_cbas_bucket != 0 and items_in_cbas_bucket <= items_before_rollback:
             items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
@@ -357,7 +362,7 @@ class PartialRollback_CBAS(CBASBaseTest):
         shell.kill_memcached()
         self.sleep(2,"Wait for 2 secs for DCP rollback sent to CBAS.")
         curr = time.time()
-        while items_in_cbas_bucket != 0 and items_in_cbas_bucket >= items_before_persistence_stop:
+        while items_in_cbas_bucket != 0 and items_in_cbas_bucket > items_before_persistence_stop:
             try:
                 if curr+120 < time.time():
                     break
@@ -365,7 +370,7 @@ class PartialRollback_CBAS(CBASBaseTest):
             except:
                 self.log.info("Probably rebalance is in progress and the reason for queries being failing.")
                 pass
-        self.assertTrue(items_in_cbas_bucket<items_before_persistence_stop, "Roll-back did not happen.")
+        self.assertTrue(items_in_cbas_bucket<=items_before_persistence_stop, "Roll-back did not happen.")
         self.log.info("#######BINGO########\nROLLBACK HAPPENED")
         
         items_in_cb_bucket = 0
