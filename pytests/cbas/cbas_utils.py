@@ -837,3 +837,29 @@ class cbas_utils():
     def fetch_cbas_stats(self, username=None, password=None):
         status, content, response = self.cbas_helper.fetch_cbas_stats(username=username, password=password)
         return status, content, response
+    
+    def log_concurrent_query_outcome(self, node_in_test, handles):
+        run_count = 0
+        fail_count = 0
+        success_count = 0
+        aborted_count = 0
+        shell = RemoteMachineShellConnection(node_in_test)
+        for handle in handles:
+            status, hand = self.retrieve_request_status_using_handle(node_in_test, handle, shell)
+            if status == "running":
+                run_count += 1
+                self.log.info("query with handle %s is running." % handle)
+            elif status == "failed":
+                fail_count += 1
+                self.log.info("query with handle %s is failed." % handle)
+            elif status == "success":
+                success_count += 1
+                self.log.info("query with handle %s is successful." % handle)
+            else:
+                aborted_count += 1
+                self.log.info("Queued job is deleted: %s" % status)
+
+        self.log.info("%s queued jobs are Running." % run_count)
+        self.log.info("%s queued jobs are Failed." % fail_count)
+        self.log.info("%s queued jobs are Successful." % success_count)
+        self.log.info("%s queued jobs are Aborted." % aborted_count)

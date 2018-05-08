@@ -21,7 +21,7 @@ class CBASBugAutomation(CBASBaseTest):
         template = '{{ "number": {0}, "first_name": "{1}" , "profession":"{2}", "mutated":0}}'
         documents = DocumentGenerator('test_docs', template, age, first, profession, start=start_at, end=end_at)
         return documents
-
+    
     def test_multiple_cbas_data_set_creation(self):
 
         '''
@@ -302,6 +302,49 @@ class CBASBugAutomation(CBASBaseTest):
         self.log.info("Verify connect to second CBAS Bucket succeeds post long failure logs")
         self.assertTrue(self.cbas_util.connect_to_bucket(cbas_bucket_name=secondary_cbas_bucket_name,
                                          cb_bucket_password=self.cb_bucket_password), msg="Failed to connect CBAS bucket after long failover logs")
-           
+    
+    '''
+    cbas.cbas_bug_automation.CBASBugAutomation.test_rebalance_while_running_queries_on_all_active_dataset,cb_bucket_name=default,items=10,cbas_bucket_name=default_cbas,cbas_dataset_name=ds,active_dataset=8,mode=async,num_queries=10
+    '''
+    def test_rebalance_while_running_queries_on_all_active_dataset(self):
+        self.log.info("Load data in the default bucket")
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items)
+        
+        self.log.info("Create connection")
+        self.cbas_util.createConn(self.cb_bucket_name)
+        
+        self.log.info("Create bucket on CBAS")
+        self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
+                                             cb_bucket_name=self.cb_bucket_name,
+                                             cb_server_ip=self.cb_server_ip)
+        
+        self.log.info("Create 8 dataset on the CBAS bucket")
+        dataset_count = self.input.param("active_dataset", 8)
+        for i in range(dataset_count):
+            self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+                                                    cbas_dataset_name=self.cbas_dataset_name + str(i))
+        
+        self.log.info("Connect to Bucket")
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
+                                         cb_bucket_password=self.cb_bucket_password)
+        
+        self.log.info("Validate count on CBAS")
+        for i in range(dataset_count):
+            self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name+str(i), self.num_items)
+        
+        self.log.info("Run concurrent queries to simulate busy system on all datasets")
+        all_handles = []
+        for i in range(dataset_count):
+            statement = "select sleep(count(*),50000) from {0} where mutated=0;".format(self.cbas_dataset_name + str(i))
+            all_handles.append(self.cbas_util._run_concurrent_queries(statement, self.mode, self.num_concurrent_queries))
+        
+        self.log.info("Rebalance in a CBAS node while queries are running")
+        node_services = []
+        node_services.append(self.input.param('service', "cbas"))
+        self.assertTrue(self.add_node(node=self.cbas_servers[0], services=node_services))
+        
+        for handles in all_handles:
+            self.cbas_util.log_concurrent_query_outcome(self.master, handles)
+               
     def tearDown(self):
         super(CBASBugAutomation, self).tearDown()

@@ -62,7 +62,7 @@ class CBASClusterOperations(CBASBaseTest):
                     self.num_items):
                 self.fail(
                     "No. of items in CBAS dataset do not match that in the CB bucket")
-    
+
     def test_rebalance_in(self):
         '''
         Description: This will test the rebalance in feature i.e. one node coming in to the cluster.
@@ -237,7 +237,10 @@ class CBASClusterOperations(CBASBaseTest):
 
         self.log.info(
             "Run queries as rebalance is in progress : Rebalance state:%s" % self.rest._rebalance_progress_status())
-        self.cbas_util._run_concurrent_queries(dataset_count_query, None, 2000, batch_size=self.concurrent_batch_size)
+        handles = self.cbas_util._run_concurrent_queries(dataset_count_query, None, 2000, batch_size=self.concurrent_batch_size)
+        
+        self.log.info("Log concurrent query status")
+        self.cbas_util.log_concurrent_query_outcome(self.master, handles)
 
         if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items * 2, 0):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
@@ -275,8 +278,11 @@ class CBASClusterOperations(CBASBaseTest):
 
         self.log.info(
             "Run queries as rebalance is in progress : Rebalance state:%s" % self.rest._rebalance_progress_status())
-        self.cbas_util._run_concurrent_queries(dataset_count_query, "immediate", 2000,
+        handles = self.cbas_util._run_concurrent_queries(dataset_count_query, "immediate", 2000,
                                                batch_size=self.concurrent_batch_size)
+        
+        self.log.info("Log concurrent query status")
+        self.cbas_util.log_concurrent_query_outcome(self.master, handles)
 
         if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items * 2, 0):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
@@ -322,8 +328,11 @@ class CBASClusterOperations(CBASBaseTest):
         
         self.log.info(
             "Run queries as rebalance is in progress : Rebalance state:%s" % self.rest._rebalance_progress_status())
-        c_utils._run_concurrent_queries(dataset_count_query, "immediate", 2000,
+        handles = c_utils._run_concurrent_queries(dataset_count_query, "immediate", 2000,
                                                batch_size=self.concurrent_batch_size)
+        
+        self.log.info("Log concurrent query status")
+        self.cbas_util.log_concurrent_query_outcome(self.master, handles)
 
         if not c_utils.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items + (self.num_items//10) , 0):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
@@ -341,7 +350,7 @@ class CBASClusterOperations(CBASBaseTest):
         
         self.log.info("Run concurrent queries to simulate busy system")
         statement = "select sleep(count(*),50000) from {0} where mutated=0;".format(self.cbas_dataset_name)
-        self.cbas_util._run_concurrent_queries(statement, self.mode, self.num_concurrent_queries)
+        handles = self.cbas_util._run_concurrent_queries(statement, self.mode, self.num_concurrent_queries)
 
         self.log.info("Rebalance in CBAS nodes")
         self.add_node(node=self.rebalanceServers[1], services=node_services, rebalance=False, wait_for_rebalance_completion=False)
@@ -350,6 +359,9 @@ class CBASClusterOperations(CBASBaseTest):
         self.log.info("Get KV ops result")
         for task in tasks:
             task.get_result()
+        
+        self.log.info("Log concurrent query status")
+        self.cbas_util.log_concurrent_query_outcome(self.master, handles)
 
         if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items, 0):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
@@ -371,7 +383,7 @@ class CBASClusterOperations(CBASBaseTest):
 
         self.log.info("Run concurrent queries to simulate busy system")
         statement = "select sleep(count(*),50000) from {0} where mutated=0;".format(self.cbas_dataset_name)
-        self.cbas_util._run_concurrent_queries(statement, self.mode, self.num_concurrent_queries)
+        handles = self.cbas_util._run_concurrent_queries(statement, self.mode, self.num_concurrent_queries)
 
         self.log.info("Fetch and remove nodes to rebalance out")
         self.rebalance_cc = self.input.param("rebalance_cc", False)
@@ -390,6 +402,9 @@ class CBASClusterOperations(CBASBaseTest):
         self.log.info("Get KV ops result")
         for task in tasks:
             task.get_result()
+        
+        self.log.info("Log concurrent query status")
+        self.cbas_util.log_concurrent_query_outcome(self.master, handles)
 
         if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items, 0):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
@@ -423,8 +438,8 @@ class CBASClusterOperations(CBASBaseTest):
         tasks = self._async_load_all_buckets(self.master, generators, "create", 0)
     
         self.log.info("Run concurrent queries to simulate busy system")
-        statement = "select sleep(count(*),5000) from {0} where mutated=0;".format(self.cbas_dataset_name)
-        self.cbas_util._run_concurrent_queries(statement, self.mode, self.num_concurrent_queries)
+        statement = "select sleep(count(*),50000) from {0} where mutated=0;".format(self.cbas_dataset_name)
+        handles = self.cbas_util._run_concurrent_queries(statement, self.mode, self.num_concurrent_queries)
     
         self.log.info("Fetch node to remove during rebalance")
         self.rebalance_cc = self.input.param("rebalance_cc", False)
@@ -443,6 +458,9 @@ class CBASClusterOperations(CBASBaseTest):
         self.log.info("Get KV ops result")
         for task in tasks:
             task.get_result()
+        
+        self.log.info("Log concurrent query status")
+        self.cbas_util.log_concurrent_query_outcome(self.master, handles)
     
         if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items, 0):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
@@ -487,7 +505,7 @@ class CBASClusterOperations(CBASBaseTest):
 
         self.log.info("Run concurrent queries on CBAS")
         query = "select count(*) from {0};".format(self.cbas_dataset_name)
-        self.cbas_util._run_concurrent_queries(query, "async", 10, batch_size=self.concurrent_batch_size)
+        handles = self.cbas_util._run_concurrent_queries(query, "async", self.num_concurrent_queries, batch_size=self.concurrent_batch_size)
 
         self.log.info("fail-over the node")
         fail_task = self._cb_cluster.async_failover(self.input.servers, [self.rebalanceServers[1]], graceful_failover)
@@ -519,6 +537,9 @@ class CBASClusterOperations(CBASBaseTest):
         self.log.info("Get KV ops result")
         for task in kv_task:
             task.get_result()
+        
+        self.log.info("Log concurrent query status")
+        self.cbas_util.log_concurrent_query_outcome(self.master, handles)
 
         self.log.info("Validate dataset count on CBAS")
         if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items * 3 / 2, 0):
@@ -554,7 +575,7 @@ class CBASClusterOperations(CBASBaseTest):
         kv_task = self._async_load_all_buckets(self.master, generators, "create", 0, batch_size=5000)
 
         self.log.info("Run concurrent queries on CBAS")
-        self.cbas_util._run_concurrent_queries(dataset_count_query, "async", self.num_concurrent_queries)
+        handles = self.cbas_util._run_concurrent_queries(dataset_count_query, "async", self.num_concurrent_queries)
         
         self.log.info("Fetch the server to restart couchbase on")
         restart_couchbase_on_incoming_or_outgoing_node = self.input.param("restart_couchbase_on_incoming_or_outgoing_node", True)
@@ -578,6 +599,9 @@ class CBASClusterOperations(CBASBaseTest):
         self.log.info("Get KV ops result")
         for task in kv_task:
             task.get_result()
+        
+        self.log.info("Log concurrent query status")
+        self.cbas_util.log_concurrent_query_outcome(self.master, handles)
 
         self.log.info("Validate dataset count on CBAS")
         if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items * 3 / 2, 0):
@@ -623,7 +647,7 @@ class CBASClusterOperations(CBASBaseTest):
         kv_task = self._async_load_all_buckets(self.master, generators, "create", 0, batch_size=5000)
 
         self.log.info("Run concurrent queries on CBAS")
-        self.cbas_util._run_concurrent_queries(dataset_count_query, "async", self.num_concurrent_queries)
+        handles = self.cbas_util._run_concurrent_queries(dataset_count_query, "async", self.num_concurrent_queries)
 
         self.log.info("Rebalance nodes")
         # Do not add node to nodes_to_add if already added as add_node earlier
@@ -632,6 +656,9 @@ class CBASClusterOperations(CBASBaseTest):
         self.log.info("Get KV ops result")
         for task in kv_task:
             task.get_result()
+        
+        self.log.info("Log concurrent query status")
+        self.cbas_util.log_concurrent_query_outcome(self.master, handles)
 
         self.log.info("Validate dataset count on CBAS")
         if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items * 3 / 2, 0):
