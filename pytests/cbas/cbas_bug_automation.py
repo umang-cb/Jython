@@ -252,10 +252,21 @@ class CBASBugAutomation(CBASBaseTest):
         self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
                                              cb_bucket_name=self.cb_bucket_name,
                                              cb_server_ip=self.cb_server_ip)
-
+        
+        self.log.info("Create additional CBAS bucket and connect after failover logs are generated")
+        secondary_cbas_bucket_name = self.cbas_bucket_name + "_secondary"
+        secondary_dataset = self.cbas_dataset_name + "_secondary"
+        self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=secondary_cbas_bucket_name,
+                                             cb_bucket_name=self.cb_bucket_name,
+                                             cb_server_ip=self.cb_server_ip)
+        
         self.log.info("Create dataset on the CBAS bucket")
         self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                                 cbas_dataset_name=self.cbas_dataset_name)
+        
+        self.log.info("Create dataset on the CBAS secondary bucket")
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=secondary_cbas_bucket_name,
+                                                cbas_dataset_name=secondary_dataset)
 
         self.log.info("Connect to Bucket")
         self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
@@ -287,6 +298,10 @@ class CBASBugAutomation(CBASBaseTest):
             
             self.log.info("Validate count on CBAS")
             self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items), msg="Count mismatch")
-            
+        
+        self.log.info("Verify connect to second CBAS Bucket succeeds post long failure logs")
+        self.assertTrue(self.cbas_util.connect_to_bucket(cbas_bucket_name=secondary_cbas_bucket_name,
+                                         cb_bucket_password=self.cb_bucket_password), msg="Failed to connect CBAS bucket after long failover logs")
+           
     def tearDown(self):
         super(CBASBugAutomation, self).tearDown()
