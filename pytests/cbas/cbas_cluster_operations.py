@@ -427,7 +427,7 @@ class CBASClusterOperations(CBASBaseTest):
         node_services.append(self.input.param('service', "cbas"))
         
         self.log.info("Rebalance in CBAS nodes, this node will be removed during swap")
-        self.add_node(node=self.rebalanceServers[2], services=node_services)
+        self.add_node(node=self.rebalanceServers[1], services=node_services)
     
         self.log.info("Setup CBAS")
         self.setup_for_test(skip_data_loading=True)
@@ -448,7 +448,7 @@ class CBASClusterOperations(CBASBaseTest):
         for node in nodes:
             if self.rebalance_cc and (node.ip == self.cbas_node.ip):
                 out_nodes.append(node)
-            elif not self.rebalance_cc and node.ip == self.rebalanceServers[2].ip:
+            elif not self.rebalance_cc and node.ip == self.rebalanceServers[1].ip:
                 out_nodes.append(node)
     
         self.log.info("Swap rebalance CBAS nodes")
@@ -542,7 +542,7 @@ class CBASClusterOperations(CBASBaseTest):
         self.cbas_util.log_concurrent_query_outcome(self.master, handles)
 
         self.log.info("Validate dataset count on CBAS")
-        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items * 3 / 2, 0):
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items * 3 / 2, 0, timeout=400, analytics_timeout=400):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
 
     '''

@@ -3,8 +3,10 @@ import datetime
 from bucket_utils.bucket_ready_functions import bucket_utils
 from cbas.cbas_base import CBASBaseTest
 from couchbase_helper.documentgenerator import DocumentGenerator
+from membase.api.rest_client import RestConnection
 from memcached.helper.data_helper import MemcachedClientHelper
 from remote.remote_util import RemoteMachineShellConnection
+from couchbase_helper.tuq_generators import JsonGenerator
 
 
 class CBASBugAutomation(CBASBaseTest):
@@ -345,6 +347,69 @@ class CBASBugAutomation(CBASBaseTest):
         
         for handles in all_handles:
             self.cbas_util.log_concurrent_query_outcome(self.master, handles)
-               
+    
+    '''
+    cbas.cbas_bug_automation.CBASBugAutomation.test_auto_failure_on_kv_busy_system,cb_bucket_name=custom,cbas_bucket_name=custom_cbas_bucket,cbas_dataset_name=custom_ds,items=100000,service=kv,default_bucket=False,replicas=1
+    cbas.cbas_bug_automation.CBASBugAutomation.test_auto_failure_on_kv_busy_system,cb_bucket_name=custom,cbas_bucket_name=custom_cbas_bucket,cbas_dataset_name=custom_ds,items=100000,service=kv,default_bucket=False,replicas=2
+    '''
+    def test_auto_failure_on_kv_busy_system(self):
+        
+        self.log.info('Read service input param')
+        node_services = []
+        node_services.append(self.input.param('service', "cbas"))
+        
+        self.log.info("Add KV node so we can auto failover a KV node later")
+        self.add_node(self.servers[1], node_services, rebalance=False)
+        self.add_node(self.cbas_servers[0], node_services, rebalance=True)
+        
+        self.log.info("Create bucket")
+        self.create_bucket(self.master, self.cb_bucket_name, replica=self.num_replicas)
+        
+        self.log.info("Perform Async doc operations on KV")
+        json_generator = JsonGenerator()
+        generators = json_generator.generate_docs_simple(docs_per_day=self.num_items)
+        kv_task = self._async_load_all_buckets(self.master, generators, "create", 0, batch_size=1000)
+        
+        self.log.info("Create connection")
+        self.cbas_util.createConn(self.cb_bucket_name)
+        
+        self.log.info("Create bucket on CBAS")
+        self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
+                                             cb_bucket_name=self.cb_bucket_name,
+                                             cb_server_ip=self.cb_server_ip)
+        
+        self.log.info("Create dataset on the CBAS bucket")
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+                                                cbas_dataset_name=self.cbas_dataset_name)
+
+        self.log.info("Connect to Bucket")
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
+                                         cb_bucket_password=self.cb_bucket_password)
+        
+        self.log.info("Auto fail over KV node")
+        autofailover_timeout = 40
+        status = RestConnection(self.master).update_autofailover_settings(True, autofailover_timeout)
+        self.assertTrue(status, 'failed to change autofailover_settings!')
+        servr_out = [self.cbas_servers[0]]
+        remote = RemoteMachineShellConnection(servr_out[0])
+        try:
+            remote.stop_server()
+            self.sleep(autofailover_timeout + 10, "Wait for auto fail over")
+            self.cluster.rebalance(self.servers[:self.nodes_init],[], [servr_out[0]])
+        finally:
+            remote = RemoteMachineShellConnection(servr_out[0])
+            remote.start_server()
+                
+        self.log.info("Get KV ops result")
+        for task in kv_task:
+            task.get_result()
+        
+        self.log.info("Assert document count on CBAS")
+        count_n1ql = self.rest.query_tool('select count(*) from `%s`' % (self.cb_bucket_name))['results'][0]['$1']
+        self.log.info("Document count on CB %d" % count_n1ql)
+        
+        self.log.info("Validate count on CBAS")
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, count_n1ql), msg="Count mismatch")
+                  
     def tearDown(self):
         super(CBASBugAutomation, self).tearDown()
