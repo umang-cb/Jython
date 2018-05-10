@@ -410,6 +410,69 @@ class CBASBugAutomation(CBASBaseTest):
         
         self.log.info("Validate count on CBAS")
         self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, count_n1ql), msg="Count mismatch")
+    
+    '''
+    cbas.cbas_bug_automation.CBASBugAutomation.test_heavy_dgm_on_kv_and_then_rebalance,items=500000,default_bucket=False,cb_bucket_name=custom,cbas_bucket_name=custom_cbas_bucket,cbas_dataset_name=custom_ds,service=kv,rebalance_type=in,bucket_ram=100
+    cbas.cbas_bug_automation.CBASBugAutomation.test_heavy_dgm_on_kv_and_then_rebalance,items=500000,default_bucket=False,cb_bucket_name=custom,cbas_bucket_name=custom_cbas_bucket,cbas_dataset_name=custom_ds,service=kv,rebalance_type=out,bucket_ram=100
+    cbas.cbas_bug_automation.CBASBugAutomation.test_heavy_dgm_on_kv_and_then_rebalance,items=500000,default_bucket=False,cb_bucket_name=custom,cbas_bucket_name=custom_cbas_bucket,cbas_dataset_name=custom_ds,service=kv,rebalance_type=swap,bucket_ram=100
+    '''
+    def test_heavy_dgm_on_kv_and_then_rebalance(self):
+        
+        self.log.info('Read input param')
+        node_services = []
+        node_services.append(self.input.param('service', "kv"))
+        bucket_ram = self.input.param('bucket_ram', 100)
+        
+        self.log.info("Pick the incoming and outgoing nodes during rebalance")
+        self.rebalance_type = self.input.param("rebalance_type", "in")
+        nodes_to_add = [self.servers[1]]
+        nodes_to_remove = []
+        if self.rebalance_type == 'out':
+            self.add_node(self.servers[1], node_services)
+            nodes_to_remove.append(self.servers[1])
+            nodes_to_add = []
+        elif self.rebalance_type == 'swap':
+            self.add_node(self.servers[3], node_services)
+            nodes_to_remove.append(self.servers[3])
+        self.log.info("Incoming nodes - %s, outgoing nodes - %s. For rebalance type %s " %(nodes_to_add, nodes_to_remove, self.rebalance_type))    
+        
+        self.log.info("Create bucket")
+        self.create_bucket(self.master, self.cb_bucket_name, bucket_ram=100)
+        
+        self.log.info("Create connection")
+        self.cbas_util.createConn(self.cb_bucket_name)
+        
+        self.log.info("Create bucket on CBAS")
+        self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
+                                             cb_bucket_name=self.cb_bucket_name,
+                                             cb_server_ip=self.cb_server_ip)
+        
+        self.log.info("Create dataset on the CBAS bucket")
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+                                                cbas_dataset_name=self.cbas_dataset_name)
+
+        self.log.info("Connect to Bucket")
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
+                                         cb_bucket_password=self.cb_bucket_password)
+        
+        self.log.info("Perform Async doc operations on KV")
+        json_generator = JsonGenerator()
+        generators = json_generator.generate_docs_simple(docs_per_day=self.num_items)
+        kv_task = self._async_load_all_buckets(self.master, generators, "create", 0, batch_size=20000)
+        
+        self.log.info("Get KV ops result")
+        for task in kv_task:
+            task.get_result()
+        
+        self.log.info("Rebalance %s" % self.rebalance_type)
+        self.assertTrue(self.cluster.rebalance(self.servers, nodes_to_add, nodes_to_remove, services=node_services))
+        
+        self.log.info("Assert document count on CBAS")
+        count_n1ql = self.rest.query_tool('select count(*) from `%s`' % (self.cb_bucket_name))['results'][0]['$1']
+        self.log.info("Document count on CB %d" % count_n1ql)
+        
+        self.log.info("Validate count on CBAS")
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, count_n1ql), msg="Count mismatch")
                   
     def tearDown(self):
         super(CBASBugAutomation, self).tearDown()
