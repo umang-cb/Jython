@@ -542,12 +542,18 @@ class analytics(CBASBaseTest):
         rest.set_data_path(data_path=self.kv_servers[1].data_path,index_path=self.kv_servers[1].index_path,cbas_path=self.kv_servers[1].cbas_path)
         result = self.add_node(self.kv_servers[1], services=["kv"], rebalance=False)
         self.assertTrue(result, msg="Failed to add KV node.")
-         
+
+        self.log.info("Add one more KV node")
+        rest = RestConnection(self.kv_servers[3])
+        rest.set_data_path(data_path=self.kv_servers[3].data_path,index_path=self.kv_servers[3].index_path,cbas_path=self.kv_servers[3].cbas_path)
+        result = self.add_node(self.kv_servers[3], services=["kv"], rebalance=False)
+        self.assertTrue(result, msg="Failed to add KV node.")
+                 
         self.log.info("Add a CBAS nodes")
         result = self.add_node(self.cbas_servers[0], services=["cbas"], rebalance=True)
         self.assertTrue(result, msg="Failed to add CBAS node.")
          
-        nodes_in_cluster = nodes_in_cluster + [self.query_node, self.kv_servers[1], self.cbas_servers[0]]
+        nodes_in_cluster = nodes_in_cluster + [self.query_node, self.kv_servers[1], self.kv_servers[3], self.cbas_servers[0]]
         ########################################################################################################################
         self.log.info("Step 2: Create Couchbase buckets.")
         self.create_required_buckets()
@@ -790,8 +796,8 @@ class analytics(CBASBaseTest):
         for node in self.cbas_servers[2:]:
             rest = RestConnection(node)
             rest.set_data_path(data_path=node.data_path,index_path=node.index_path,cbas_path=node.cbas_path)
-        rebalance = self.cluster.async_rebalance(nodes_in_cluster, self.cbas_servers[2:],[])
-        nodes_in_cluster = nodes_in_cluster + self.cbas_servers[2:]
+        rebalance = self.cluster.async_rebalance(nodes_in_cluster, self.cbas_servers[1:],[],services=["cbas"])
+        nodes_in_cluster = nodes_in_cluster + self.cbas_servers[1:]
         futures = pool.invokeAll(executors)
         for future in futures:
             print future.get(num_executors, TimeUnit.SECONDS)
@@ -855,8 +861,8 @@ class analytics(CBASBaseTest):
  
         ###################################################### NEED TO BE UPDATED ##################################################################
         self.log.info("Step 32: When 31 is in progress do a CBAS Rebalance out of 2 nodes.")
-        rebalance = self.cluster.async_rebalance(nodes_in_cluster, [], self.cbas_servers[2:])
-        nodes_in_cluster = [node for node in nodes_in_cluster if node not in self.cbas_servers[2:]]
+        rebalance = self.cluster.async_rebalance(nodes_in_cluster, [], self.cbas_servers[1:])
+        nodes_in_cluster = [node for node in nodes_in_cluster if node not in self.cbas_servers[1:]]
         futures = pool.invokeAll(executors)
         for future in futures:
             print future.get(num_executors, TimeUnit.SECONDS)

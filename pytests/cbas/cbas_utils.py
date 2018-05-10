@@ -432,7 +432,7 @@ class cbas_utils():
             self.log.info("SUCCESS: %s out of %s queries passed"
                           % (num_queries - fail_count, num_queries))
 
-    def _run_concurrent_queries(self, query, mode, num_queries, rest=None, batch_size = 100):
+    def _run_concurrent_queries(self, query, mode, num_queries, rest=None, batch_size = 100, timeout=300, analytics_timeout=300):
         self.failed_count = 0
         self.success_count = 0
         self.rejected_count = 0
@@ -448,7 +448,7 @@ class cbas_utils():
             self.cbas_util = rest
         for i in range(0, num_queries):
             threads.append(Thread(target=self._run_query,
-                                  name="query_thread_{0}".format(i), args=(query,mode,rest)))
+                                  name="query_thread_{0}".format(i), args=(query,mode,rest,timeout,analytics_timeout)))
         i = 0
         for thread in threads:
             # Send requests in batches, and sleep for 5 seconds before sending another batch of queries.
@@ -467,7 +467,7 @@ class cbas_utils():
             raise Exception("Queries Failed:%s , Queries Error Out:%s"%(self.failed_count,self.error_count))
         return self.handles
     
-    def _run_query(self, query, mode, rest=None, validate_item_count=False, expected_count=0):
+    def _run_query(self, query, mode, rest=None, validate_item_count=False, expected_count=0, timeout=300, analytics_timeout=300):
         # Execute query (with sleep induced)
         name = threading.currentThread().getName();
         client_context_id = name
@@ -475,8 +475,8 @@ class cbas_utils():
             self.cbas_util = rest
         try:
             status, metrics, errors, results, handle = self.execute_statement_on_cbas_util(
-                query, mode=mode, rest=rest, timeout=3600,
-                client_context_id=client_context_id)
+                query, mode=mode, rest=rest, timeout=timeout,
+                client_context_id=client_context_id, analytics_timeout=analytics_timeout)
             # Validate if the status of the request is success, and if the count matches num_items
             if mode == "immediate":
                 if status == "success":
