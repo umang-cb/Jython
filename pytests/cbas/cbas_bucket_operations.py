@@ -42,6 +42,21 @@ class CBASBucketOperations(CBASBaseTest):
         self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                       cbas_dataset_name=self.cbas_dataset_name)
 
+        # Create indexes on the CBAS bucket
+        self.create_secondary_indexes = self.input.param("create_secondary_indexes",True)
+        if self.create_secondary_indexes:
+            self.index_fields = "profession:string,number:bigint"
+            create_idx_statement = "create index {0} on {1}({2});".format(
+                self.index_name, self.cbas_dataset_name, self.index_fields)
+            status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
+                create_idx_statement)
+    
+            self.assertTrue(status == "success", "Create Index query failed")
+    
+            self.assertTrue(
+                self.cbas_util.verify_index_created(self.index_name, self.index_fields.split(","),
+                                          self.cbas_dataset_name)[0])
+        
         # Connect to Bucket
         self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
                                cb_bucket_password=self.cb_bucket_password)
