@@ -448,7 +448,7 @@ class cbas_utils():
             self.cbas_util = rest
         for i in range(0, num_queries):
             threads.append(Thread(target=self._run_query,
-                                  name="query_thread_{0}".format(i), args=(query,mode,rest,timeout,analytics_timeout)))
+                                  name="query_thread_{0}".format(i), args=(query,mode,rest,False,0,timeout,analytics_timeout)))
         i = 0
         for thread in threads:
             # Send requests in batches, and sleep for 5 seconds before sending another batch of queries.
