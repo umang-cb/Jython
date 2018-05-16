@@ -245,7 +245,7 @@ class CBASBugAutomation(CBASBaseTest):
     '''
     def test_partial_rollback_via_memcached_restart_and_persistance_stopped(self):
         self.log.info("Load data in the default bucket")
-        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items, exp=0, batch_size=10)
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items, exp=0)
         
         self.log.info("Create connection")
         self.cbas_util.createConn(self.cb_bucket_name)
@@ -296,7 +296,7 @@ class CBASBugAutomation(CBASBaseTest):
             
             self.log.info("Kill memcached on KV node %s" %str(i))
             shell.kill_memcached()
-            self.sleep(10, "Wait for for DCP rollback sent to CBAS and memcached restart")
+            self.sleep(2, "Wait for for DCP rollback sent to CBAS and memcached restart")
             
             self.log.info("Validate count on CBAS")
             self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items), msg="Count mismatch")

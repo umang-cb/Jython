@@ -1,10 +1,8 @@
-import copy
 import base64
-import testconstants
 from tuqquery.tuq import QueryTests
 from remote.remote_util import RemoteMachineShellConnection
-from couchbase_helper.documentgenerator import JSONNonDocGenerator
 from membase.api.exception import CBQError
+
 
 class Base64Tests(QueryTests):
     def setUp(self):
