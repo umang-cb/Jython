@@ -239,6 +239,73 @@ class CBASBugAutomation(CBASBaseTest):
         query = 'drop bucket %s' % self.cbas_bucket_name
         result = self.analytics_helper.run_commands_using_cbq_shell(query, self.cbas_node, 8095)
         self.assertTrue(result['status'] == "success", "Query %s failed." % query)
+
+    '''
+    cbas.cbas_bug_automation.CBASBugAutomation.test_partial_rollback_via_memcached_restart_and_persistance_stopped,cb_bucket_name=default,items=10,cbas_bucket_name=default_cbas,cbas_dataset_name=ds,number_of_times_memcached_restart=16
+    '''
+    def test_partial_rollback_via_memcached_restart_and_persistance_inplace(self):
+        self.log.info("Load data in the default bucket")
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items, exp=0)
+        start_from = self.num_items
+        
+        self.log.info("Create connection")
+        self.cbas_util.createConn(self.cb_bucket_name)
+        
+        self.log.info("Create bucket on CBAS")
+        self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
+                                             cb_bucket_name=self.cb_bucket_name,
+                                             cb_server_ip=self.cb_server_ip)
+        
+        self.log.info("Create additional CBAS bucket and connect after failover logs are generated")
+        secondary_cbas_bucket_name = self.cbas_bucket_name + "_secondary"
+        secondary_dataset = self.cbas_dataset_name + "_secondary"
+        self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=secondary_cbas_bucket_name,
+                                             cb_bucket_name=self.cb_bucket_name,
+                                             cb_server_ip=self.cb_server_ip)
+        
+        self.log.info("Create dataset on the CBAS bucket")
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+                                                cbas_dataset_name=self.cbas_dataset_name)
+        
+        self.log.info("Create dataset on the CBAS secondary bucket")
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=secondary_cbas_bucket_name,
+                                                cbas_dataset_name=secondary_dataset)
+
+        self.log.info("Connect to Bucket")
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
+                                         cb_bucket_password=self.cb_bucket_password)
+        
+        self.log.info("Validate count on CBAS")
+        self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items)
+        
+        self.log.info("Establish remote shell to master node")
+        shell = RemoteMachineShellConnection(self.master)
+        
+        number_of_times_memcached_restart = self.input.param("number_of_times_memcached_restart", 16)
+        for i in range(number_of_times_memcached_restart):
+            
+            self.log.info("Add documents with persistance inplace")
+            self.perform_doc_ops_in_all_cb_buckets(self.num_items / 2, "create", start_from, start_from+self.num_items / 2)
+            start_from += self.num_items / 2
+            
+            self.log.info("Validate count on CBAS")
+            self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, start_from)
+            
+            self.log.info("Kill memcached on KV node %s" %str(i))
+            shell.kill_memcached()
+            self.sleep(2, "Wait for for DCP rollback sent to CBAS and memcached restart")
+            
+            import time
+            start_time = time.time()
+            while time.time() < start_time + 60:
+                items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+                self.assertTrue(items_in_cbas_bucket==start_from, "Roll-back happened while it should not.")
+                time.sleep(1)
+                
+        self.log.info("Verify connect to second CBAS Bucket succeeds post long failure logs")
+        self.assertTrue(self.cbas_util.connect_to_bucket(cbas_bucket_name=secondary_cbas_bucket_name,
+                                         cb_bucket_password=self.cb_bucket_password), msg="Failed to connect CBAS bucket after long failover logs")
+    
     
     '''
     cbas.cbas_bug_automation.CBASBugAutomation.test_partial_rollback_via_memcached_restart_and_persistance_stopped,cb_bucket_name=default,items=10,cbas_bucket_name=default_cbas,cbas_dataset_name=ds,number_of_times_memcached_restart=16
