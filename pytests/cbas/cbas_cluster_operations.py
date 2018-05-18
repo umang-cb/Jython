@@ -463,6 +463,7 @@ class CBASClusterOperations(CBASBaseTest):
         for node in nodes:
             if self.rebalance_cc and (node.ip == self.cbas_node.ip):
                 out_nodes.append(node)
+                reinitialize_cbas_util = True
             elif not self.rebalance_cc and node.ip == self.rebalanceServers[1].ip:
                 out_nodes.append(node)
     
@@ -473,6 +474,10 @@ class CBASClusterOperations(CBASBaseTest):
         self.log.info("Get KV ops result")
         for task in tasks:
             task.get_result()
+        
+        if reinitialize_cbas_util is True:
+            self.cbas_util = cbas_utils(self.master, self.rebalanceServers[3])
+            self.cbas_util.createConn("default")
         
         self.log.info("Log concurrent query status")
         self.cbas_util.log_concurrent_query_outcome(self.master, handles)
@@ -557,7 +562,8 @@ class CBASClusterOperations(CBASBaseTest):
         self.cbas_util.log_concurrent_query_outcome(self.master, handles)
 
         self.log.info("Validate dataset count on CBAS")
-        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items * 3 / 2, 0, timeout=400, analytics_timeout=400):
+        count_n1ql = self.rest.query_tool('select count(*) from `%s`' % self.cb_bucket_name)['results'][0]['$1']
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, count_n1ql, 0, timeout=400, analytics_timeout=400):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
 
     '''
@@ -578,6 +584,7 @@ class CBASClusterOperations(CBASBaseTest):
         elif self.rebalance_type == 'swap':
             self.add_node(nodes_to_add[0], rebalance=False)
             nodes_to_remove.append(self.cbas_node)
+            reinitialize_cbas_util = True
         self.log.info("Incoming nodes - %s, outgoing nodes - %s. For rebalance type %s " %(nodes_to_add, nodes_to_remove, self.rebalance_type))    
 
         self.log.info("Creates cbas buckets and dataset")
@@ -617,7 +624,11 @@ class CBASClusterOperations(CBASBaseTest):
         
         self.log.info("Log concurrent query status")
         self.cbas_util.log_concurrent_query_outcome(self.master, handles)
-
+        
+        if reinitialize_cbas_util is True:
+            self.cbas_util = cbas_utils(self.master, self.rebalanceServers[3])
+            self.cbas_util.createConn("default")
+                
         self.log.info("Validate dataset count on CBAS")
         if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items * 3 / 2, 0):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
