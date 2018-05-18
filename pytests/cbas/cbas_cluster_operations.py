@@ -628,7 +628,7 @@ class CBASClusterOperations(CBASBaseTest):
         self.cbas_util.log_concurrent_query_outcome(self.master, handles)
         
         if reinitialize_cbas_util is True:
-            self.cbas_util = cbas_utils(self.master, self.rebalanceServers[3])
+            self.cbas_util = cbas_utils(self.master, self.rebalanceServers[1])
             self.cbas_util.createConn("default")
                 
         self.log.info("Validate dataset count on CBAS")
