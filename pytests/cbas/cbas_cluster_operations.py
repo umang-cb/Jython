@@ -460,6 +460,7 @@ class CBASClusterOperations(CBASBaseTest):
         self.rebalance_cc = self.input.param("rebalance_cc", False)
         out_nodes = []
         nodes = self.rest.node_statuses()
+        reinitialize_cbas_util = False
         for node in nodes:
             if self.rebalance_cc and (node.ip == self.cbas_node.ip):
                 out_nodes.append(node)
@@ -577,6 +578,7 @@ class CBASClusterOperations(CBASBaseTest):
         self.rebalance_type = self.input.param("rebalance_type", "in")
         nodes_to_add = [self.rebalanceServers[1]]
         nodes_to_remove = []
+        reinitialize_cbas_util = False
         if self.rebalance_type == 'out':
             nodes_to_remove.append(self.rebalanceServers[1])
             self.add_node(self.rebalanceServers[1])
