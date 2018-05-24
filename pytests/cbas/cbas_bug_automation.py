@@ -1,4 +1,5 @@
 import datetime
+import json
 
 from bucket_utils.bucket_ready_functions import bucket_utils
 from cbas.cbas_base import CBASBaseTest
@@ -540,6 +541,30 @@ class CBASBugAutomation(CBASBaseTest):
         
         self.log.info("Validate count on CBAS")
         self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, count_n1ql), msg="Count mismatch")
-                  
+    
+    '''
+    cbas.cbas_bug_automation.CBASBugAutomation.test_data_partitions_with_analytics_data_path,default_bucket=False
+    '''
+    def test_data_partitions_with_analytics_data_path(self):
+
+        self.log.info("Fetch number of cores on cbas node")
+        shell = RemoteMachineShellConnection(self.cbas_node)
+        cores = shell.get_number_of_cores()[0]
+        self.log.info("Number of cores %s" % cores)
+
+        self.log.info("Fetch IO Devices path on CBAS node")
+        status, content, _ = self.cbas_util.fetch_config_on_cbas()
+        self.assertTrue(status, msg="Fetch config on CBAS failed")
+        config_dict = json.loads((content.decode("utf-8")))
+        io_devices = config_dict["iodevices"]
+        self.log.info("Number of IO devices %s" % len(io_devices))
+
+        self.log.info("Fetch number of partitions")
+        response = self.cbas_util.fetch_analytics_cluster_response(shell)
+        if 'partitions' in response:
+            partitions = response['partitions']
+        self.log.info("Number of data partitions %s" % len(partitions))
+        self.assertEqual(int(cores), len(partitions), msg="Number of partitions must be equal to number of cores")
+
     def tearDown(self):
         super(CBASBugAutomation, self).tearDown()

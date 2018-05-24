@@ -354,6 +354,20 @@ class RemoteMachineShellConnection:
         if self.info.type.lower() == "linux":
             o, r = self.execute_command("/etc/init.d/membase-server start")
             self.log_command_output(o, r)
+    
+    def get_number_of_cores(self):
+        """
+        Get number of cores on machine, that was invoked on.
+        """
+        self.extract_remote_info()
+        if self.info.type.lower() == 'windows':
+            self.log.error('Not implemented')
+        elif self.info.distribution_type.lower() == 'mac':
+            self.log.error('Not implemented')
+        elif self.info.type.lower() == "linux":
+            o, r = self.execute_command("getconf _NPROCESSORS_ONLN")
+            self.log_command_output(o, r)
+            return o;
 
     def start_server(self, os="unix"):
         self.extract_remote_info()

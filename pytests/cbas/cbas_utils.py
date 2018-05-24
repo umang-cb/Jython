@@ -667,6 +667,23 @@ class cbas_utils():
         self.log.info("Nodes: %s"%nodes)
         return nodes, ccNodeId, ccNodeConfigURL
 
+    def fetch_analytics_cluster_response(self, shell=None):
+        """
+        Retrieves response from /analytics/status endpoint
+        """
+        if not shell:
+            shell = RemoteMachineShellConnection(self.cbas_node)
+        url = self.cbas_helper.cbas_base_url + "/analytics/cluster"
+        output, error = shell.execute_command(
+            "curl -v {0} -u {1}:{2}".format(url, self.cbas_node.rest_username,
+                                            self.cbas_node.rest_password))
+        response = ""
+        for line in output:
+            response = response + line
+        if response:
+            response = json.loads(response)
+        return response
+            
     def retrieve_analyticsHttpAdminListen_address_port(self, NodeConfigURL, shell=None):
         """
         Retrieves status of a request from /analytics/status endpoint
