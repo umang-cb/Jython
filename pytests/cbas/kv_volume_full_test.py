@@ -4,7 +4,7 @@ Created on Apr 23, 2018
 
 To run:
 /opt/jython/bin/jython -J-cp 'Couchbase-Java-Client-2.5.6/*:jsch-0.1.54.jar:doc_ops.jar' testrunner.py 
--i INI_FILE.ini num_query=100,num_items=10000 -t cbas.doc_ops_test.volume.test_volume,num_query=100,num_items=10000000
+-i INI_FILE.ini num_query=100,num_items=10000 -t cbas.cursor_drop_test.volume.test_volume,num_query=100,num_items=10000000
 
 '''
 import bulk_doc_operations.doc_ops as doc_op
@@ -101,7 +101,7 @@ class GleambookMessages_Docloader(Callable):
                             try:
                                 doc_op().bulkUpsert(self.msg_bucket, docs)
                             except:
-                                print "skipping %s documents upload"%len(docs)
+                                print "GleambookMessages_Docloader:skipping %s documents create"%len(docs)
                                 pass
                         temp = 0
                         docs=[]   
@@ -121,7 +121,7 @@ class GleambookMessages_Docloader(Callable):
                             try:
                                 doc_op().bulkUpsert(self.msg_bucket, docs)
                             except:
-                                print "skipping %s documents upload"%len(docs)
+                                print "GleambookMessages_Docloader:skipping %s documents upload"%len(docs)
                                 pass
                         temp = 0
                         docs=[]           
@@ -225,7 +225,7 @@ class GleambookUser_Docloader(Callable):
                             try:
                                 doc_op().bulkUpsert(self.bucket, docs)
                             except:
-                                print "skipping %s documents upload"%len(docs)
+                                print "GleambookUser_Docloader: skipping %s documents create"%len(docs)
                                 pass
                         temp = 0
                         docs=[]
@@ -245,7 +245,7 @@ class GleambookUser_Docloader(Callable):
                             try:
                                 doc_op().bulkUpsert(self.bucket, docs)
                             except:
-                                print "skipping %s documents upload"%len(docs)
+                                print "GleambookUser_Docloader: skipping %s documents upload"%len(docs)
                                 pass
                         temp = 0
                         docs=[]
@@ -659,9 +659,8 @@ class volume(BaseTestCase):
         for i in xrange(doc_executors):
             executors.append(GleambookUser_Docloader(bucket, num_items, items_start_from+i*num_items,batch_size=2000))
             executors.append(GleambookMessages_Docloader(msg_bucket, num_items, items_start_from+i*num_items,batch_size=2000))
-        rebalance = self.cluster.async_rebalance(nodes_in_cluster, [], [self.servers[3],self.servers[4]])
+        rebalance = self.cluster.async_rebalance(nodes_in_cluster, [], [self.servers[3]])
         nodes_in_cluster.remove(self.servers[3])
-        nodes_in_cluster.remove(self.servers[4])
         futures = pool.invokeAll(executors)
         
         for future in futures:

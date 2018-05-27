@@ -4,7 +4,7 @@ Created on Apr 23, 2018
 
 To run:
 /opt/jython/bin/jython -J-cp 'Couchbase-Java-Client-2.5.6/*:jsch-0.1.54.jar:doc_ops.jar' testrunner.py 
--i INI_FILE.ini num_query=100,num_items=10000 -t cbas.doc_ops_test.volume.test_volume,num_query=100,num_items=10000000
+-i INI_FILE.ini num_query=100,num_items=10000 -t cbas.cursor_drop_test.volume.test_volume,num_query=100,num_items=10000000
 
 '''
 import bulk_doc_operations.doc_ops as doc_op
@@ -33,123 +33,6 @@ from basetestcase import BaseTestCase
 from lib.remote.remote_util import RemoteMachineShellConnection
 from node_utils.node_ready_functions import NodeHelper
 
-class global_vars:
-    
-    message_id = 1
-    start_message_id = 0
-    end_message_id = 0
-    
-    
-class GleambookMessages_Docloader(Callable):
-    def __init__(self, msg_bucket, num_items, start_from,op_type="create",batch_size=1000):
-        self.msg_bucket = msg_bucket
-        self.num_items = num_items
-        self.start_from = start_from
-        self.started = None
-        self.completed = None
-        self.loaded = 0
-        self.thread_used = None
-        self.exception = None
-        self.op_type = op_type
-        self.year = range(2001,2018)
-        self.month = range(1,12)
-        self.day = range(1,28)
-        self.batch_size = batch_size
-        
-    def generate_GleambookMessages(self, num=None,message_id=None):
-
-        date = "%04d"%random.choice(self.year) + "-" + "%02d"%random.choice(self.month) + "-" + "%02d"%random.choice(self.day)
-        time = "%02d"%random.choice(range(0,24)) + "-" + "%02d"%random.choice(range(0,60)) + "-" + "%02d"%random.choice(self.day)
-
-        GleambookMessages = {"message_id": "%d"%message_id, "author_id": "%d"%num,
-#                              "in_response_to": "%d"%random.choice(range(message_id)), 
-#                              "sender_location": str(round(random.uniform(0, 100), 4))+","+str(round(random.uniform(0, 100), 4)), 
-                             "send_time": date+"T"+time, 
-#                              "message": ''.join(random.choice(string.lowercase) for x in range(50))
-                             }
-        return GleambookMessages
-    
-    def __str__(self):
-        if self.exception:
-            return "[%s] %s download error %s in %.2fs" % \
-                (self.thread_used, self.num_items, self.exception,
-                 self.completed - self.started, ) #, self.result)
-        elif self.completed:
-            print "Time: %s"%str(time.strftime("%H:%M:%S", time.gmtime(time.time())))
-            return "[%s] %s items loaded in %.2fs" % \
-                (self.thread_used, self.loaded,
-                 self.completed - self.started, ) #, self.result)
-        elif self.started:
-            return "[%s] %s started at %s" % \
-                (self.thread_used, self.num_items, self.started)
-        else:
-            return "[%s] %s not yet scheduled" % \
-                (self.thread_used, self.num_items)
-
-    def call(self):
-        self.thread_used = threading.currentThread().getName()
-        self.started = time.time()
-        try:
-            temp=0
-            docs=[]
-            for i in xrange(self.num_items):
-                start_message_id = global_vars.message_id
-                if self.op_type == "create":
-                    for j in xrange(random.randint(1,10)):
-                        var = str(json.dumps(self.generate_GleambookMessages(i+self.start_from , global_vars.message_id)))
-                        user = JsonTranscoder().stringToJsonObject(var);
-#                         print i+self.start_from,global_vars.message_id
-                        doc = JsonDocument.create(str(global_vars.message_id), user);
-                        docs.append(doc)
-                        temp+=1
-                        if temp == self.batch_size:
-                            try:
-                                doc_op().bulkSet(self.msg_bucket, docs)
-                            except:
-                                print "Sleeping for 20 secs"
-                                time.sleep(20)
-                                try:
-                                    doc_op().bulkUpsert(self.msg_bucket, docs)
-                                except:
-                                    print "skipping %s documents upload"%len(docs)
-                                    pass
-                            temp = 0
-                            docs=[]
-                        global_vars.message_id += 1
-                    end_message_id = global_vars.message_id
-                elif self.op_type == "update":
-                    var = str(json.dumps(self.generate_GleambookMessages(i+self.start_from , i+start_message_id)))
-                    user = JsonTranscoder().stringToJsonObject(var);
-                    doc = JsonDocument.create(str(i+start_message_id), user);
-                    docs.append(doc)
-                    if temp == self.batch_size:
-                        try:
-                            doc_op().bulkUpsert(self.msg_bucket, docs)
-                        except:
-                            print "Sleeping for 20 secs"
-                            time.sleep(20)
-                            try:
-                                doc_op().bulkUpsert(self.msg_bucket, docs)
-                            except:
-                                print "skipping %s documents upload"%len(docs)
-                                pass
-                        temp = 0
-                        docs=[]           
-                elif self.op_type == "delete":
-                    try:
-                        response = self.msg_bucket.remove(str(i+start_message_id));
-                    except:
-                        pass      
-                self.loaded += 1
-        except Exception, ex:
-            import traceback
-            traceback.print_exc()
-            exc_info = sys.exc_info()
-            traceback.print_exception(*exc_info)
-            self.exception = ex
-        self.completed = time.time()
-        return self
-    
 class GleambookUser_Docloader(Callable):
     def __init__(self, bucket, num_items, start_from,op_type="create", batch_size=2000):
         self.bucket = bucket
@@ -322,29 +205,16 @@ class volume(BaseTestCase):
 
         self.log.info("Create CB buckets")
 
-        self.create_bucket(self.master, "GleambookUsers",bucket_ram=available_memory/3)
-        self.create_bucket(self.master, "GleambookMessages",bucket_ram=available_memory/3)
-        self.create_bucket(self.master, "ChirpMessages",bucket_ram=available_memory/3)
+        self.create_bucket(self.master, "GleambookUsers",bucket_ram=available_memory)
         shell = RemoteMachineShellConnection(self.master)
-        command = 'curl -i -u Administrator:password --data \'ns_bucket:update_bucket_props("ChirpMessages", [{extra_config_string, "cursor_dropping_upper_mark=70;cursor_dropping_lower_mark=50"}]).\' http://%s:8091/diag/eval'%self.master
-        shell.execute_command(command)
-        command = 'curl -i -u Administrator:password --data \'ns_bucket:update_bucket_props("GleambookMessages", [{extra_config_string, "cursor_dropping_upper_mark=70;cursor_dropping_lower_mark=50"}]).\' http://%s:8091/diag/eval'%self.master
-        shell.execute_command(command)
-        command = 'curl -i -u Administrator:password --data \'ns_bucket:update_bucket_props("GleambookUsers", [{extra_config_string, "cursor_dropping_upper_mark=70;cursor_dropping_lower_mark=50"}]).\' http://%s:8091/diag/eval'%self.master
+        command = 'curl -i -u Administrator:password --data \'ns_bucket:update_bucket_props("GleambookUsers", [{extra_config_string, "cursor_dropping_upper_mark=70;cursor_dropping_lower_mark=50"}]).\' http://172.23.104.16:8091/diag/eval'
         shell.execute_command(command)
 
         result = RestConnection(self.query_node).query_tool("CREATE PRIMARY INDEX idx_GleambookUsers ON GleambookUsers;")
         self.sleep(10, "wait for index creation.")
         self.assertTrue(result['status'] == "success")
 
-        result = RestConnection(self.query_node).query_tool("CREATE PRIMARY INDEX idx_GleambookMessages ON GleambookMessages;")
-        self.sleep(10, "wait for index creation.")
-        self.assertTrue(result['status'] == "success")
  
-        result = RestConnection(self.query_node).query_tool("CREATE PRIMARY INDEX idx_ChirpMessages ON ChirpMessages;")
-        self.sleep(10, "wait for index creation.")
-        self.assertTrue(result['status'] == "success")
-        
     def test_volume(self):
         nodes_in_cluster= [self.servers[0]]
         print "Start Time: %s"%str(time.strftime("%H:%M:%S", time.gmtime(time.time())))
@@ -374,7 +244,6 @@ class volume(BaseTestCase):
         cluster = CouchbaseCluster.create(env, self.master.ip);
         cluster.authenticate("Administrator","password")
         bucket = cluster.openBucket("GleambookUsers");
-        msg_bucket = cluster.openBucket("GleambookMessages")
         
         pool = Executors.newFixedThreadPool(5)
         items_start_from = 0
@@ -386,7 +255,6 @@ class volume(BaseTestCase):
         num_items = total_num_items / num_executors
         for i in xrange(doc_executors):
             executors.append(GleambookUser_Docloader(bucket, num_items, items_start_from+i*num_items,batch_size=2000))
-            executors.append(GleambookMessages_Docloader(msg_bucket, num_items, items_start_from+i*num_items,batch_size=2000))
         futures = pool.invokeAll(executors)
         for future in futures:
             print future.get(num_executors, TimeUnit.SECONDS)
@@ -407,8 +275,6 @@ class volume(BaseTestCase):
           
         executors.append(GleambookUser_Docloader(bucket, num_items/10, updates_from,"update"))
         executors.append(GleambookUser_Docloader(bucket, num_items/10, deletes_from,"delete"))
-        executors.append(GleambookMessages_Docloader(msg_bucket, num_items/10, updates_from,"update"))
-        executors.append(GleambookMessages_Docloader(msg_bucket, num_items/10, deletes_from,"delete"))
         futures = pool.invokeAll(executors)
         for future in futures:
             print future.get(num_executors, TimeUnit.SECONDS)
@@ -426,7 +292,6 @@ class volume(BaseTestCase):
         
         for i in xrange(doc_executors):
             executors.append(GleambookUser_Docloader(bucket, num_items, items_start_from+i*num_items,batch_size=2000))
-            executors.append(GleambookMessages_Docloader(msg_bucket, num_items, items_start_from+i*num_items,batch_size=2000))
         rebalance = self.cluster.async_rebalance(nodes_in_cluster, [self.servers[3]], [])
         futures = pool.invokeAll(executors)
         
@@ -439,7 +304,5 @@ class volume(BaseTestCase):
         self.assertTrue(reached, "rebalance failed, stuck or did not complete")
         
         bucket.close()
-        msg_bucket.close()
         
         print "End Time: %s"%str(time.strftime("%H:%M:%S", time.gmtime(time.time())))
-
