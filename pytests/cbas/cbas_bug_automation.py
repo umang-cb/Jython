@@ -287,6 +287,8 @@ class CBASBugAutomation(CBASBaseTest):
             
             self.log.info("Add documents with persistance inplace")
             self.perform_doc_ops_in_all_cb_buckets(self.num_items / 2, "create", start_from, start_from+self.num_items / 2)
+            self.sleep(30,"Wait for the documents to be persisted on the disk before memcached kill.")
+            
             start_from += self.num_items / 2
             
             self.log.info("Validate count on CBAS")
