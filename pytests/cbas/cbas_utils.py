@@ -165,8 +165,26 @@ class cbas_utils():
         else:
             '''DP3 doesn't need to specify Username/Password as cbas node is part of the cluster.'''
             cmd_connect_bucket = "connect bucket " + cbas_bucket_name
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_util(
-            cmd_connect_bucket, username=username, password=password)
+
+        retry_attempt = 5
+        connect_bucket_failed = True
+        while connect_bucket_failed and retry_attempt > 0:
+            status, metrics, errors, results, _ = self.execute_statement_on_cbas_util(cmd_connect_bucket,
+                                                                                      username=username,
+                                                                                      password=password)
+
+            if errors:
+                # Below errors are to be fixed in Alice, until they are fixed retry is only option
+                actual_error = errors[0]["msg"]
+                if "Failover response The vbucket belongs to another server" in actual_error or "Bucket configuration doesn't contain a vbucket map" in actual_error:
+                    retry_attempt -= 1
+                    time.sleep(10)
+                    self.log.info("Retrying connecting of bucket")
+                else:
+                    self.log.info("Not a vbucket error, so don't retry")
+                    connect_bucket_failed = False
+            else:
+                connect_bucket_failed = False
         if validate_error_msg:
             return self.validate_error_in_response(status, errors, expected_error)
         else:
