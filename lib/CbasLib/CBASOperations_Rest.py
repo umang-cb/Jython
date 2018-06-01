@@ -58,19 +58,14 @@ class CBASHelper(RestConnection):
                 status, content))
             raise Exception("Analytics Service API failed")
 
-    def delete_active_request_on_cbas(self, client_context_id, username=None, password=None):
+    def delete_active_request_on_cbas(self, payload, username=None, password=None):
         if not username:
             username = self.username
         if not password:
             password = self.password
 
-        api = self.cbas_base_url + "/analytics/admin/active_requests?client_context_id={0}".format(
-            client_context_id)
-        headers = self._create_capi_headers(username, password)
-
-        status, content, header = self._http_request(api, 'DELETE',
-                                                     headers=headers,
-                                                     timeout=60)
+        api = self.cbas_base_url + "/analytics/admin/active_requests"
+        status, content, header = self._http_request(api, 'DELETE', params=payload, timeout=60)
         if status:
             return header['status']
         elif str(header['status']) == '404':
