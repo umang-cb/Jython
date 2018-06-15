@@ -727,9 +727,9 @@ class cbas_utils():
         analyticsHttpAdminListenPort = None
         
         if 'analyticsHttpAdminListenAddress' in response:
-            analyticsHttpAdminListenAddress = response['analyticsHttpAdminListenAddress']
+            analyticsHttpAdminListenAddress = response['analyticsHttpAdminPublicAddress']
         if 'analyticsHttpAdminListenPort' in response:
-            analyticsHttpAdminListenPort = response['analyticsHttpAdminListenPort']
+            analyticsHttpAdminListenPort = response['analyticsHttpAdminPublicPort']
 
         return analyticsHttpAdminListenAddress, analyticsHttpAdminListenPort
     
