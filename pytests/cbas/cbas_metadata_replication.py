@@ -180,7 +180,12 @@ class MetadataReplication(CBASBaseTest):
                                 
         items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
         self.log.info("Items before service restart: %s"%items_in_cbas_bucket)
-                
+        
+        count = 0
+        while self.cbas_util.fetch_analytics_cluster_response()['state'] != "ACTIVE" and count < 60:
+            self.sleep(5)
+            count+=1
+            
         items_in_cbas_bucket = 0
         start_time=time.time()
         while (items_in_cbas_bucket == 0 or items_in_cbas_bucket == -1) and time.time()<start_time+60:
@@ -395,12 +400,13 @@ class MetadataReplication(CBASBaseTest):
             for server in self.cbas_servers:
                 NodeHelper.reboot_server(server, self)
         
+        self.sleep(60)
         replica_nodes_after_reboot = self.cbas_util.get_replicas_info(self.shell)
         replicas_after_reboot=len(replica_nodes_after_reboot)
         
         self.assertTrue(replica_nodes_after_reboot == replica_nodes_before_reboot,
                         "Replica nodes changed after reboot. Before: %s , After : %s"
-                        %(replica_nodes_after_reboot,replica_nodes_before_reboot))
+                        %(replica_nodes_before_reboot,replica_nodes_after_reboot))
         self.assertTrue(replicas_after_reboot == replicas_before_reboot,
                         "Number of Replica nodes changed after reboot. Before: %s , After : %s"
                         %(replicas_before_reboot,replicas_after_reboot))
