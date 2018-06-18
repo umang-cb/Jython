@@ -30,6 +30,7 @@ from lib.membase.api.rest_client import RestConnection, RestHelper
 from TestInput import TestInputSingleton
 from bucket_utils.bucket_ready_functions import bucket_utils
 from basetestcase import BaseTestCase
+from lib.remote.remote_util import RemoteMachineShellConnection
 
 class GleambookMessages_Docloader(Callable):
     def __init__(self, msg_bucket, num_items, start_from,op_type="create",batch_size=1000):
@@ -315,7 +316,14 @@ class volume(BaseTestCase):
         self.create_bucket(self.master, "GleambookUsers",bucket_ram=available_memory/3)
         self.create_bucket(self.master, "GleambookMessages",bucket_ram=available_memory/3)
         self.create_bucket(self.master, "ChirpMessages",bucket_ram=available_memory/3)
-        
+        shell = RemoteMachineShellConnection(self.master)
+        command = 'curl -i -u Administrator:password --data \'ns_bucket:update_bucket_props("ChirpMessages", [{extra_config_string, "cursor_dropping_upper_mark=70;cursor_dropping_lower_mark=50"}]).\' http://%s:8091/diag/eval'%self.master
+        shell.execute_command(command)
+        command = 'curl -i -u Administrator:password --data \'ns_bucket:update_bucket_props("GleambookMessages", [{extra_config_string, "cursor_dropping_upper_mark=70;cursor_dropping_lower_mark=50"}]).\' http://%s:8091/diag/eval'%self.master
+        shell.execute_command(command)
+        command = 'curl -i -u Administrator:password --data \'ns_bucket:update_bucket_props("GleambookUsers", [{extra_config_string, "cursor_dropping_upper_mark=70;cursor_dropping_lower_mark=50"}]).\' http://%s:8091/diag/eval'%self.master
+        shell.execute_command(command)
+
         result = RestConnection(self.query_node).query_tool("CREATE PRIMARY INDEX idx_GleambookUsers ON GleambookUsers;")
         self.sleep(10, "wait for index creation.")
         self.assertTrue(result['status'] == "success")
@@ -677,6 +685,7 @@ class volume(BaseTestCase):
         
         bucket.close()
         msg_bucket.close()
+        cluster.disconnect()
         
         print "End Time: %s"%str(time.strftime("%H:%M:%S", time.gmtime(time.time())))
 

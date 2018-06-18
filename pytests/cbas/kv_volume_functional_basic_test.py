@@ -304,5 +304,6 @@ class volume(BaseTestCase):
         self.assertTrue(reached, "rebalance failed, stuck or did not complete")
         
         bucket.close()
+        cluster.disconnect()
         
         print "End Time: %s"%str(time.strftime("%H:%M:%S", time.gmtime(time.time())))
