@@ -101,7 +101,7 @@ class CBASCompilationParamsTests(CBASBaseTest):
         self._setupForTest()
         group_order_query_statement = "select count(*), first_name Name from {0} GROUP BY first_name ORDER BY first_name;".format(
             self.cbas_dataset_name)
-        compiler_param_statement = "SET `compiler.groupmemory` \"64MB\"; SET `compiler.sortmemory` \"64MB\"; SET `compiler.joinmemory` \"64MB\"; SET `compiler.parallelism` \"0\";"
+        compiler_param_statement = "SET `compiler.groupmemory` \"50MB\"; SET `compiler.sortmemory` \"64MB\"; SET `compiler.joinmemory` \"64MB\"; SET `compiler.parallelism` \"0\";"
         join_query_statement = "select a.firstname, b.firstname from {0} a, {0} b where a.number=b.number;".format(
             self.cbas_dataset_name)
         self.statement = compiler_param_statement + group_order_query_statement + join_query_statement
