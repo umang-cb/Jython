@@ -178,8 +178,8 @@ class MetadataReplication(CBASBaseTest):
             self.log.info("replica state during rebalance: %s"%replica['status'])
             self.assertEqual(replica['status'], "IN_SYNC","Replica state is incorrect: %s"%replica['status'])
                                 
-        items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
-        self.log.info("Items before service restart: %s"%items_in_cbas_bucket)
+#         items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+#         self.log.info("Items before service restart: %s"%items_in_cbas_bucket)
         
         count = 0
         while self.cbas_util.fetch_analytics_cluster_response()['state'] != "ACTIVE" and count < 60:
@@ -257,8 +257,8 @@ class MetadataReplication(CBASBaseTest):
                             self.cbas_util.createConn("default")
                             self.cbas_node = server
                             break
-                    items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
-                    self.log.info("Items before service restart: %s"%items_in_cbas_bucket)
+#                     items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+#                     self.log.info("Items before service restart: %s"%items_in_cbas_bucket)
                             
                     items_in_cbas_bucket = 0
                     start_time=time.time()
@@ -331,8 +331,8 @@ class MetadataReplication(CBASBaseTest):
             self.log.info("replica state during rebalance: %s"%replica['status'])
             self.assertEqual(replica['status'], "IN_SYNC","Replica state is incorrect: %s"%replica['status'])
                                 
-        items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
-        self.log.info("Items before service restart: %s"%items_in_cbas_bucket)
+#         items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+#         self.log.info("Items before service restart: %s"%items_in_cbas_bucket)
                 
         items_in_cbas_bucket = 0
         start_time=time.time()
