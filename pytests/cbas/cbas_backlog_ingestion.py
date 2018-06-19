@@ -384,14 +384,15 @@ class BucketOperations(CBASBaseTest):
 
         self.log.info("Fetch test case arguments")
         self.fetch_test_case_arguments()
-
+        
         self.log.info("Fetch and set memory quota")
         memory_for_kv = int(self.fetch_available_memory_for_kv_on_a_node())
         self.rest.set_service_memoryQuota(service='memoryQuota', memoryQuota=memory_for_kv)
 
         self.log.info("Create {0} cb buckets".format(self.num_of_cb_buckets))
         self.create_multiple_buckets(server=self.master, replica=1, howmany=self.num_of_cb_buckets)
-
+        self.sleep(30, message="Wait for buckets to be ready")
+        
         self.log.info("Check if buckets are created")
         bucket_helper = BucketHelper(self.master)
         buckets = bucket_helper.get_buckets()
@@ -403,7 +404,7 @@ class BucketOperations(CBASBaseTest):
         self.log.info("Create connection to all buckets")
         for bucket in buckets:
             self.cbas_util.createConn(bucket.name)
-
+            
         self.log.info("Create {0} cbas buckets".format(self.num_of_cb_buckets * self.num_of_cbas_buckets_per_cb_bucket))
         for bucket in buckets:
             for index in range(self.num_of_cbas_buckets_per_cb_bucket):
@@ -457,16 +458,36 @@ class BucketOperations(CBASBaseTest):
 
         self.log.info("Connect to CBAS buckets and assert document count")
         for cbas_bucket in cbas_buckets:
-            self.assertTrue(self.cbas_util.connect_to_bucket(cbas_bucket_name=cbas_bucket),
-                            msg="Failed to connect to cbas bucket")
+            bucket_connect_success = False
+            retry_for_seconds = 300
+            end_time = datetime.datetime.now() + datetime.timedelta(seconds=int(retry_for_seconds))
+            while not bucket_connect_success and datetime.datetime.now() < end_time:
+                try:
+                    self.assertTrue(self.cbas_util.connect_to_bucket(cbas_bucket_name=cbas_bucket),
+                                    msg="Failed to connect to cbas bucket")
+                    bucket_connect_success = True
+                except:
+                    self.sleep(10, message="Unable to connect, re-try after 10 seconds")
+            if not bucket_connect_success:
+                self.fail("Unable to connect cbas bucket after 300 seconds")  
+                     
             for index in range(self.num_of_dataset_per_cbas):
                 self.log.info("Wait for ingestion to complete and verify count")
-                self.cbas_util.wait_for_ingestion_complete([cbas_bucket + self.dataset_prefix + str(index)],
-                                                           self.num_items)
-                self.assertTrue(
-                    self.cbas_util.validate_cbas_dataset_items_count(cbas_bucket + self.dataset_prefix + str(index),
-                                                                     self.num_items))
-
+                query_passed = False
+                retry_for_seconds = 300
+                end_time = datetime.datetime.now() + datetime.timedelta(seconds=int(retry_for_seconds))
+                while not query_passed and datetime.datetime.now() < end_time:
+                    try:
+                        self.cbas_util.wait_for_ingestion_complete([cbas_bucket + self.dataset_prefix + str(index)],
+                                                                   self.num_items)
+                        query_passed = True
+                    except:
+                        self.sleep(10, message="Hit exception while fetching count, re-try after 10 seconds")
+                if not query_passed:
+                    self.fail("Failed to fetch result on server")
+                self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(
+                                cbas_bucket + self.dataset_prefix + str(index), self.num_items))
+                        
     def tearDown(self):
         super(BucketOperations, self).tearDown()
 
