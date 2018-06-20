@@ -10,6 +10,7 @@ from com.couchbase.client.core import CouchbaseException
 from java.util.logging import Logger, Level, ConsoleHandler
 from com.couchbase.client.java.env import DefaultCouchbaseEnvironment
 from java.util.concurrent import TimeUnit
+from java.lang import System
 
 env = DefaultCouchbaseEnvironment.builder().mutationTokensEnabled(True).computationPoolSize(5).maxRequestLifetime(TimeUnit.SECONDS.toMillis(300)).socketConnectTimeout(100000).connectTimeout(100000).build();
 class SDKClient(object):
@@ -28,6 +29,7 @@ class SDKClient(object):
         if password:
             self.password = password
         try:
+            System.setProperty("com.couchbase.forceIPv4", "false");
             logger = Logger.getLogger("com.couchbase.client");
             logger.setLevel(Level.SEVERE);
             for h in logger.getParent().getHandlers():

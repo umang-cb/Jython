@@ -25,7 +25,7 @@ from membase.helper.cluster_helper import ClusterOperationHelper
 from testconstants import MV_LATESTBUILD_REPO
 from testconstants import SHERLOCK_BUILD_REPO
 from testconstants import COUCHBASE_REPO
-from testconstants import CB_REPO
+from testconstants import CB_REPO, CB_DOWNLOAD_SERVER, CB_DOWNLOAD_SERVER_FQDN
 from testconstants import COUCHBASE_VERSION_2
 from testconstants import COUCHBASE_VERSION_3, COUCHBASE_FROM_WATSON,\
                           COUCHBASE_FROM_SPOCK
@@ -62,6 +62,7 @@ Available keys:
  fts_query_limit=1000000    Set a limit for the max results to be returned by fts for any query
  change_indexer_ports=false Sets indexer ports values to non-default ports
  storage_mode=plasma        Sets indexer storage mode
+ enable_ipv6=False          Enable ipv6 mode in ns_server
 
 
 Examples:
@@ -189,7 +190,8 @@ class Installer(object):
                 openssl = params["openssl"]
 
         if ok:
-            if "url" in params and params["url"] != "":
+            if "url" in params and params["url"] != ""\
+               and isinstance(params["url"], str):
                 direct_build_url = params["url"]
         if ok:
             if "linux_repo" in params and params["linux_repo"].lower() == "true":
@@ -292,6 +294,9 @@ class Installer(object):
                     build_repo = CB_REPO + CB_VERSION_NAME[version[:3]] + "/"
                 else:
                     sys.exit("version is not support yet")
+            if 'enable_ipv6' in params and params['enable_ipv6']:
+                build_repo = build_repo.replace(CB_DOWNLOAD_SERVER,
+                                                CB_DOWNLOAD_SERVER_FQDN)
             for name in names:
                 if version[:5] in releases_version:
                     build = BuildQuery().find_membase_release_build(
@@ -464,13 +469,16 @@ class CouchbaseServerInstaller(Installer):
         Installer.__init__(self)
 
     def initialize(self, params):
-        log.info('*****CouchbaseServerInstaller initialize the application ****')
-
-
+        #log.info('*****CouchbaseServerInstaller initialize the application ****')
         start_time = time.time()
         cluster_initialized = False
         server = params["server"]
         remote_client = RemoteMachineShellConnection(params["server"])
+        success = True
+        success &= remote_client.is_couchbase_installed()
+        if not success:
+            mesg = "\n\nServer {0} failed to install".format(params["server"].ip)
+            sys.exit(mesg)
         while time.time() < start_time + 5 * 60:
             try:
                 rest = RestConnection(server)
@@ -478,6 +486,19 @@ class CouchbaseServerInstaller(Installer):
                 # Optionally change node name and restart server
                 if params.get('use_domain_names', 0):
                     RemoteUtilHelper.use_hostname_for_server_settings(server)
+
+                if params.get('enable_ipv6', 0):
+                    status, content = RestConnection(server).rename_node(
+                        hostname=server.ip.replace('[', '').replace(']', ''))
+                    if status:
+                        log.info("Node {0} renamed to {1}".format(server.ip,
+                                                                  server.ip.replace('[', '').
+                                                                  replace(']', '')))
+                    else:
+                        log.error("Error renaming node {0} to {1}: {2}".
+                                  format(server.ip,
+                                         server.ip.replace('[', '').replace(']', ''),
+                                         content))
 
                 # Make sure that data_path and index_path are writable by couchbase user
                 for path in set(filter(None, [server.data_path, server.index_path])):
@@ -565,6 +586,10 @@ class CouchbaseServerInstaller(Installer):
                 """ set cbauth environment variables from Watson version
                     it is checked version inside method """
                 remote_client.set_cbauth_env(server)
+                remote_client.check_man_page()
+                """ add unzip command on server if it is not available """
+                remote_client.check_cmd("unzip")
+                remote_client.is_ntp_installed()
                 remote_client.disconnect()
                 # TODO: Make it work with windows
                 if "erlang_threads" in params:
@@ -650,6 +675,12 @@ class CouchbaseServerInstaller(Installer):
         else:
             fts_query_limit = None
 
+        if "enable_ipv6" in params:
+            enable_ipv6 = params["enable_ipv6"]
+            start_server = False
+        else:
+            enable_ipv6 = None
+
         if "linux_repo" in params and params["linux_repo"].lower() == "true":
             linux_repo = True
         else:
@@ -672,9 +703,11 @@ class CouchbaseServerInstaller(Installer):
                                        params["version"].replace("-rel", ""),
                                        vbuckets=vbuckets,
                                        fts_query_limit=fts_query_limit,
+                                       enable_ipv6=enable_ipv6,
                                        windows_msi=self.msi )
             else:
                 downloaded = remote_client.download_build(build)
+
                 if not downloaded:
                     sys.exit('server {1} unable to download binaries : {0}' \
                                      .format(build.url, params["server"].ip))
@@ -685,7 +718,8 @@ class CouchbaseServerInstaller(Installer):
                                          startserver=start_server,\
                                          vbuckets=vbuckets, swappiness=swappiness,\
                                         openssl=openssl, upr=upr, xdcr_upr=xdcr_upr,
-                                        fts_query_limit=fts_query_limit)
+                                        fts_query_limit=fts_query_limit,
+                                        enable_ipv6=enable_ipv6)
                     log.info('wait 5 seconds for Couchbase server to start')
                     time.sleep(5)
                     if "rest_vbuckets" in params:
@@ -1007,6 +1041,11 @@ class InstallerJob(object):
         queue = Queue.Queue()
         success = True
         for server in servers:
+            if params.get('enable_ipv6',0):
+                if re.match('\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', server.ip):
+                    sys.exit("****************************** ERROR: You are "
+                             "trying to enable IPv6 on an IPv4 machine, "
+                             "run without enable_ipv6=True ******************")
             _params = copy.deepcopy(params)
             _params["server"] = server
             u_t = Thread(target=installer_factory(params).uninstall,
@@ -1144,7 +1183,10 @@ def main():
             if input.test_params["version"][:5] in COUCHBASE_VERSIONS and \
                 bool(build_pattern.match(build_version)):
                 correct_build_format = True
-        if not correct_build_format:
+        use_direct_url = False
+        if "url" in input.test_params and input.test_params["url"].startswith("http"):
+            use_direct_url = True
+        if not correct_build_format and not use_direct_url:
             log.info("\n========\n"
                      "         Incorrect build pattern.\n"
                      "         It should be 0.0.0-111 or 0.0.0-1111 format\n"
@@ -1176,8 +1218,6 @@ def main():
     else:
         log.info('Doing  serial install****')
         success = InstallerJob().sequential_install(input.servers, input.test_params)
-    if not success:
-        sys.exit(log_install_failed)
     if "product" in input.test_params and input.test_params["product"] in ["couchbase", "couchbase-server", "cb"]:
         print "verify installation..."
         success = True
