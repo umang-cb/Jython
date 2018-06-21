@@ -462,11 +462,12 @@ class PartialRollback_CBAS(CBASBaseTest):
         shell.kill_memcached()
         self.sleep(2,"Wait for 2 secs for DCP rollback sent to CBAS.")
         curr = time.time()
-        while items_in_cbas_bucket != 0 and items_in_cbas_bucket > items_before_persistence_stop:
+        while items_in_cbas_bucket == -1 or (items_in_cbas_bucket != 0 and items_in_cbas_bucket > items_before_persistence_stop):
             try:
                 if curr+120 < time.time():
                     break
                 items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+                self.log.info("Items in CBAS: %s"%items_in_cbas_bucket)
             except:
                 self.log.info("Probably rebalance is in progress and the reason for queries being failing.")
                 pass
@@ -489,9 +490,16 @@ class PartialRollback_CBAS(CBASBaseTest):
                     items_in_cb_bucket += self.get_item_count(node,self.cb_bucket_name)
         
             self.log.info("Items in CB bucket after rollback: %s"%items_in_cb_bucket)
-            items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+            try:
+                items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+            except:
+                pass
             if curr+120 < time.time():
                 break
+        str_time = time.time()
+        while self.rest._rebalance_progress_status() == "running" and time.time()<str_time+300:
+            self.sleep(1)
+            self.log.info("Waiting for rebalance to complete")
             
         self.log.info("After Rollback --- # docs in CB bucket : %s, # docs in CBAS bucket : %s",
                       items_in_cb_bucket, items_in_cbas_bucket)
