@@ -142,6 +142,7 @@ class MetadataReplication(CBASBaseTest):
                 self.sleep(2)
                 if self.rest._rebalance_progress_status() == "running":
                     self.assertTrue(self.rest.stop_rebalance(wait_timeout=120), "Failed while stopping rebalance.")
+                    self.sleep(30,"Wait for some tine after rebalance is stopped.")
                 else:
                     self.fail("Rebalance completed before the test could have stopped rebalance.")
                 
@@ -155,6 +156,7 @@ class MetadataReplication(CBASBaseTest):
                 self.sleep(2)
                 if self.rest._rebalance_progress_status() == "running":
                     self.assertTrue(self.rest.stop_rebalance(wait_timeout=120), "Failed while stopping rebalance.")
+                    self.sleep(30,"Wait for some tine after rebalance is stopped.")
                 else:
                     self.fail("Rebalance completed before the test could have stopped rebalance.")
                 
@@ -162,7 +164,7 @@ class MetadataReplication(CBASBaseTest):
             else:
                 self.cluster_util.remove_node(otpNodes,wait_for_rebalance=False)
             replicas_before_rebalance -= self.replica_change
-        self.sleep(2)
+        self.sleep(30)
         str_time = time.time()
         while self.rest._rebalance_progress_status() == "running" and time.time()<str_time+300:
             replicas = self.cbas_util.get_replicas_info(self.shell)
@@ -307,10 +309,11 @@ class MetadataReplication(CBASBaseTest):
             out_nodes = [self.otpNodes[1]]    
         
         self.cluster_util.remove_node(out_nodes, wait_for_rebalance=False)
-        self.sleep(2, "Wait for sometime after rebalance started.")
+        self.sleep(5, "Wait for sometime after rebalance started.")
         if self.restart_rebalance:
             if self.rest._rebalance_progress_status() == "running":
                 self.assertTrue(self.rest.stop_rebalance(wait_timeout=120), "Failed while stopping rebalance.")
+                self.sleep(10)
             else:
                 self.fail("Rebalance completed before the test could have stopped rebalance.")
             self.rebalance(ejected_nodes=[node.id for node in out_nodes], wait_for_completion=False)
