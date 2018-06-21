@@ -407,17 +407,19 @@ class cbas_utils():
         else:
             return None
         
-    def validate_error_in_response(self, status, errors, expected_error):
+    def validate_error_in_response(self, status, errors, expected_error=None, expected_error_code=None):
         """
-        Validates if the error message in the response is same as the expected one.
+        Validates the error response against the expected one.
         """
         if status != "success":
             actual_error = errors[0]["msg"]
             if expected_error not in actual_error:
-                log.info("Expected: %s, Actual: %s"%(expected_error, actual_error))
+                log.info("Error message mismatch. Expected: %s, Actual: %s" % (expected_error, actual_error))
                 return False
-            else:
-                return True
+            if expected_error_code is not None and expected_error_code != errors[0]["code"]:
+                log.info("Error code mismatch. Expected: %s, Actual: %s" % (expected_error_code, errors[0]["code"]))
+                return False
+            return True
         return False
 
     def async_query_execute(self, statement, mode, num_queries):
