@@ -66,6 +66,42 @@ class NodeHelper:
         shell.disconnect()
 
     @staticmethod
+    def reboot_server_new(server, test_case, wait_timeout=120):
+        """Reboot a server and wait for couchbase server to run.
+        @param server: server object, which needs to be rebooted.
+        @param test_case: test case object, since it has assert() function
+                        which is used by wait_for_ns_servers_or_assert
+                        to throw assertion.
+        @param wait_timeout: timeout to whole reboot operation.
+        """
+        # self.log.info("Rebooting server '{0}'....".format(server.ip))
+        shell = RemoteMachineShellConnection(server)
+        if shell.extract_remote_info().type.lower() == OS.WINDOWS:
+            o, r = shell.execute_command(
+                "{0} -r -f -t 0".format(COMMAND.SHUTDOWN))
+        elif shell.extract_remote_info().type.lower() == OS.LINUX:
+            o, r = shell.execute_command(COMMAND.REBOOT)
+        shell.log_command_output(o, r)
+        # wait for restart and warmup on all server
+        if shell.extract_remote_info().type.lower() == OS.WINDOWS:
+            time.sleep(wait_timeout * 5)
+        else:
+            time.sleep(wait_timeout/6)
+        while True:
+            try:
+                # disable firewall on these nodes
+                NodeHelper.wait_node_restarted(server,test_case)
+                break
+            except BaseException:
+                print "Node not reachable yet, will try after 10 secs"
+                time.sleep(10)
+        # wait till server is ready after warmup
+        ClusterOperationHelper.wait_for_ns_servers_or_assert(
+            [server],
+            test_case,
+            wait_if_warmup=True)
+        
+    @staticmethod
     def reboot_server(server, test_case, wait_timeout=120):
         """Reboot a server and wait for couchbase server to run.
         @param server: server object, which needs to be rebooted.
