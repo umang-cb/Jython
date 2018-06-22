@@ -412,7 +412,7 @@ class CBASClusterManagement(CBASBaseTest):
         self.add_node(self.cbas_node, services=["kv","cbas"])
         self.setup_cbas_bucket_dataset_connect(self.cb_bucket_name, self.travel_sample_docs_count)
         
-        NodeHelper.reboot_server(self.cbas_node, self)
+        NodeHelper.reboot_server_new(self.cbas_node, self)
         
         self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.travel_sample_docs_count),"Data loss in CBAS.")
 
@@ -658,7 +658,7 @@ class CBASServiceOperations(CBASBaseTest):
                 self.restart_servers.append(cbas_server)
 
         for restart_node in self.restart_servers:
-            NodeHelper.reboot_server(restart_node, self)
+            NodeHelper.reboot_server_new(restart_node, self)
         self.sleep(15, message="Wait for service to be up and accept request")
             
         self.log.info("Add more documents in the default bucket")
