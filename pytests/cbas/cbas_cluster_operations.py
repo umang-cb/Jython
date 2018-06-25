@@ -406,25 +406,26 @@ class CBASClusterOperations(CBASBaseTest):
         self.rebalance_cc = self.input.param("rebalance_cc", False)
         out_nodes = []
         nodes = self.rest.node_statuses()
-        reinitialize_cbas_util = False
-        for node in nodes:
-            if self.rebalance_cc and (node.ip == self.cbas_node.ip or node.ip == self.rebalanceServers[1].ip):
-                out_nodes.append(node)
-                reinitialize_cbas_util = True
-            elif node.ip == self.rebalanceServers[1].ip or node.ip == self.rebalanceServers[3].ip:
-                out_nodes.append(node)
-
+        
+        if self.rebalance_cc:
+            for node in nodes:
+                if node.ip == self.cbas_node.ip or node.ip == self.servers[1].ip:
+                    out_nodes.append(node)
+            self.cbas_util.closeConn()
+            self.log.info("Reinitialize CBAS utils with ip %s, since CC node is rebalanced out" %self.servers[3].ip)
+            self.cbas_util = cbas_utils(self.master, self.servers[3])
+            self.cbas_util.createConn("default")
+        else:
+            for node in nodes:
+                if node.ip == self.servers[3].ip or node.ip == self.servers[1].ip:
+                    out_nodes.append(node)
+        
         self.log.info("Rebalance out CBAS nodes %s %s" % (out_nodes[0].ip, out_nodes[1].ip))
         self.remove_all_nodes_then_rebalance([out_nodes[0],out_nodes[1]])
 
         self.log.info("Get KV ops result")
         for task in tasks:
             task.get_result()
-        
-        if reinitialize_cbas_util is True:
-            self.cbas_util.closeConn()
-            self.cbas_util = cbas_utils(self.master, self.rebalanceServers[3])
-            self.cbas_util.createConn("default")
         
         self.log.info("Log concurrent query status")
         self.cbas_util.log_concurrent_query_outcome(self.master, handles)

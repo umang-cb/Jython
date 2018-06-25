@@ -415,7 +415,7 @@ class cluster_utils():
                                               ejectedNodes=[node.id for node in otpnode],
                                               wait_for_rebalance=wait_for_rebalance)
         except Exception as e:
-            self.log("First time rebalance failed on Removal. Wait and try again. THIS IS A BUG.")
+            self.log.info("First time rebalance failed on Removal. Wait and try again. THIS IS A BUG.")
             time.sleep(5)
             removed = helper.remove_nodes(knownNodes=[node.id for node in nodes],
                                               ejectedNodes=[node.id for node in otpnode],
