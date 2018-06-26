@@ -105,10 +105,10 @@ class cbas_utils():
         """
         Creates a shadow dataset on a CBAS bucket
         """
-        cmd_create_dataset = "create shadow dataset {0} on {1};".format(
+        cmd_create_dataset = "create dataset {0} on {1};".format(
             cbas_dataset_name, cbas_bucket_name)
         if where_field and where_value:
-            cmd_create_dataset = "create shadow dataset {0} on {1} WHERE `{2}`=\"{3}\";".format(
+            cmd_create_dataset = "create dataset {0} on {1} WHERE `{2}`=\"{3}\";".format(
                 cbas_dataset_name, cbas_bucket_name, where_field, where_value)
         status, metrics, errors, results, _ = self.execute_statement_on_cbas_util(
             cmd_create_dataset, username=username, password=password)
@@ -130,16 +130,16 @@ class cbas_utils():
         Creates a shadow dataset on a CBAS bucket
         """
         if merge_policy == "no-merge":
-            cmd_create_dataset = 'create shadow dataset %s with { "merge-policy": {"name": "%s"}} on %s;'\
+            cmd_create_dataset = 'create dataset %s with { "merge-policy": {"name": "%s"}} on %s;'\
             %(cbas_dataset_name, merge_policy, cbas_bucket_name)
             if where_field and where_value:
-                cmd_create_dataset = 'create shadow dataset %s with { "merge-policy": {"name": "%s" }} on %s WHERE `%s`=\"%s\";'%(
+                cmd_create_dataset = 'create dataset %s with { "merge-policy": {"name": "%s" }} on %s WHERE `%s`=\"%s\";'%(
                     cbas_dataset_name, merge_policy, cbas_bucket_name, where_field, where_value)
         else:
-            cmd_create_dataset = 'create shadow dataset %s with { "merge-policy": {"name": "%s", "parameters": {"max-mergable-component-size": %s, "max-tolerance-component-count": %s}}} on %s;'\
+            cmd_create_dataset = 'create dataset %s with { "merge-policy": {"name": "%s", "parameters": {"max-mergable-component-size": %s, "max-tolerance-component-count": %s}}} on %s;'\
             %(cbas_dataset_name, merge_policy, max_mergable_component_size, max_tolerance_component_count, cbas_bucket_name)
             if where_field and where_value:
-                cmd_create_dataset = 'create shadow dataset %s with { "merge-policy": {"name": "%s", "parameters": {"max-mergable-component-size": %s,"max-tolerance-component-count": %s}}} on %s WHERE `%s`=\"%s\";'%(
+                cmd_create_dataset = 'create dataset %s with { "merge-policy": {"name": "%s", "parameters": {"max-mergable-component-size": %s,"max-tolerance-component-count": %s}}} on %s WHERE `%s`=\"%s\";'%(
                                         cbas_dataset_name, merge_policy, 
                                         max_mergable_component_size, max_tolerance_component_count, 
                                         cbas_bucket_name, where_field, where_value)

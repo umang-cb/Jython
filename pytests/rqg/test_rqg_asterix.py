@@ -222,7 +222,7 @@ class RQGASTERIXTests(BaseTestCase):
             bucket_password = "password"
             data += 'create bucket {0} with {{"bucket":"{0}","nodes":"{1}"}} ;'.format(
                 bucket.name, self.master.ip)
-            data += 'create shadow dataset {1} on {0}; '.format(bucket.name,
+            data += 'create dataset {1} on {0}; '.format(bucket.name,
                                                                 bucket.name + "_shadow")
             data += 'connect bucket {0};'.format(bucket.name)
         #import pdb;pdb.set_trace()
