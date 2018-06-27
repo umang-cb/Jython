@@ -901,3 +901,29 @@ class cbas_utils():
         self.log.info("%s queued jobs are Failed." % fail_count)
         self.log.info("%s queued jobs are Successful." % success_count)
         self.log.info("%s queued jobs are Aborted." % aborted_count)
+
+    def update_service_parameter_configuration_on_cbas(self, config_map=None, username=None, password=None):
+        if config_map:
+            params = json.dumps(config_map)
+        else:
+            raise ValueError("Missing config map")
+        status, content, response = self.cbas_helper.operation_service_parameters_configuration_cbas(method="PUT", params=params,
+                                                                                                     username=username, password=password)
+        return status, content, response
+
+    def fetch_service_parameter_configuration_on_cbas(self, username=None, password=None):
+        status, content, response = self.cbas_helper.operation_service_parameters_configuration_cbas(method="GET", username=username, password=password)
+        return status, content, response
+    
+    def update_node_parameter_configuration_on_cbas(self, config_map=None, username=None, password=None):
+        if config_map:
+            params = json.dumps(config_map)
+        else:
+            raise ValueError("Missing config map")
+        status, content, response = self.cbas_helper.operation_node_parameters_configuration_cbas(method="PUT", params=params,
+                                                                                                     username=username, password=password)
+        return status, content, response
+
+    def fetch_node_parameter_configuration_on_cbas(self, username=None, password=None):
+        status, content, response = self.cbas_helper.operation_node_parameters_configuration_cbas(method="GET", username=username, password=password)
+        return status, content, response

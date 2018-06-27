@@ -179,3 +179,25 @@ class CBASHelper(RestConnection):
         status, content, response = self._http_request(api, method="GET", headers=headers)
         return status, content, response
     
+    def operation_service_parameters_configuration_cbas(self, method="GET", params=None, username=None, password=None):
+        if not username:
+            username = self.username
+        if not password:
+            password = self.password
+        headers = self._create_capi_headers(username, password)
+        cbas_base_url = "http://{0}:{1}".format(self.ip, 8095)
+        api = cbas_base_url + "/analytics/config/service"
+        status, content, response = self._http_request(api, method=method, params=params, headers=headers)
+        return status, content, response
+    
+    def operation_node_parameters_configuration_cbas(self, method="GET", params=None, username=None, password=None):
+        if not username:
+            username = self.username
+        if not password:
+            password = self.password
+        headers = self._create_capi_headers(username, password)
+        cbas_base_url = "http://{0}:{1}".format(self.ip, 8095)
+        api = cbas_base_url + "/analytics/config/node"
+        status, content, response = self._http_request(api, method=method, params=params, headers=headers)
+        return status, content, response
+    
