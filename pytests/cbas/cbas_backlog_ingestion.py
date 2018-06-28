@@ -433,12 +433,12 @@ class BucketOperations(CBASBaseTest):
 
         self.log.info("Update storageMaxActiveWritableDatasets count")
         active_data_set_count = self.num_of_cb_buckets * self.num_of_cbas_buckets_per_cb_bucket * self.num_of_dataset_per_cbas
-        status, _, _ = self.cbas_util.update_config_on_cbas(config_name="storageMaxActiveWritableDatasets",
-                                                            config_value=active_data_set_count)
+        update_config_map = {"storageMaxActiveWritableDatasets" : active_data_set_count}
+        status, _, _ = self.cbas_util.update_service_parameter_configuration_on_cbas(update_config_map)
         self.assertTrue(status, msg="Failed to update config")
 
         self.log.info("Restart the cbas node using the api")
-        status, _, _ = self.cbas_util.restart_cbas()
+        status, _, _ = self.cbas_util.restart_analytics_cluster_uri()
         self.assertTrue(status, msg="Failed to restart cbas")
 
         self.log.info("Wait for node restart and assert on storageMaxActiveWritableDatasets count")
@@ -448,7 +448,7 @@ class BucketOperations(CBASBaseTest):
         self.sleep(30, message="wait for server to be up")
         while datetime.datetime.now() < end_time and active_dataset is None:
             try:
-                status, content, response = self.cbas_util.fetch_config_on_cbas()
+                status, content, response = self.cbas_util.fetch_service_parameter_configuration_on_cbas()
                 print(status, content, response)
                 config_dict = json.loads((content.decode("utf-8")))
                 active_dataset = config_dict['storageMaxActiveWritableDatasets']

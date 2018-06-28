@@ -868,10 +868,6 @@ class cbas_utils():
                                                                               password=password)
         return status, content, response
 
-    def restart_cbas(self, username=None, password=None):
-        status, content, response = self.cbas_helper.restart_cbas(username=username, password=password)
-        return status, content, response
-
     def fetch_cbas_stats(self, username=None, password=None):
         status, content, response = self.cbas_helper.fetch_cbas_stats(username=username, password=password)
         return status, content, response
@@ -926,4 +922,12 @@ class cbas_utils():
 
     def fetch_node_parameter_configuration_on_cbas(self, username=None, password=None):
         status, content, response = self.cbas_helper.operation_node_parameters_configuration_cbas(method="GET", username=username, password=password)
+        return status, content, response
+    
+    def restart_analytics_cluster_uri(self, username=None, password=None):
+        status, content, response = self.cbas_helper.restart_analytics_cluster_uri(username=username, password=password)
+        return status, content, response
+    
+    def restart_analytics_node_uri(self, node_id, port=8095, username=None, password=None):
+        status, content, response = self.cbas_helper.restart_analytics_node_uri(node_id, port, username=username, password=password)
         return status, content, response
