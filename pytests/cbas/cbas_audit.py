@@ -2,6 +2,7 @@ import json
 
 from cbas.cbas_base import CBASBaseTest
 from security_utils.audit_ready_functions import audit
+from Rbac_utils.Rbac_ready_functions import rbac_utils
 
 
 class CBASAuditLogs(CBASBaseTest):
@@ -233,6 +234,43 @@ class CBASAuditLogs(CBASBaseTest):
         self.log.info("Validate audit logs are not generated for node configuration update")
         node_audit_obj = audit(eventID=self.node_audit_id, host=self.cbas_node)
         self.assertFalse(node_audit_obj.check_if_audit_event_generated(), msg="Audit event must not be generated")
+    
+    """
+    cbas.cbas_audit.CBASAuditLogs.test_audit_logs_with_filtered_user_list,default_bucket=False,audit_id=36865
+    """
+    def test_audit_logs_with_filtered_user_list(self):
+
+        self.log.info("Create a user with role cluster admin")
+        rbac_util = rbac_utils(self.master)
+        rbac_util._create_user_and_grant_role("cbas_admin", "cluster_admin")
+
+        self.log.info("Read configuration audit ids")
+        self.audit_id = self.input.param("audit_id")
+
+        self.log.info("Disabled audit logs for user")
+        audit_obj = audit(host=self.master)
+        audit_obj.setWhiteListUsers("cbas_admin/local")
+
+        self.log.info("Update service configuration service parameter: logLevel")
+        service_configuration_map = {"logLevel": "TRACE"}
+        status, _, _ = self.cbas_util.update_service_parameter_configuration_on_cbas(service_configuration_map, username="cbas_admin")
+        self.assertTrue(status, msg="Incorrect status for service configuration PUT request")
+
+        self.log.info("Verify audit logs are not generated as cbas_admin is whitelisted")
+        server_audit_obj = audit(eventID=self.audit_id, host=self.cbas_node)
+        self.assertFalse(server_audit_obj.check_if_audit_event_generated(), msg="Audit event must not be generated")
+
+        self.log.info("Remove whitelabel user")
+        audit_obj.setWhiteListUsers()
+
+        self.log.info("Update service configuration service parameter: logLevel")
+        service_configuration_map = {"logLevel": "TRACE"}
+        status, _, _ = self.cbas_util.update_service_parameter_configuration_on_cbas(service_configuration_map, username="cbas_admin")
+        self.assertTrue(status, msg="Incorrect status for service configuration PUT request")
+
+        self.log.info("Verify audit logs are not generated as cbas_admin is whitelisted")
+        server_audit_obj = audit(eventID=self.audit_id, host=self.cbas_node)
+        self.assertTrue(server_audit_obj.check_if_audit_event_generated(), msg="Audit event must be generated")
 
     def tearDown(self):
         super(CBASAuditLogs, self).tearDown()

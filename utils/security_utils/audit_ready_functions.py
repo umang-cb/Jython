@@ -268,6 +268,18 @@ class audit:
         status = rest.setAuditSettings(disabled=disabled)
         return status
 
+    """
+    setWhiteListUsers - Whitelist users so Audit events are not logged
+    Parameter:
+        users - Comma seperated list of whitelisted users in the format username/local or username/external
+    Returns:
+        status - status rest command  
+    """
+    def setWhiteListUsers(self, users=''):
+        rest = RestConnection(self.host)
+        status = rest.setAuditSettings(users=users)
+        return status
+
     '''
     checkConfig - Wrapper around audit class
     Parameters:

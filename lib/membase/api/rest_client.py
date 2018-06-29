@@ -3150,14 +3150,18 @@ class RestConnection(object):
         [auditd_enabled]:<enabled disabled status for auditd>
         [rotate_interval]:<log rotate interval in seconds>
         [disabled]:<Event Id for which Audit is to be disabled>
+        [users]:<Comma seperated list of whitelisted users in the format username/local or username/external>
     '''
-    def setAuditSettings(self, enabled='true', rotateInterval=86400, logPath='/opt/couchbase/var/lib/couchbase/logs', disabled=''):
+
+    def setAuditSettings(self, enabled='true', rotateInterval=86400, logPath='/opt/couchbase/var/lib/couchbase/logs',
+                         disabled='', users=''):
         api = self.baseUrl + "settings/audit"
         params = urllib.urlencode({
                                     'rotateInterval':'{0}'.format(rotateInterval),
                                     'auditdEnabled':'{0}'.format(enabled),
                                     'logPath':'{0}'.format(logPath),
-                                    'disabled':'{0}'.format(disabled)
+                                    'disabled':'{0}'.format(disabled),
+                                    'disabledUsers':'{0}'.format(users)
                                     })
         status, content, header = self._http_request(api, 'POST', params)
         log.info ("Value os status is {0}".format(status))
