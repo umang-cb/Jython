@@ -545,9 +545,10 @@ class CBASBugAutomation(CBASBaseTest):
         self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, count_n1ql), msg="Count mismatch")
     
     '''
-    cbas.cbas_bug_automation.CBASBugAutomation.test_data_partitions_with_analytics_data_path,default_bucket=False
+    test_data_partitions_with_default_data_paths,default_bucket=False,set_cbas_memory_from_available_free_memory=True
+    test_data_partitions_with_default_data_paths,default_bucket=False,fixed_partitions=True
     '''
-    def test_data_partitions_with_analytics_data_path(self):
+    def test_data_partitions_with_default_data_paths(self):
 
         self.log.info("Fetch number of cores on cbas node")
         shell = RemoteMachineShellConnection(self.cbas_node)
@@ -558,15 +559,27 @@ class CBASBugAutomation(CBASBaseTest):
         status, content, _ = self.cbas_util.fetch_config_on_cbas()
         self.assertTrue(status, msg="Fetch config on CBAS failed")
         config_dict = json.loads((content.decode("utf-8")))
-        io_devices = config_dict["iodevices"]
-        self.log.info("Number of IO devices %s" % len(io_devices))
-
+        io_devices = len(config_dict["iodevices"])
+        self.log.info("Number of IO devices on cluster %d" % io_devices)
+       
         self.log.info("Fetch number of partitions")
         response = self.cbas_util.fetch_analytics_cluster_response(shell)
         if 'partitions' in response:
-            partitions = response['partitions']
-        self.log.info("Number of data partitions %s" % len(partitions))
-        self.assertEqual(int(cores), len(partitions), msg="Number of partitions must be equal to number of cores")
+            partitions = len(response['partitions'])
+        self.log.info("Number of data partitions on cluster %d" % partitions)
+
+        self.log.info("Assert number of partitions/IO devices")
+        fixed_partitions = self.input.param("fixed_partitions", False)
+        if fixed_partitions:
+            self.log.info("Fixed partitions : Pick min of length of cbas_path, cbas_memory_quota")
+            expected_partitions = min(len(self.cbas_path), int(self.cbas_memory_quota/1024))
+        else:
+            self.log.info("Variable partitions : Pick min of cores on machine, cbas_memory_quota")
+            expected_partitions = min(min(16, int(cores)), int(self.cbas_memory_quota/1024))
+        self.log.info("Expected partitions %d" % expected_partitions)
+
+        self.assertTrue(partitions==expected_partitions, msg="Number of partitions mismatch")
+        self.assertTrue(io_devices==expected_partitions, msg="Number of IO devices mismatch")
 
     def tearDown(self):
         super(CBASBugAutomation, self).tearDown()
