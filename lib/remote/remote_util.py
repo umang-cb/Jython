@@ -374,7 +374,8 @@ class RemoteMachineShellConnection:
         """
         self.extract_remote_info()
         if self.info.type.lower() == 'windows':
-            self.log.error('Not implemented')
+            o, r = self.execute_command("echo %NUMBER_OF_PROCESSORS%")
+            self.log_command_output(o, r)
         elif self.info.distribution_type.lower() == 'mac':
             self.log.error('Not implemented')
         elif self.info.type.lower() == "linux":
