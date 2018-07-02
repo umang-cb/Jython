@@ -1283,27 +1283,44 @@ class RemoteMachineShellConnection:
             return False
 
     def delete_file(self, remotepath, filename):
-        sftp = self._ssh_client.open_sftp()
+        from com.jcraft.jsch import ChannelSftp
+        from com.jcraft.jsch import JSchException,SftpException
+        jsch=JSch()
+        session=jsch.getSession(self.username, self.ip, 22);
+        session.setPassword(self.password);
+        session.setConfig("StrictHostKeyChecking", "no");
+        session.connect();
+        channel=session.openChannel("sftp");
+#         errstream=channel.getErrStream()
+        channel.connect();
+        channelSftp = channel
+#         sftp = self._ssh_client.open_sftp()
         delete_file = False
         try:
-            filenames = sftp.listdir_attr(remotepath)
+            filenames = channelSftp.ls(remotepath)
             for name in filenames:
                 if name.filename == filename:
                     log.info("File {0} will be deleted".format(filename))
-                    sftp.remove(remotepath + filename)
+                    channelSftp.rm(remotepath + filename)
                     delete_file = True
                     break
             if delete_file:
                 """ verify file is deleted """
-                filenames = sftp.listdir_attr(remotepath)
+                filenames = channelSftp.ls(remotepath)
                 for name in filenames:
                     if name.filename == filename:
                         log.error("fail to remove file %s " % filename)
                         delete_file = False
-                        break
-            sftp.close()
+            channel.disconnect()
+            session.disconnect()
             return delete_file
-        except IOError:
+        except JSchException as e:
+            channel.disconnect()
+            session.disconnect()
+            return False
+        except SftpException as e:
+            channel.disconnect()
+            session.disconnect()
             return False
 
     def download_binary_in_win(self, url, version, msi_install=False):
@@ -1351,25 +1368,56 @@ class RemoteMachineShellConnection:
         return file_status
 
     def copy_file_local_to_remote(self, src_path, des_path):
-        sftp = self._ssh_client.open_sftp()
+        from com.jcraft.jsch import ChannelSftp
+        from com.jcraft.jsch import JSchException,SftpException
+        jsch=JSch()
+        session=jsch.getSession(self.username, self.ip, 22);
+        session.setPassword(self.password);
+        session.setConfig("StrictHostKeyChecking", "no");
+        session.connect();
+        channel=session.openChannel("sftp");
+#         errstream=channel.getErrStream()
+        channel.connect();
+        channelSftp = channel
         try:
-            sftp.put(src_path, des_path)
-        except IOError:
-            log.error('Can not copy file')
-        finally:
-            sftp.close()
+            channelSftp.put(src_path, des_path)
+            channel.disconnect()
+            session.disconnect()
+            return True
+        except JSchException as e:
+            channel.disconnect()
+            session.disconnect()
+            return False
+        except SftpException as e:
+            channel.disconnect()
+            session.disconnect()
+            return False
 
     def copy_file_remote_to_local(self, rem_path, des_path):
-        sftp = self._ssh_client.open_sftp()
+        from com.jcraft.jsch import ChannelSftp
+        from com.jcraft.jsch import JSchException,SftpException
+        jsch=JSch()
+        session=jsch.getSession(self.username, self.ip, 22);
+        session.setPassword(self.password);
+        session.setConfig("StrictHostKeyChecking", "no");
+        session.connect();
+        channel=session.openChannel("sftp");
+#         errstream=channel.getErrStream()
+        channel.connect();
+        channelSftp = channel
         try:
-            sftp.get(rem_path, des_path)
-        except IOError as e:
-            if e:
-                print e
-            log.error('Can not copy file')
-        finally:
-            sftp.close()
-
+            channelSftp.get(rem_path, des_path)
+            channel.disconnect()
+            session.disconnect()
+            return True
+        except JSchException as e:
+            channel.disconnect()
+            session.disconnect()
+            return False
+        except SftpException as e:
+            channel.disconnect()
+            session.disconnect()
+            return False
 
     # copy multi files from local to remote server
     def copy_files_local_to_remote(self, src_path, des_path):
