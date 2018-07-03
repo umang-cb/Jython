@@ -71,7 +71,7 @@ class CBASBaseTest(BaseTestCase):
         self.cbas_path = server.cbas_path
 
         self.rest = RestConnection(self.master)
-        self.log.info("Setting the min possible memory quota so that adding mode nodes to the cluster wouldn't be a problem.")
+        self.log.info("Setting the min possible memory quota so that adding more nodes to the cluster wouldn't be a problem.")
         self.rest.set_service_memoryQuota(service='memoryQuota', memoryQuota=MIN_KV_QUOTA)
         self.rest.set_service_memoryQuota(service='ftsMemoryQuota', memoryQuota=FTS_QUOTA)
         self.rest.set_service_memoryQuota(service='indexMemoryQuota', memoryQuota=INDEX_QUOTA)
@@ -79,7 +79,7 @@ class CBASBaseTest(BaseTestCase):
         self.set_cbas_memory_from_available_free_memory = self.input.param('set_cbas_memory_from_available_free_memory', False)
         if self.set_cbas_memory_from_available_free_memory:
             info = self.rest.get_nodes_self()
-            self.cbas_memory_quota = info.memoryFree // 1024 ** 2
+            self.cbas_memory_quota = int((info.memoryFree // 1024 ** 2) * 0.9)
             self.log.info("Setting %d memory quota for CBAS" % self.cbas_memory_quota)
             self.rest.set_service_memoryQuota(service='cbasMemoryQuota', memoryQuota=self.cbas_memory_quota)
         else:
