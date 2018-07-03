@@ -52,16 +52,18 @@ class NodeHelper:
             output, error = shell.execute_command('netsh advfirewall firewall delete rule name="block erl.exe out"')
             shell.log_command_output(output, error)
         else:
-            o, r = shell.execute_command("iptables -F")
-            shell.log_command_output(o, r)
-            o, r = shell.execute_command(
-                "/sbin/iptables -A INPUT -p tcp -i eth0 --dport 1000:65535 -j ACCEPT")
-            shell.log_command_output(o, r)
-            o, r = shell.execute_command(
-                "/sbin/iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT")
-            shell.log_command_output(o, r)
-            # self.log.info("enabled firewall on {0}".format(server))
             o, r = shell.execute_command("/sbin/iptables --list")
+            shell.log_command_output(o, r)
+            if not o:
+                raise("Node not reachable yet")
+#             o, r = shell.execute_command(
+#                 "/sbin/iptables -A INPUT -p tcp -i eth0 --dport 1000:65535 -j ACCEPT")
+#             shell.log_command_output(o, r)
+#             o, r = shell.execute_command(
+#                 "/sbin/iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT")
+#             shell.log_command_output(o, r)
+#             # self.log.info("enabled firewall on {0}".format(server))
+            o, r = shell.execute_command("iptables -F")
             shell.log_command_output(o, r)
         shell.disconnect()
 
@@ -76,25 +78,41 @@ class NodeHelper:
         """
         # self.log.info("Rebooting server '{0}'....".format(server.ip))
         shell = RemoteMachineShellConnection(server)
-        if shell.extract_remote_info().type.lower() == OS.WINDOWS:
+        shell.info = shell.extract_remote_info()
+        
+        if shell.info.type.lower() == OS.WINDOWS:
             o, r = shell.execute_command(
                 "{0} -r -f -t 0".format(COMMAND.SHUTDOWN))
-        elif shell.extract_remote_info().type.lower() == OS.LINUX:
+        elif shell.info.type.lower() == OS.LINUX:
             o, r = shell.execute_command(COMMAND.REBOOT)
         shell.log_command_output(o, r)
         # wait for restart and warmup on all server
-        if shell.extract_remote_info().type.lower() == OS.WINDOWS:
+        if shell.info.type.lower() == OS.WINDOWS:
             time.sleep(wait_timeout * 5)
         else:
             time.sleep(wait_timeout/6)
-        while True:
+        end_time = time.time() + 400
+        while time.time() < end_time:
             try:
+                if shell.info.type.lower() == "windows":
+                    o, r = shell.execute_command('netsh advfirewall set publicprofile state off')
+                    shell.log_command_output(o, r)
+                    o, r = shell.execute_command('netsh advfirewall set privateprofile state off')
+                    shell.log_command_output(o, r)
+                else:
                 # disable firewall on these nodes
-                NodeHelper.wait_node_restarted(server,test_case)
+                    o, r = shell.execute_command("iptables -F")
+                    shell.log_command_output(o, r)
+                    o, r = shell.execute_command("/sbin/iptables --list")
+                    shell.log_command_output(o, r)
+                if not o:
+                    raise("Node not reachable yet")
                 break
-            except BaseException:
+            except:
                 print "Node not reachable yet, will try after 10 secs"
                 time.sleep(10)
+        
+        o, r = shell.execute_command("iptables -F")
         # wait till server is ready after warmup
         ClusterOperationHelper.wait_for_ns_servers_or_assert(
             [server],
