@@ -145,7 +145,7 @@ class CBASDemoQueries(CBASBaseTest):
         # Create datasets on the CBAS bucket
         for dataset in dataset_record['ds_details']:
             self.cbas_util.create_dataset_on_bucket(
-                cbas_bucket_name=dataset_record['cbas_bucket_name'],
+                cbas_bucket_name=dataset_record['cb_bucket_name'],
                 cbas_dataset_name=dataset['ds_name'],
                 where_field=dataset['where_field'],
                 where_value=dataset['where_value'])

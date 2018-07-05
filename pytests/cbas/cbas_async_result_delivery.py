@@ -26,7 +26,7 @@ class CBASAsyncResultDeliveryTests(CBASBaseTest):
 
         # Create dataset on the CBAS bucket
         self.cbas_util.create_dataset_on_bucket(
-            cbas_bucket_name=self.cbas_bucket_name,
+            cbas_bucket_name=self.cb_bucket_name,
             cbas_dataset_name=self.cbas_dataset_name)
 
         # Connect to Bucket
@@ -148,7 +148,7 @@ class CBASAsyncResultDeliveryTests(CBASBaseTest):
                                    cb_server_ip=self.cb_server_ip)
 
         # Create dataset on the CBAS bucket
-        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
                                       cbas_dataset_name=self.cbas_dataset_name)
 
         # Connect to Bucket
@@ -226,7 +226,7 @@ class CBASAsyncResultDeliveryTests(CBASBaseTest):
                                    cb_server_ip=self.cb_server_ip)
 
         # Create dataset on the CBAS bucket
-        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
                                       cbas_dataset_name=self.cbas_dataset_name)
 
         # Connect to Bucket
@@ -293,7 +293,7 @@ class CBASAsyncResultDeliveryTests(CBASBaseTest):
                                    cb_server_ip=self.cb_server_ip)
 
         # Create dataset on the CBAS bucket
-        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
                                       cbas_dataset_name=self.cbas_dataset_name)
 
         # Connect to Bucket
@@ -342,7 +342,7 @@ class CBASAsyncResultDeliveryTests(CBASBaseTest):
                                    cb_server_ip=self.cb_server_ip)
 
         # Create dataset on the CBAS bucket
-        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
                                       cbas_dataset_name=self.cbas_dataset_name)
 
         # Connect to Bucket

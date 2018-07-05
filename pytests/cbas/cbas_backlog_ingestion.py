@@ -81,7 +81,7 @@ class CBASBacklogIngestion(CBASBaseTest):
 
         self.log.info("Create a default data-set")
         cbas_dataset_name = self.input.param("cbas_dataset_name")
-        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=cbas_bucket_name,
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=cb_bucket_name,
                                                 cbas_dataset_name=cbas_dataset_name)
 
         self.log.info("Read input params for field name and value")
@@ -90,7 +90,7 @@ class CBASBacklogIngestion(CBASBaseTest):
         cbas_dataset_with_clause = cbas_dataset_name + "_" + value
 
         self.log.info("Create data-set with profession teacher")
-        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=cbas_bucket_name,
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=cb_bucket_name,
                                                 cbas_dataset_name=cbas_dataset_with_clause,
                                                 where_field=field, where_value=value)
 
@@ -195,7 +195,7 @@ class CBASBacklogIngestion(CBASBaseTest):
             for join_value in join_values:
                 tmp += join_operator + " `" + field + "`=\"" + join_value + "\""
             tmp = tmp[1:-1]
-            self.assertTrue(self.cbas_util.create_dataset_on_bucket((self.cbas_bucket_name + str(index)),
+            self.assertTrue(self.cbas_util.create_dataset_on_bucket((self.cb_bucket_name + str(index)),
                                                                     cbas_dataset_name=(self.cbas_dataset_name + str(
                                                                         index)),
                                                                     where_field=field, where_value=tmp))
@@ -286,7 +286,7 @@ class BucketOperations(CBASBaseTest):
 
         self.log.info("Create datasets")
         for i in range(1, self.num_of_dataset + 1):
-            self.assertTrue(self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+            self.assertTrue(self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
                                                                     cbas_dataset_name=self.dataset_prefix + str(i)),
                             msg="Failed to create dataset {0}".format(self.dataset_prefix + str(i)))
 
@@ -344,7 +344,7 @@ class BucketOperations(CBASBaseTest):
                         msg="Failed to create CBAS bucket")
 
         self.log.info("Create datasets")
-        self.assertTrue(self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.assertTrue(self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
                                                                 cbas_dataset_name=self.dataset_name),
                         msg="Failed to create dataset {0}".format(self.dataset_name))
 

@@ -53,11 +53,11 @@ class PartialRollback_CBAS(CBASBaseTest):
 
         # Create dataset on the CBAS bucket
         if self.merge_policy == None:
-            self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+            self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
                                                     where_field=self.where_field, where_value=self.where_value,
                                                     cbas_dataset_name=self.cbas_dataset_name)
         else:
-            self.cbas_util.create_dataset_on_bucket_merge_policy(cbas_bucket_name=self.cbas_bucket_name,
+            self.cbas_util.create_dataset_on_bucket_merge_policy(cbas_bucket_name=self.cb_bucket_name,
                                                                  where_field=self.where_field, where_value=self.where_value,
                                                                  cbas_dataset_name=self.cbas_dataset_name,merge_policy=self.merge_policy,
                                                                  max_mergable_component_size=self.max_mergable_component_size,

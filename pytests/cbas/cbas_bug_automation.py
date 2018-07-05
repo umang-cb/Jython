@@ -60,11 +60,11 @@ class CBASBugAutomation(CBASBaseTest):
         num_of_datasets = self.input.param("num_of_datasets", 8)
         for index in range(num_of_datasets):
             if index < len(values) and field and values:
-                self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+                self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
                                                         cbas_dataset_name=self.cbas_dataset_name + str(index),
                                                         where_field=field, where_value=values[index])
             else:
-                self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+                self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
                                                         cbas_dataset_name=self.cbas_dataset_name + str(index))
 
         self.log.info("Connect to CBAS bucket")
@@ -134,7 +134,7 @@ class CBASBugAutomation(CBASBaseTest):
 
         self.log.info("Create data-sets")
         for i in range(num_of_cb_buckets):
-            self.cbas_util.create_dataset_on_bucket(cbas_bucket_name="cbas_default" + str(i),
+            self.cbas_util.create_dataset_on_bucket(cbas_bucket_name="default" + str(i),
                                                     cbas_dataset_name="cbas_default_ds" + str(i))
 
         self.log.info("Connect to CBAS buckets")
@@ -265,11 +265,11 @@ class CBASBugAutomation(CBASBaseTest):
                                              cb_server_ip=self.cb_server_ip)
         
         self.log.info("Create dataset on the CBAS bucket")
-        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
                                                 cbas_dataset_name=self.cbas_dataset_name)
         
         self.log.info("Create dataset on the CBAS secondary bucket")
-        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=secondary_cbas_bucket_name,
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
                                                 cbas_dataset_name=secondary_dataset)
 
         self.log.info("Connect to Bucket")
@@ -333,11 +333,11 @@ class CBASBugAutomation(CBASBaseTest):
                                              cb_server_ip=self.cb_server_ip)
         
         self.log.info("Create dataset on the CBAS bucket")
-        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
                                                 cbas_dataset_name=self.cbas_dataset_name)
         
         self.log.info("Create dataset on the CBAS secondary bucket")
-        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=secondary_cbas_bucket_name,
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
                                                 cbas_dataset_name=secondary_dataset)
 
         self.log.info("Connect to Bucket")
@@ -393,7 +393,7 @@ class CBASBugAutomation(CBASBaseTest):
         self.log.info("Create 8 dataset on the CBAS bucket")
         dataset_count = self.input.param("active_dataset", 8)
         for i in range(dataset_count):
-            self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+            self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
                                                     cbas_dataset_name=self.cbas_dataset_name + str(i))
         
         self.log.info("Connect to Bucket")
@@ -449,7 +449,7 @@ class CBASBugAutomation(CBASBaseTest):
                                              cb_server_ip=self.cb_server_ip)
         
         self.log.info("Create dataset on the CBAS bucket")
-        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
                                                 cbas_dataset_name=self.cbas_dataset_name)
 
         self.log.info("Connect to Bucket")
@@ -518,7 +518,7 @@ class CBASBugAutomation(CBASBaseTest):
                                              cb_server_ip=self.cb_server_ip)
         
         self.log.info("Create dataset on the CBAS bucket")
-        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
                                                 cbas_dataset_name=self.cbas_dataset_name)
 
         self.log.info("Connect to Bucket")

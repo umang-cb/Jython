@@ -20,7 +20,7 @@ class CBASClusterManagement(CBASBaseTest):
         self.assertTrue(self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
                        cb_bucket_name=cb_bucket),"bucket creation failed on cbas")
         
-        self.assertTrue(self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.assertTrue(self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
                           cbas_dataset_name=self.cbas_dataset_name), "dataset creation failed on cbas")
         
         self.assertTrue(self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name),"Connecting cbas bucket to cb bucket failed")
@@ -524,7 +524,7 @@ class CBASClusterManagement(CBASBaseTest):
         result = self.cbas_util.execute_statement_on_cbas_util(query, "immediate")[0]
         self.assertTrue(result == "success", "CBAS bucket cannot be created with provided port: %s"%query)
         
-        self.assertTrue(self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.assertTrue(self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
                           cbas_dataset_name=self.cbas_dataset_name), "dataset creation failed on cbas")
         self.assertTrue(self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name, cb_bucket_password="password", cb_bucket_username="Administrator"),
                         "Connecting cbas bucket to cb bucket failed")
@@ -576,7 +576,7 @@ class CBASServiceOperations(CBASBaseTest):
                                              cb_bucket_name=self.cb_bucket_name)
 
         self.log.info("Create a default data-set")
-        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
                                                 cbas_dataset_name=self.dataset_name)
 
         self.log.info("Connect to cbas bucket")

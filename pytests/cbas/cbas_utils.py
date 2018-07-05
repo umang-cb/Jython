@@ -82,21 +82,23 @@ class cbas_utils():
         """
         Creates a bucket on CBAS
         """
-        if cb_server_ip:
-            cmd_create_bucket = "create bucket " + cbas_bucket_name + " with {\"name\":\"" + cb_bucket_name + "\",\"nodes\":\"" + cb_server_ip + "\"};"
-        else:
-            '''DP3 doesn't need to specify cb server ip as cbas node is part of the cluster.'''
-            cmd_create_bucket = "create bucket " + cbas_bucket_name + " with {\"name\":\"" + cb_bucket_name + "\"};"
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_util(
-            cmd_create_bucket,username=username, password=password)
-
-        if validate_error_msg:
-            return self.validate_error_in_response(status, errors, expected_error)
-        else:
-            if status != "success":
-                return False
-            else:
-                return True
+        return True
+    
+#         if cb_server_ip:
+#             cmd_create_bucket = "create bucket " + cbas_bucket_name + " with {\"name\":\"" + cb_bucket_name + "\",\"nodes\":\"" + cb_server_ip + "\"};"
+#         else:
+#             '''DP3 doesn't need to specify cb server ip as cbas node is part of the cluster.'''
+#             cmd_create_bucket = "create bucket " + cbas_bucket_name + " with {\"name\":\"" + cb_bucket_name + "\"};"
+#         status, metrics, errors, results, _ = self.execute_statement_on_cbas_util(
+#             cmd_create_bucket,username=username, password=password)
+# 
+#         if validate_error_msg:
+#             return self.validate_error_in_response(status, errors, expected_error)
+#         else:
+#             if status != "success":
+#                 return False
+#             else:
+#                 return True
 
     def create_dataset_on_bucket(self, cbas_bucket_name, cbas_dataset_name,
                                  where_field=None, where_value = None,
@@ -105,6 +107,7 @@ class cbas_utils():
         """
         Creates a shadow dataset on a CBAS bucket
         """
+        cbas_bucket_name = "`"+cbas_bucket_name+"`"
         cmd_create_dataset = "create dataset {0} on {1};".format(
             cbas_dataset_name, cbas_bucket_name)
         if where_field and where_value:
@@ -160,12 +163,14 @@ class cbas_utils():
         """
         Connects to a CBAS bucket
         """
-        if cb_bucket_username and cb_bucket_password:
-            cmd_connect_bucket = "connect bucket " + cbas_bucket_name + " with {\"username\":\"" + cb_bucket_username + "\",\"password\":\"" + cb_bucket_password + "\"};"
-        else:
-            '''DP3 doesn't need to specify Username/Password as cbas node is part of the cluster.'''
-            cmd_connect_bucket = "connect bucket " + cbas_bucket_name
-
+#         if cb_bucket_username and cb_bucket_password:
+#             cmd_connect_bucket = "connect bucket " + cbas_bucket_name + " with {\"username\":\"" + cb_bucket_username + "\",\"password\":\"" + cb_bucket_password + "\"};"
+#         else:
+#             '''DP3 doesn't need to specify Username/Password as cbas node is part of the cluster.'''
+#             cmd_connect_bucket = "connect bucket " + cbas_bucket_name
+        
+        cmd_connect_bucket = "connect link Local;"
+        
         retry_attempt = 5
         connect_bucket_failed = True
         while connect_bucket_failed and retry_attempt > 0:
@@ -200,13 +205,16 @@ class cbas_utils():
         """
         Disconnects from a CBAS bucket
         """
-        if disconnect_if_connected:
-            cmd_disconnect_bucket = "disconnect bucket {0} if connected;".format(
-                cbas_bucket_name)
-        else:
-            cmd_disconnect_bucket = "disconnect bucket {0};".format(
-                cbas_bucket_name)
-
+#         if disconnect_if_connected:
+#             cmd_disconnect_bucket = "disconnect bucket {0} if connected;".format(
+#                 cbas_bucket_name)
+#             cmd_disconnect_bucket = 'disconnect link Local if connected;'
+#         else:
+#             cmd_disconnect_bucket = "disconnect bucket {0};".format(
+#                 cbas_bucket_name)
+#             cmd_disconnect_bucket = 'disconnect link Local;'
+        
+        cmd_disconnect_bucket = 'disconnect link Local;'
         status, metrics, errors, results, _ = self.execute_statement_on_cbas_util(
             cmd_disconnect_bucket, username=username, password=password)
         if validate_error_msg:
@@ -237,16 +245,18 @@ class cbas_utils():
         """
         Drop a CBAS bucket
         """
-        cmd_drop_bucket = "drop bucket {0};".format(cbas_bucket_name)
-        status, metrics, errors, results, _ = self.execute_statement_on_cbas_util(
-            cmd_drop_bucket, username=username, password=password)
-        if validate_error_msg:
-            return self.validate_error_in_response(status, errors, expected_error)
-        else:
-            if status != "success":
-                return False
-            else:
-                return True
+        return True
+    
+#         cmd_drop_bucket = "drop bucket {0};".format(cbas_bucket_name)
+#         status, metrics, errors, results, _ = self.execute_statement_on_cbas_util(
+#             cmd_drop_bucket, username=username, password=password)
+#         if validate_error_msg:
+#             return self.validate_error_in_response(status, errors, expected_error)
+#         else:
+#             if status != "success":
+#                 return False
+#             else:
+#                 return True
 
     def wait_for_ingestion_complete(self, cbas_dataset_names, num_items, timeout=300):
         

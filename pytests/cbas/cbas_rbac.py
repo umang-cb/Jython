@@ -223,7 +223,7 @@ class CBASRBACTests(CBASBaseTest):
             elif operation == "create_dataset":
                 self.cbas_util.create_bucket_on_cbas(self.cbas_bucket_name,
                                            self.cb_bucket_name)
-                status = self.cbas_util.create_dataset_on_bucket(self.cbas_bucket_name,
+                status = self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name,
                                                        self.cbas_dataset_name,
                                                        username=username)
 
@@ -233,7 +233,7 @@ class CBASRBACTests(CBASBaseTest):
             elif operation == "connect_bucket":
                 self.cbas_util.create_bucket_on_cbas(self.cbas_bucket_name,
                                            self.cb_bucket_name)
-                self.cbas_util.create_dataset_on_bucket(self.cbas_bucket_name,
+                self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name,
                                               self.cbas_dataset_name)
                 status = self.cbas_util.connect_to_bucket(self.cbas_bucket_name,
                                                 username=username)
@@ -256,7 +256,7 @@ class CBASRBACTests(CBASBaseTest):
             elif operation == "drop_dataset":
                 self.cbas_util.create_bucket_on_cbas(self.cbas_bucket_name,
                                            self.cb_bucket_name)
-                self.cbas_util.create_dataset_on_bucket(self.cbas_bucket_name,
+                self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name,
                                               self.cbas_dataset_name)
                 status = self.cbas_util.drop_dataset(self.cbas_dataset_name,
                                            username=username)
@@ -279,7 +279,7 @@ class CBASRBACTests(CBASBaseTest):
             elif operation == "create_index":
                 self.cbas_util.create_bucket_on_cbas(self.cbas_bucket_name,
                                            self.cb_bucket_name)
-                self.cbas_util.create_dataset_on_bucket(self.cbas_bucket_name,
+                self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name,
                                               self.cbas_dataset_name)
                 create_idx_statement = "create index idx1 on {0}(city:String);".format(
                     self.cbas_dataset_name)
@@ -296,7 +296,7 @@ class CBASRBACTests(CBASBaseTest):
             elif operation == "drop_index":
                 self.cbas_util.create_bucket_on_cbas(self.cbas_bucket_name,
                                            self.cb_bucket_name)
-                self.cbas_util.create_dataset_on_bucket(self.cbas_bucket_name,
+                self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name,
                                               self.cbas_dataset_name)
                 create_idx_statement = "create index idx1 on {0}(city:String);".format(
                     self.cbas_dataset_name)
@@ -317,7 +317,7 @@ class CBASRBACTests(CBASBaseTest):
             elif operation == "execute_query":
                 self.cbas_util.create_bucket_on_cbas(self.cbas_bucket_name,
                                            self.cb_bucket_name)
-                self.cbas_util.create_dataset_on_bucket(self.cbas_bucket_name,
+                self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name,
                                               self.cbas_dataset_name)
                 self.cbas_util.connect_to_bucket(self.cbas_bucket_name)
                 query_statement = "select count(*) from {0};".format(

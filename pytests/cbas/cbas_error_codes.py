@@ -118,7 +118,7 @@ class CBASErrorValidator(CBASBaseTest):
                                              cb_bucket_name=self.cb_bucket_name)
 
         self.log.info("Create dataset on the CBAS bucket")
-        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
                                                 cbas_dataset_name=self.cbas_dataset_name)
 
         self.log.info("Connect to CBAS bucket")
@@ -183,7 +183,7 @@ class CBASErrorValidator(CBASBaseTest):
         
         self.log.info("Create 8 more datasets on CBAS bucket")
         for i in range(1, 9):
-            self.assertTrue(self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+            self.assertTrue(self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
                                                                     cbas_dataset_name=self.cbas_dataset_name + str(i)), msg="Create dataset %s failed" % self.cbas_dataset_name + str(i))
         
         self.log.info("Connect back CBAS bucket and verify error response for max dataset exceeded")

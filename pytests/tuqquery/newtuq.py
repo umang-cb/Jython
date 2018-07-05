@@ -126,11 +126,11 @@ class QueryTests(BaseTestCase):
         bucket_username = "cbadminbucket"
         bucket_password = "password"
         for bucket in self.buckets:
-            data += 'create bucket {0} with {{"bucket":"{0}","nodes":"{1}"}} ;'.format(
-                bucket.name, self.master.ip)
+#             data += 'create bucket {0} with {{"bucket":"{0}","nodes":"{1}"}} ;'.format(
+#                 bucket.name, self.master.ip)
             data += 'create dataset {1} on {0}; '.format(bucket.name,
                                                                 bucket.name + "_shadow")
-            data += 'connect bucket {0} with {{"username":"{1}","password":"{2}"}};'.format(
+            data += 'connect link Local;'.format(
                 bucket.name, bucket_username, bucket_password)
         filename = "file.txt"
         f = open(filename,'w')

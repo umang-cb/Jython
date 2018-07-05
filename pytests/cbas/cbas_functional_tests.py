@@ -94,12 +94,12 @@ class CBASFunctionalTests(CBASBaseTest):
                                    cb_server_ip=self.cb_server_ip)
 
         # Create first dataset on the CBAS bucket
-        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
                                       cbas_dataset_name=self.cbas_dataset_name)
 
         # Create another dataset on the CBAS bucket
         result = self.cbas_util.create_dataset_on_bucket(
-            cbas_bucket_name=self.cbas_bucket_name,
+            cbas_bucket_name=self.cb_bucket_name,
             cbas_dataset_name=self.cbas_dataset2_name,
             validate_error_msg=self.validate_error,
             expected_error=self.expected_error)
@@ -120,7 +120,7 @@ class CBASFunctionalTests(CBASBaseTest):
         # Create dataset on the CBAS bucket
         if not self.skip_create_dataset:
             self.cbas_util.create_dataset_on_bucket(
-                cbas_bucket_name=self.cbas_bucket_name,
+                cbas_bucket_name=self.cb_bucket_name,
                 cbas_dataset_name=self.cbas_dataset_name)
 
         # Connect to Bucket
@@ -143,7 +143,7 @@ class CBASFunctionalTests(CBASBaseTest):
 
         # Create dataset on the CBAS bucket
         self.cbas_util.create_dataset_on_bucket(
-            cbas_bucket_name=self.cbas_bucket_name,
+            cbas_bucket_name=self.cb_bucket_name,
             cbas_dataset_name=self.cbas_dataset_name)
 
         # Connect to Bucket
@@ -165,7 +165,7 @@ class CBASFunctionalTests(CBASBaseTest):
                                    cb_server_ip=self.cb_server_ip)
 
         # Create dataset on the CBAS bucket
-        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
                                       cbas_dataset_name=self.cbas_dataset_name)
 
         # Connect to Bucket
@@ -190,7 +190,7 @@ class CBASFunctionalTests(CBASBaseTest):
 
         # Create dataset on the CBAS bucket
         self.cbas_util.create_dataset_on_bucket(
-            cbas_bucket_name=self.cbas_bucket_name,
+            cbas_bucket_name=self.cb_bucket_name,
             cbas_dataset_name=self.cbas_dataset_name)
 
         # Connect to Bucket
@@ -218,7 +218,7 @@ class CBASFunctionalTests(CBASBaseTest):
                                    cb_server_ip=self.cb_server_ip)
 
         # Create dataset on the CBAS bucket
-        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
                                       cbas_dataset_name=self.cbas_dataset_name)
 
         # Connect to Bucket
@@ -244,7 +244,7 @@ class CBASFunctionalTests(CBASBaseTest):
                                    cb_server_ip=self.cb_server_ip)
 
         # Create dataset on the CBAS bucket
-        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
                                       cbas_dataset_name=self.cbas_dataset_name)
 
         # Connect to Bucket
@@ -276,7 +276,7 @@ class CBASFunctionalTests(CBASBaseTest):
                                    cb_server_ip=self.cb_server_ip)
 
         # Create dataset on the CBAS bucket
-        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
                                       cbas_dataset_name=self.cbas_dataset_name)
 
         # Create a dataset on the CBAS bucket with filters
