@@ -20,7 +20,7 @@ class CBASClusterManagement(CBASBaseTest):
         self.assertTrue(self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
                        cb_bucket_name=cb_bucket),"bucket creation failed on cbas")
         
-        self.assertTrue(self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
+        self.assertTrue(self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=cb_bucket,
                           cbas_dataset_name=self.cbas_dataset_name), "dataset creation failed on cbas")
         
         self.assertTrue(self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name),"Connecting cbas bucket to cb bucket failed")
