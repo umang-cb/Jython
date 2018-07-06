@@ -1,4 +1,4 @@
-import datetime
+import time
 
 from cbas_base import *
 from membase.api.rest_client import RestHelper
@@ -700,7 +700,17 @@ class CBASServiceOperations(CBASBaseTest):
             shell.kill_process(self.process, self.service, signum=self.signum)
 
         self.log.info("Observe no reingestion on node after restart")
-        self.sleep(20, message="wait for service to be back again...")
+#         self.sleep(20, message="wait for service to be back again...")
+        start_time = time.time()
+        
+        while time.time()<start_time+120:
+            try:
+                items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+                break
+            except:
+                pass
+        self.assertTrue(items_in_cbas_bucket == self.num_items)
+        
         self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items))
 
         self.log.info("Add more documents in the default bucket")
@@ -746,6 +756,16 @@ class CBASServiceOperations(CBASBaseTest):
             self.sleep(20, message="wait for service to be back again...")
 
         self.log.info("Observe no reingestion on node after restart")
+        start_time = time.time()
+        
+        while time.time()<start_time+120:
+            try:
+                items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+                break
+            except:
+                pass
+        self.assertTrue(items_in_cbas_bucket == self.num_items)
+        
         self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items))
 
         self.log.info("Add more documents in the default bucket")
