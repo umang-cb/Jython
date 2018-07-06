@@ -580,6 +580,35 @@ class CBASBugAutomation(CBASBaseTest):
 
         self.assertTrue(partitions==expected_partitions, msg="Number of partitions mismatch")
         self.assertTrue(io_devices==expected_partitions, msg="Number of IO devices mismatch")
+    
+    """
+    test_rebalance_with_empty_dataset,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=cbas,cbas_dataset_name=ds,items=10000
+    """
+    def test_rebalance_with_empty_dataset(self):
+        
+        self.log.info("Load data in the default bucket")
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create")
 
+        self.log.info("Create connection")
+        self.cbas_util.createConn(self.cb_bucket_name)
+
+        self.log.info("Create a CBAS bucket")
+        self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name, cb_bucket_name=self.cb_bucket_name)
+
+        self.log.info("Create dataset")
+        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cbas_bucket_name,
+                                                cbas_dataset_name=self.cbas_dataset_name)
+
+        self.log.info("Add a CBAS nodes")
+        self.assertTrue(self.add_node(self.cbas_servers[0], services=["cbas"], rebalance=True),
+                        msg="Failed to add CBAS node")
+
+        self.log.info("Connect to CBAS bucket")
+        self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
+                                         cb_bucket_password=self.cb_bucket_password)
+
+        self.log.info("Validate count on CBAS")
+        self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items)
+        
     def tearDown(self):
         super(CBASBugAutomation, self).tearDown()
