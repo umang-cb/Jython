@@ -544,6 +544,19 @@ class RemoteMachineShellConnection:
             self.log_command_output(o, r)
             log.info(self.execute_command("pgrep -l %s"%process_name))
         return o, r
+
+    def kill_multiple_process(self, processes, signum=9):
+        self.extract_remote_info()
+        if self.info.type.lower() == 'windows':
+            log.info("Pending implementation")
+        else:
+            process_list = ""
+            for process in processes:
+                process_list += "$(pgrep " + process + ") "
+            log.info("Executing command : kill -%s %s" % (signum, process_list))
+            o, r = self.execute_command("kill -%s %s" % (signum, process_list))
+            self.log_command_output(o, r)
+        return o, r
     
     def kill_memcached(self):
         self.extract_remote_info()

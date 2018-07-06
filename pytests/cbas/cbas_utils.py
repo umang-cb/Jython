@@ -157,7 +157,7 @@ class cbas_utils():
             else:
                 return True
 
-    def connect_to_bucket(self, cbas_bucket_name, cb_bucket_password=None,
+    def connect_to_bucket(self, cbas_bucket_name=None, cb_bucket_password=None,
                           validate_error_msg=False, cb_bucket_username="Administrator",
                           username=None, password=None, expected_error=None):
         """
@@ -198,7 +198,7 @@ class cbas_utils():
             else:
                 return True
 
-    def disconnect_from_bucket(self, cbas_bucket_name,
+    def disconnect_from_bucket(self, cbas_bucket_name=None,
                                disconnect_if_connected=False,
                                validate_error_msg=False, username=None,
                                password=None, expected_error=None):
