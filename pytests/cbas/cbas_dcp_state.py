@@ -111,7 +111,13 @@ class CBASDCPState(CBASBaseTest):
         Expected Behaviour: Rebalance fails with user action Connect the bucket or drop the dataset"
         """
         self.log.info("Disconnect from CBAS bucket")
-        self.cbas_util.disconnect_from_bucket()
+        start_time = time.time()
+        while time.time() < start_time + 120:
+            try:
+                self.cbas_util.disconnect_from_bucket()
+                break
+            except Exception as e:
+                pass
         
         self.log.info("Add a CBAS nodes")
         self.assertTrue(self.add_node(self.cbas_servers[1], services=["cbas"], rebalance=False),
@@ -130,7 +136,7 @@ class CBASDCPState(CBASBaseTest):
         print("*****************")
         print(result)
         print("*****************")
-        self.assertTrue("User action: Connect the bucket: Bucket:Default.cbas or drop the dataset: Default.ds" in result[0], msg="User action not found.")
+        self.assertTrue("User action: Connect the bucket:" in result[0] and "or drop the dataset: Default.ds" in result[0], msg="User action not found.")
         
         user_action = self.user.input("user_action", "drop_dataset")
         if user_action == "connect_cbas_bucket":
