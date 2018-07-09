@@ -705,7 +705,7 @@ class CBASServiceOperations(CBASBaseTest):
         
         while time.time()<start_time+120:
             try:
-                items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+                items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.dataset_name)
                 break
             except:
                 pass
