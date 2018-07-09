@@ -1054,6 +1054,14 @@ class RestConnection(object):
     # returns otpNode
     def add_node(self, user='', password='', remoteIp='', port='8091', zone_name='', services=None):
         otpNode = None
+
+        # if ip format is ipv6 and enclosing brackets are not found,
+        # enclose self.ip and remoteIp
+        if self.ip.count(':') and self.ip[0] != '[':
+            self.ip = '[' + self.ip + ']'
+        if remoteIp.count(':') and remoteIp[0] != '[':
+            remoteIp = '[' + remoteIp + ']'
+
         log.info('adding remote node @{0}:{1} to this cluster @{2}:{3}'\
                           .format(remoteIp, port, self.ip, self.port))
         if zone_name == '':
@@ -3436,6 +3444,9 @@ class OtpNode(object):
         # its normally ns_1@10.20.30.40
         if id.find('@') >= 0:
             self.ip = id[id.index('@') + 1:]
+            if self.ip.count(':') > 0:
+                # raw ipv6? enclose in square brackets
+                self.ip = '[' + self.ip + ']'
         self.status = status
 
 
@@ -3638,6 +3649,9 @@ class RestParser(object):
                 node.ip = node.id[node.id.index('@') + 1:]
         elif "hostname" in parsed:
             node.ip = parsed["hostname"].split(":")[0]
+        # if raw-ipv6, include enclosing square brackets
+        if parsed["hostname"].startswith('['):
+            node.ip = parsed["hostname"].rsplit(":", 1)[0]
 
         # memoryQuota
         if 'memoryQuota' in parsed:
