@@ -29,6 +29,7 @@ import Java_Connection
 import logger
 from java.util.logging import Logger, Level, ConsoleHandler
 from com.couchbase.client.java.subdoc import SubdocOptionsBuilder
+from java.lang import System
 
 FMT_AUTO = "autoformat"
 
@@ -87,6 +88,7 @@ class SDKClient(object):
     
     def _createConn(self):
         try:
+            System.setProperty("com.couchbase.forceIPv4", "false");
             logger = Logger.getLogger("com.couchbase.client");
             logger.setLevel(Level.SEVERE);
             for h in logger.getParent().getHandlers():
