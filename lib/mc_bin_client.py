@@ -48,12 +48,12 @@ class MemcachedClient(object):
         self.vbucket_count = 1024
 
     def _createConn(self):
-        try:
+        if self.host.find('[') == -1:
             # IPv4
             self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             return self.s.connect_ex((self.host, self.port))
-        except:
+        else:
             # IPv6
             self.host = self.host.replace('[', '').replace(']', '')
             self.s = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
