@@ -354,7 +354,7 @@ class cbas_utils():
             shell = RemoteMachineShellConnection(server)
 
         output, error = shell.execute_command(
-            """curl -v {0} -u {1}:{2}""".format(handle,
+            """curl -g -v {0} -u {1}:{2}""".format(handle,
                                                 self.cbas_node.rest_username,
                                                 self.cbas_node.rest_password))
 
@@ -384,7 +384,7 @@ class cbas_utils():
         shell = RemoteMachineShellConnection(server)
 
         output, error = shell.execute_command(
-            """curl -v {0} -u {1}:{2}""".format(handle,
+            """curl -g -v {0} -u {1}:{2}""".format(handle,
                                                 self.cbas_node.rest_username,
                                                 self.cbas_node.rest_password))
 
@@ -631,7 +631,7 @@ class cbas_utils():
             shell = RemoteMachineShellConnection(self.cbas_node)
         url = self.cbas_helper.cbas_base_url + "/analytics/cluster"
         output, error = shell.execute_command(
-            """curl -v {0} -u {1}:{2}""".format(url,
+            """curl -g -v {0} -u {1}:{2}""".format(url,
                                                 self.cbas_node.rest_username,
                                                 self.cbas_node.rest_password))
 
@@ -669,7 +669,7 @@ class cbas_utils():
             shell = RemoteMachineShellConnection(self.cbas_node)
         url = self.cbas_helper.cbas_base_url + "/analytics/cluster"
         output, error = shell.execute_command(
-            """curl -v {0} -u {1}:{2}""".format(url,
+            """curl -g -v {0} -u {1}:{2}""".format(url,
                                                 self.cbas_node.rest_username,
                                                 self.cbas_node.rest_password))
 
@@ -706,7 +706,7 @@ class cbas_utils():
             shell = RemoteMachineShellConnection(self.cbas_node)
         url = self.cbas_helper.cbas_base_url + "/analytics/cluster"
         output, error = shell.execute_command(
-            "curl -v {0} -u {1}:{2}".format(url, self.cbas_node.rest_username,
+            "curl -g -v {0} -u {1}:{2}".format(url, self.cbas_node.rest_username,
                                             self.cbas_node.rest_password))
         response = ""
         for line in output:
@@ -722,7 +722,7 @@ class cbas_utils():
         if not shell:
             shell = RemoteMachineShellConnection(self.cbas_node)
         output, error = shell.execute_command(
-            """curl -v {0} -u {1}:{2}""".format(NodeConfigURL,
+            """curl -g -v {0} -u {1}:{2}""".format(NodeConfigURL,
                                                 self.cbas_node.rest_username,
                                                 self.cbas_node.rest_password))
 
@@ -740,6 +740,8 @@ class cbas_utils():
         
         if 'analyticsHttpAdminListenAddress' in response:
             analyticsHttpAdminListenAddress = response['analyticsHttpAdminPublicAddress']
+            if analyticsHttpAdminListenAddress.find(":")!=-1:
+                analyticsHttpAdminListenAddress = '['+analyticsHttpAdminListenAddress+']'
         if 'analyticsHttpAdminListenPort' in response:
             analyticsHttpAdminListenPort = response['analyticsHttpAdminPublicPort']
 
@@ -751,7 +753,7 @@ class cbas_utils():
         if not shell:
             shell = RemoteMachineShellConnection(self.cbas_node)
         output, error = shell.execute_command(
-            """curl -v {0} -u {1}:{2}""".format(url,
+            """curl -g -v {0} -u {1}:{2}""".format(url,
                                                 self.cbas_node.rest_username,
                                                 self.cbas_node.rest_password))
 
@@ -798,7 +800,7 @@ class cbas_utils():
         if not shell:
             shell = RemoteMachineShellConnection(self.cbas_node)
         output, error = shell.execute_command(
-            """curl -v {0} -u {1}:{2}""".format(url,
+            """curl -g -v {0} -u {1}:{2}""".format(url,
                                                 self.cbas_node.rest_username,
                                                 self.cbas_node.rest_password))
 
