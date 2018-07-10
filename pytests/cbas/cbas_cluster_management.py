@@ -1,4 +1,5 @@
 import datetime
+import time
 
 from cbas_base import *
 from membase.api.rest_client import RestHelper
@@ -562,7 +563,7 @@ class CBASServiceOperations(CBASBaseTest):
         self.assertTrue(result, msg="Failed to add CBAS node.")
 
         self.log.info("Load data in the default bucket")
-        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items, exp=0, batch_size=10)
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items, exp=0)
 
         self.log.info("Create primary index")
         query = "CREATE PRIMARY INDEX ON {0} using gsi".format(self.cb_bucket_name)
@@ -700,8 +701,14 @@ class CBASServiceOperations(CBASBaseTest):
             shell.kill_process(self.process, self.service, signum=self.signum)
 
         self.log.info("Observe no reingestion on node after restart")
-        self.sleep(20, message="wait for service to be back again...")
-        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items))
+        start_time = time.time()
+        while time.time() < start_time + 120:
+            try:
+                items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.dataset_name)
+                break
+            except:
+                pass
+        self.assertTrue(items_in_cbas_bucket == self.num_items)
 
         self.log.info("Add more documents in the default bucket")
         self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", self.num_items, self.num_items * 2, exp=0,
@@ -743,10 +750,16 @@ class CBASServiceOperations(CBASBaseTest):
         for node in self.nodes_to_kill_service_on:
             shell = RemoteMachineShellConnection(node)
             shell.kill_process(self.process, self.service, signum=self.signum)
-            self.sleep(20, message="wait for service to be back again...")
-
+        
         self.log.info("Observe no reingestion on node after restart")
-        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items))
+        start_time = time.time()
+        while time.time() < start_time + 120:
+            try:
+                items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.dataset_name)
+                break
+            except:
+                pass
+        self.assertTrue(items_in_cbas_bucket == self.num_items)
 
         self.log.info("Add more documents in the default bucket")
         self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", self.num_items, self.num_items * 2, exp=0,
