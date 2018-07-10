@@ -705,10 +705,11 @@ class CBASServiceOperations(CBASBaseTest):
         while time.time() < start_time + 120:
             try:
                 items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.dataset_name)
+                self.assertTrue(items_in_cbas_bucket > 0, msg="Items in CBAS bucket must be greather than 0. If not re-ingestion from 0 has happened")
                 break
             except:
                 pass
-        self.assertTrue(items_in_cbas_bucket == self.num_items)
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items))
 
         self.log.info("Add more documents in the default bucket")
         self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", self.num_items, self.num_items * 2, exp=0,
@@ -756,11 +757,12 @@ class CBASServiceOperations(CBASBaseTest):
         while time.time() < start_time + 120:
             try:
                 items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.dataset_name)
+                self.assertTrue(items_in_cbas_bucket > 0, msg="Items in CBAS bucket must be greather than 0. If not re-ingestion from 0 has happened")
                 break
             except:
                 pass
-        self.assertTrue(items_in_cbas_bucket == self.num_items)
-
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items))
+                
         self.log.info("Add more documents in the default bucket")
         self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", self.num_items, self.num_items * 2, exp=0,
                                                batch_size=self.batch_size)
