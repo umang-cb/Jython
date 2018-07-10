@@ -11,12 +11,6 @@ class CBASError:
             "query": "select sleep(count(*), 2000) from ds"
         },
         {
-            "id": "connect_cbas_bucket_already_connected",
-            "msg": "The bucket cbas is already connected",
-            "code": 25000,
-            "query": "connect bucket cbas"
-        },
-        {
             "id": "drop_shadow_when_cbas_bucket_connected",
             "msg": "Can't drop shadow dataset because its bucket is in the connected state",
             "code": 25000,
@@ -24,7 +18,7 @@ class CBASError:
         },
         {
             "id": "create_index_with_cbas_bucket_connected",
-            "msg": "Dataset Default.ds is currently being fed into by the following active entities.\nDefault.cbas(CouchbaseMetadataExtension)\n",
+            "msg": "Dataset Default.ds is currently being fed into by the following active entities.\nDefault.Local.default(CouchbaseMetadataExtension)",
             "code": 25000,
             "query": "create index sec_idx on ds(name:string)"
         },
@@ -42,9 +36,9 @@ class CBASError:
         },
         {
             "id": "create_shadow_when_cbas_bucket_connected",
-            "msg": "Shadow can't be created because Bucket cbas is in connected state",
+            "msg": "Dataset cannot be created because the bucket default is connected",
             "code": 25000,
-            "query": "create dataset ds_1 on cbas"
+            "query": "create dataset ds1 on default"
         },
         {
             "id": "user_unauthorized",
@@ -59,22 +53,16 @@ class CBASError:
             "query": "create index idx on ds(click:date)"
         },
         {
-            "id": "cbas_bucket_does_not_exist",
-            "msg": "Analytics bucket (default_cbas1) does not exist",
-            "code": 25000,
-            "query": "connect bucket default_cbas1"
-        },
-        {
             "id": "cb_bucket_does_not_exist",
             "msg": "Bucket (default1) does not exist",
             "code": 25000,
-            "query": "create bucket cbas1 with {'name':'default1'}"
+            "query": "create dataset ds1 on default1"
         },
         {   
             "id": "max_writable_datasets",
             "msg": "Maximum number of active writable datasets (8) exceeded",
             "code": 25000,
-            "query": "connect bucket cbas"
+            "query": "connect link Local"
         },
         {   
             "id": "incorrect_aggregate_query",
@@ -113,17 +101,11 @@ class CBASErrorValidator(CBASBaseTest):
         self.log.info("Create connection")
         self.cbas_util.createConn(self.cb_bucket_name)
 
-        self.log.info("Create a CBAS bucket")
-        self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
-                                             cb_bucket_name=self.cb_bucket_name)
+        self.log.info("Create dataset on the CBAS")
+        self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name, self.cbas_dataset_name)
 
-        self.log.info("Create dataset on the CBAS bucket")
-        self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
-                                                cbas_dataset_name=self.cbas_dataset_name)
-
-        self.log.info("Connect to CBAS bucket")
-        self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name,
-                                         cb_bucket_password=self.cb_bucket_password)
+        self.log.info("Connect to Local link")
+        self.cbas_util.connect_to_bucket()
 
     def validate_error_response(self, status, errors, expected_error, expected_error_code):
         self.assertTrue(self.cbas_util.validate_error_in_response(status, errors, expected_error, expected_error_code), msg="Error msg or Error code mismatch. Refer logs for actual and expected")
@@ -146,8 +128,8 @@ class CBASErrorValidator(CBASBaseTest):
     test_error_response_create_index_with_index_name_already_exist,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=cbas,cbas_dataset_name=ds,error_id=create_index_with_index_name_already_exist
     """
     def test_error_response_create_index_with_index_name_already_exist(self):
-        self.log.info("Disconnect CBAS bucket")
-        self.assertTrue(self.cbas_util.disconnect_from_bucket(self.cbas_bucket_name), msg="Failed to disconnect connected bucket")
+        self.log.info("Disconnect Local link")
+        self.assertTrue(self.cbas_util.disconnect_from_bucket(), msg="Failed to disconnect connected bucket")
         
         self.log.info("Create a secondary index")
         self.assertTrue(self.cbas_util.execute_statement_on_cbas_util(self.error_response["query"]), msg="Failed to create secondary index")
@@ -178,15 +160,14 @@ class CBASErrorValidator(CBASBaseTest):
     test_error_response_max_writable_dataset_exceeded,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=cbas,cbas_dataset_name=ds,error_id=max_writable_datasets
     """
     def test_error_response_max_writable_dataset_exceeded(self):
-        self.log.info("Disconnect CBAS bucket")
-        self.assertTrue(self.cbas_util.disconnect_from_bucket(self.cbas_bucket_name), msg="Failed to disconnect connected bucket")
+        self.log.info("Disconnect Local link")
+        self.assertTrue(self.cbas_util.disconnect_from_bucket(), msg="Failed to disconnect Local link")
         
         self.log.info("Create 8 more datasets on CBAS bucket")
         for i in range(1, 9):
-            self.assertTrue(self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
-                                                                    cbas_dataset_name=self.cbas_dataset_name + str(i)), msg="Create dataset %s failed" % self.cbas_dataset_name + str(i))
+            self.assertTrue(self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name, self.cbas_dataset_name + str(i)), msg="Create dataset %s failed" % self.cbas_dataset_name + str(i))
         
-        self.log.info("Connect back CBAS bucket and verify error response for max dataset exceeded")
+        self.log.info("Connect back Local link and verify error response for max dataset exceeded")
         status, _, errors, _, _ = self.cbas_util.execute_statement_on_cbas_util(self.error_response["query"])
         self.validate_error_response(status, errors, self.error_response["msg"], self.error_response["code"])
     
