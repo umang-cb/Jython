@@ -562,7 +562,7 @@ class CBASServiceOperations(CBASBaseTest):
         self.assertTrue(result, msg="Failed to add CBAS node.")
 
         self.log.info("Load data in the default bucket")
-        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items, exp=0, batch_size=10)
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items, exp=0)
 
         self.log.info("Create primary index")
         query = "CREATE PRIMARY INDEX ON {0} using gsi".format(self.cb_bucket_name)
@@ -700,17 +700,14 @@ class CBASServiceOperations(CBASBaseTest):
             shell.kill_process(self.process, self.service, signum=self.signum)
 
         self.log.info("Observe no reingestion on node after restart")
-#         self.sleep(20, message="wait for service to be back again...")
         start_time = time.time()
-        
-        while time.time()<start_time+120:
+        while time.time() < start_time + 120:
             try:
                 items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.dataset_name)
+                self.assertTrue(items_in_cbas_bucket > 0, msg="Items in CBAS bucket must greather than 0. If not re-ingestion has happened")
                 break
             except:
                 pass
-        self.assertTrue(items_in_cbas_bucket == self.num_items)
-        
         self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items))
 
         self.log.info("Add more documents in the default bucket")
@@ -757,15 +754,13 @@ class CBASServiceOperations(CBASBaseTest):
 
         self.log.info("Observe no reingestion on node after restart")
         start_time = time.time()
-        
-        while time.time()<start_time+120:
+        while time.time() < start_time + 120:
             try:
-                items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+                items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.dataset_name)
+                self.assertTrue(items_in_cbas_bucket > 0, msg="Items in CBAS bucket must greather than 0. If not re-ingestion has happened")
                 break
             except:
                 pass
-        self.assertTrue(items_in_cbas_bucket == self.num_items)
-        
         self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items))
 
         self.log.info("Add more documents in the default bucket")
