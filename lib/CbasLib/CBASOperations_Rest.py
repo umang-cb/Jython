@@ -221,3 +221,14 @@ class CBASHelper(RestConnection):
         api = node_url + "/analytics/node/restart"
         status, content, response = self._http_request(api, method="POST", headers=headers)
         return status, content, response
+    
+    def fetch_bucket_state_on_cbas(self, method="GET", username=None, password=None):
+        if not username:
+            username = self.username
+        if not password:
+            password = self.password
+        headers = self._create_capi_headers(username, password)
+        cbas_base_url = "http://{0}:{1}".format(self.ip, 8095)
+        api = cbas_base_url + "/analytics/buckets"
+        status, content, response = self._http_request(api, method=method, headers=headers)
+        return status, content, response

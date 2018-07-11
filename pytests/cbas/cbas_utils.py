@@ -943,3 +943,7 @@ class cbas_utils():
     def restart_analytics_node_uri(self, node_id, port=8095, username=None, password=None):
         status, content, response = self.cbas_helper.restart_analytics_node_uri(node_id, port, username=username, password=password)
         return status, content, response
+    
+    def fetch_bucket_state_on_cbas(self):
+        status, content, response = self.cbas_helper.fetch_bucket_state_on_cbas(method="GET", username=None, password=None)
+        return status, content, response
