@@ -105,7 +105,9 @@ class x509tests(BaseTestCase):
         rest = BucketHelper(self.master)
         rest.create_bucket(bucket='default', ramQuotaMB=100)
         query = "'statement=create dataset default_ds on default'"
-        output = x509main()._execute_command_clientcert(host.ip,url='/analytics/service',port=18095,headers=' --data pretty=true --data-urlencode '+query,client_cert=True,curl=True,verb='POST')
+        cbas_node = self.get_nodes_from_services_map(service_type='cbas')
+        
+        output = x509main()._execute_command_clientcert(cbas_node.ip,url='/analytics/service',port=18095,headers=' --data pretty=true --data-urlencode '+query,client_cert=True,curl=True,verb='POST')
         self.assertEqual(json.loads(output)['errors']['msg'],"Unauthorized user.","Incorrect user logged in successfully.")
         
     #Common test case for testing services and other parameter
