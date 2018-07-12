@@ -705,7 +705,8 @@ class CBASServiceOperations(CBASBaseTest):
         while time.time() < start_time + 120:
             try:
                 items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.dataset_name)
-                break
+                if items_in_cbas_bucket != -1:
+                    break
             except:
                 pass
         self.assertTrue(items_in_cbas_bucket > 0, msg="Items in CBAS bucket must be greather than 0. If not re-ingestion from 0 has happened")
@@ -757,7 +758,8 @@ class CBASServiceOperations(CBASBaseTest):
         while time.time() < start_time + 120:
             try:
                 items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.dataset_name)
-                break
+                if items_in_cbas_bucket != -1:
+                    break
             except:
                 pass
         self.assertTrue(items_in_cbas_bucket > 0, msg="Items in CBAS bucket must be greather than 0. If not re-ingestion from 0 has happened")
