@@ -33,6 +33,26 @@ class cbas_object_tests(CBASBaseTest):
         self.assertTrue(self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name),"Connecting cbas bucket to cb bucket failed")
         
         self.assertTrue(self.cbas_util.wait_for_ingestion_complete([self.cbas_dataset_name], 1),"Data ingestion to cbas couldn't complete in 300 seconds.")
+
+    def test_object_add(self):
+        self.setup_cbas_bucket_dataset_connect()
+        self.query = "SELECT object_add(indexMap,'key3','value3') from %s;"%self.cbas_dataset_name
+        
+        status, _, _, result, _ = self.cbas_util.execute_statement_on_cbas_util(self.query,"immediate")
+        expected_result = [{
+                        "name": "key1",
+                        "value": "val1"
+                      },
+                      {
+                        "name": "key2",
+                        "value": "val2"
+                      },
+                      {
+                        "name": "key3",
+                        "value": "val3"
+                      }]
+        self.assertTrue(status=="success")
+        self.assertTrue(result[0]['$1']==expected_result)
         
     def test_object_pairs(self):
         self.setup_cbas_bucket_dataset_connect()

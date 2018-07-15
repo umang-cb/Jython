@@ -3687,6 +3687,12 @@ class QuerySanityTests(QueryTests):
         expected_result = [{'$1': 0}]
         self._verify_results(actual_list['results'], expected_result)
 
+    def test_e(self):
+        self.query = "select E()"
+        actual_list = self.run_cbq_query()
+        expected_result = [{'$1': 2.718281828459045}]
+        self._verify_results(actual_list['results'], expected_result)
+        
 ##############################################################################################
 #
 #   CONDITIONAL FNS

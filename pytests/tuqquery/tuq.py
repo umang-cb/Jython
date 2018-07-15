@@ -216,19 +216,31 @@ class QueryTests(BaseTestCase):
 
     def setup_analytics(self):
         data = 'use Default;'
-        self.log.info("No. of buckets : %s", len(self.buckets))
         bucket_username = "cbadminbucket"
         bucket_password = "password"
         for bucket in self.buckets:
-#             data += 'create bucket {0} with {{"bucket":"{0}","nodes":"{1}"}} ;'.format(bucket.name,self.cbas_node.ip)
-            data += 'create dataset {1} on {0}; '.format(bucket.name,bucket.name+"_shadow")
-#             data += 'connect bucket {0} with {{"username":"{1}","password":"{2}"}};'.format(bucket.name, bucket_username, bucket_password)
-            data += 'connect link Local;'
-        self.write_file("file.txt", data)
+#             data += 'create bucket {0} with {{"bucket":"{0}","nodes":"{1}"}} ;'.format(
+#                 bucket.name, self.master.ip)
+            data = 'create dataset {1} on {0}; '.format(bucket.name,
+                                                                bucket.name + "_shadow")
+            filename = "file.txt"
+            f = open(filename,'w')
+            f.write(data)
+            f.close()
+            url = 'http://{0}:8095/analytics/service'.format(self.cbas_node.ip)
+            cmd = 'curl -s --data pretty=true --data-urlencode "statement@file.txt" ' + url + " -u " + bucket_username + ":" + bucket_password
+            os.system(cmd)
+            os.remove(filename)
+        data = 'connect link Local;'.format(
+            bucket.name, bucket_username, bucket_password)
+        filename = "file.txt"
+        f = open(filename,'w')
+        f.write(data)
+        f.close()
         url = 'http://{0}:8095/analytics/service'.format(self.cbas_node.ip)
         cmd = 'curl -s --data pretty=true --data-urlencode "statement@file.txt" ' + url + " -u " + bucket_username + ":" + bucket_password
         os.system(cmd)
-        os.remove("file.txt")
+        os.remove(filename)
 
     def get_index_storage_stats(self, timeout=120, index_map=None):
         api = self.index_baseUrl + 'stats/storage'

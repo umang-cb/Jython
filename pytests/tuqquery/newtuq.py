@@ -128,10 +128,18 @@ class QueryTests(BaseTestCase):
         for bucket in self.buckets:
 #             data += 'create bucket {0} with {{"bucket":"{0}","nodes":"{1}"}} ;'.format(
 #                 bucket.name, self.master.ip)
-            data += 'create dataset {1} on {0}; '.format(bucket.name,
+            data = 'create dataset {1} on {0}; '.format(bucket.name,
                                                                 bucket.name + "_shadow")
-            data += 'connect link Local;'.format(
-                bucket.name, bucket_username, bucket_password)
+            filename = "file.txt"
+            f = open(filename,'w')
+            f.write(data)
+            f.close()
+            url = 'http://{0}:8095/analytics/service'.format(self.cbas_node.ip)
+            cmd = 'curl -s --data pretty=true --data-urlencode "statement@file.txt" ' + url + " -u " + bucket_username + ":" + bucket_password
+            os.system(cmd)
+            os.remove(filename)
+        data = 'connect link Local;'.format(
+            bucket.name, bucket_username, bucket_password)
         filename = "file.txt"
         f = open(filename,'w')
         f.write(data)
@@ -140,7 +148,7 @@ class QueryTests(BaseTestCase):
         cmd = 'curl -s --data pretty=true --data-urlencode "statement@file.txt" ' + url + " -u " + bucket_username + ":" + bucket_password
         os.system(cmd)
         os.remove(filename)
-
+        
     def run_active_requests(self, e, t):
         while not e.isSet():
             logging.debug('wait_for_event_timeout starting')
