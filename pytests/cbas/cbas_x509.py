@@ -105,6 +105,21 @@ class x509tests(BaseTestCase):
         rest = BucketHelper(self.master)
         rest.create_bucket(bucket='default', ramQuotaMB=100)
         query = "'statement=create dataset default_ds on default'"
+        servs_inout = self.servers[1:4]
+        
+        self.log.info ("list of services to be added {0}".format(self.services_in))
+        services_in = []
+        for service in self.services_in.split("-"):
+            services_in.append(service.split(":")[0])
+        self.log.info ("list of services to be added after formatting {0}".format(services_in))
+        
+        #add nodes to the cluster
+        rebalance = self.cluster.async_rebalance(self.servers[:self.nodes_init], servs_inout, [],
+                                                     services=services_in)
+        rebalance.get_result()
+        
+        self.sleep(20)
+        
         cbas_node = self.get_nodes_from_services_map(service_type='cbas')
         
         output = x509main()._execute_command_clientcert(cbas_node.ip,url='/analytics/service',port=18095,headers=' --data pretty=true --data-urlencode '+query,client_cert=True,curl=True,verb='POST')
