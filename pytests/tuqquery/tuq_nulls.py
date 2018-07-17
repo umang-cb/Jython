@@ -403,6 +403,18 @@ class NULLTests(QueryTests):
             expected_result = sorted(expected_result, key=lambda doc: (doc['feature_name']))
             self._verify_results(actual_result['results'], expected_result)
 
+    def test_nullif(self):
+        for bucket in self.buckets:
+            self.query = "SELECT feature_name, NULLIF(story_points[0],story_point[0])" +\
+                        " FROM %s ORDER BY feature_name"  % bucket.name
+            self.run_cbq_query()
+            self.sleep(3)
+            actual_result = self.run_cbq_query()
+            expected_result = [{'feature_name' : doc['feature_name']}
+                               for doc in self.full_list]
+            expected_result = sorted(expected_result, key=lambda doc: (doc['feature_name']))
+            self._verify_results(actual_result['results'], expected_result)
+            
     def test_nanif(self):
         for bucket in self.buckets:
             self.query = "SELECT feature_name, NANIF(story_points[0],story_point[0])" +\

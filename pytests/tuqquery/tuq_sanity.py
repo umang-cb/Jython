@@ -3693,6 +3693,14 @@ class QuerySanityTests(QueryTests):
         expected_result = [{'$1': 2.718281828459045}]
         self._verify_results(actual_list['results'], expected_result)
         
+    def test_random(self):
+        self.query = "select RANDOM() as num"
+        actual_list = self.run_cbq_query()
+        self.assertTrue(actual_list['results']['num']<1 and actual_list['results']['num']>0)
+        
+        actual_list_new = self.run_cbq_query()
+        self.assertTrue(actual_list['results']['num'] != actual_list_new['results']['num'])
+        
 ##############################################################################################
 #
 #   CONDITIONAL FNS

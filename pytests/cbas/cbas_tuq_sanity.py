@@ -27,7 +27,7 @@ class cbas_object_tests(CBASBaseTest):
         self.assertTrue(self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=self.cbas_bucket_name,
                        cb_bucket_name=self.default_bucket_name),"bucket creation failed on cbas")
         
-        self.assertTrue(self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
+        self.assertTrue(self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.default_bucket_name,
                           cbas_dataset_name=self.cbas_dataset_name), "dataset creation failed on cbas")
         
         self.assertTrue(self.cbas_util.connect_to_bucket(cbas_bucket_name=self.cbas_bucket_name),"Connecting cbas bucket to cb bucket failed")
@@ -53,6 +53,89 @@ class cbas_object_tests(CBASBaseTest):
                       }]
         self.assertTrue(status=="success")
         self.assertTrue(result[0]['$1']==expected_result)
+        
+    def test_object_put(self):
+        self.setup_cbas_bucket_dataset_connect()
+        self.query = "SELECT object_put(indexMap,'key3','value3') from %s;"%self.cbas_dataset_name
+        
+        status, _, _, result, _ = self.cbas_util.execute_statement_on_cbas_util(self.query,"immediate")
+        expected_result = [{
+                        "name": "key1",
+                        "value": "val1"
+                      },
+                      {
+                        "name": "key2",
+                        "value": "val2"
+                      },
+                      {
+                        "name": "key3",
+                        "value": "val3"
+                      }]
+        self.assertTrue(status=="success")
+        self.assertTrue(result[0]['$1']==expected_result)
+        
+        self.query = "SELECT object_put(indexMap,'key2','new_value') from %s;"%self.cbas_dataset_name
+        
+        status, _, _, result, _ = self.cbas_util.execute_statement_on_cbas_util(self.query,"immediate")
+        expected_result = [{
+                        "name": "key1",
+                        "value": "val1"
+                      },
+                      {
+                        "name": "key2",
+                        "value": "new_value"
+                      }]
+        
+        self.assertTrue(status=="success")
+        self.assertTrue(result[0]['$1']==expected_result)
+
+    def test_object_rename(self):
+        self.setup_cbas_bucket_dataset_connect()
+        self.query = "SELECT object_rename(%s, 'type', 'new_type') from %s;"%(self.cbas_dataset_name,self.cbas_dataset_name)
+        
+        status, _, _, result, _ = self.cbas_util.execute_statement_on_cbas_util(self.query,"immediate")
+        self.assertTrue(status=="success")
+        self.assertTrue(result[0]['$1']['new_type'])
+
+    def test_object_remove(self):
+        self.setup_cbas_bucket_dataset_connect()
+        self.query = "SELECT object_remove(%s, 'indexMap') from %s;"%(self.cbas_dataset_name,self.cbas_dataset_name)
+        
+        status, _, _, result, _ = self.cbas_util.execute_statement_on_cbas_util(self.query,"immediate")
+        self.assertTrue(status=="success")
+        self.assertTrue(result[0]['$1']['new_type'])
+
+    def test_object_replace(self):
+        self.setup_cbas_bucket_dataset_connect()
+        self.query = "SELECT object_replace(%s, 'testType', 'devType') from %s;"%self.cbas_dataset_name
+        
+        status, _, _, result, _ = self.cbas_util.execute_statement_on_cbas_util(self.query,"immediate")
+        self.assertTrue(status=="success")
+        self.assertTrue(result[0]['$1']['type']=='devType')
+
+    def test_object_unwrap(self):
+        self.setup_cbas_bucket_dataset_connect()
+        self.query = "SELECT OBJECT_UNWRAP(data) from %s;"%(self.cbas_dataset_name)
+        
+        status, _, _, result, _ = self.cbas_util.execute_statement_on_cbas_util(self.query,"immediate")
+        self.assertTrue(status=="success")
+        self.assertTrue(result[0]['$1']['type']=='devType')
+
+    def test_object_values(self):
+        self.setup_cbas_bucket_dataset_connect()
+        self.query = "SELECT OBJECT_VALUES(indexMap) from %s;"%self.cbas_dataset_name
+        
+        status, _, _, result, _ = self.cbas_util.execute_statement_on_cbas_util(self.query,"immediate")
+        expected_result = [
+                            "val1",
+                            "val2"
+                            ]
+        self.assertTrue(status=="success")
+        self.assertTrue(result[0]['$1']==expected_result)
+        
+        self.query = "SELECT count(*) from %s where OBJECT_VALUES( indexMap )[0] = 'val1';"%(self.cbas_dataset_name)
+        self.assertTrue(status=="success")
+        self.assertTrue(result[0]['$1']==1)
         
     def test_object_pairs(self):
         self.setup_cbas_bucket_dataset_connect()
@@ -297,7 +380,208 @@ class CBASTuqSanity(QuerySanityTests):
             expected_result = sorted(expected_result, key=lambda doc: (doc['_id']))
             self._verify_results(actual_result, expected_result)
             
-            
+    def test_array_contains(self):
+        for bucket in self.buckets:
+            self.query = "SELECT job_title, array_contains((select value name from g), 'employee-1')"  +\
+            " as emp_job FROM %s GROUP BY job_title GROUP AS g" % (bucket.name)
+            actual_result = self.run_cbq_query()
+            actual_result = sorted(actual_result['results'])
+
+            tmp_groups = set([doc['job_title'] for doc in self.full_list])
+            expected_result = [{"job_title" : group,
+                                "emp_job" : 'employee-1' in [x["name"] for x in self.full_list
+                                                           if x["job_title"] == group] }
+                               for group in tmp_groups]
+            expected_result = sorted(expected_result)
+            self._verify_results(actual_result, expected_result)
+
+    def test_array_append(self):
+        for bucket in self.buckets:
+            self.query = "SELECT job_title," +\
+                         " array_append((select DISTINCT value name from g), 'new_name') as names" +\
+                         " FROM %s GROUP BY job_title GROUP AS g" % (bucket.name)
+
+            actual_list = self.run_cbq_query()
+            actual_result = self.sort_nested_list(actual_list['results'])
+            actual_result = sorted(actual_result, key=lambda doc: (doc['job_title']))
+
+            tmp_groups = set([doc['job_title'] for doc in self.full_list])
+            expected_result = [{"job_title" : group,
+                                "names" : sorted(set([x["name"] for x in self.full_list
+                                               if x["job_title"] == group] + ['new_name']))}
+                               for group in tmp_groups]
+            expected_result = sorted(expected_result, key=lambda doc: (doc['job_title']))
+            self._verify_results(actual_result, expected_result)
+
+            self.query = "SELECT job_title," +\
+                         " array_append((select DISTINCT value name from g), 'new_name','123') as names" +\
+                         " FROM %s GROUP BY job_title GROUP AS g" % (bucket.name)
+
+            actual_list = self.run_cbq_query()
+            actual_result = self.sort_nested_list(actual_list['results'])
+            actual_result = sorted(actual_result, key=lambda doc: (doc['job_title']))
+            tmp_groups = set([doc['job_title'] for doc in self.full_list])
+            expected_result = [{"job_title" : group,
+                                "names" : sorted(set([x["name"] for x in self.full_list
+                                               if x["job_title"] == group] + ['new_name'] + ['123']))}
+                               for group in tmp_groups]
+            expected_result = sorted(expected_result, key=lambda doc: (doc['job_title']))
+            self._verify_results(actual_result, expected_result)
+
+    def test_array_remove(self):
+        value = 'employee-1'
+        for bucket in self.buckets:
+            self.query = "SELECT job_title," +\
+                         " array_remove((select DISTINCT value name from g), '%s') as names" % (value) +\
+                         " FROM %s GROUP BY job_title GROUP AS g" % (bucket.name)
+
+            actual_list = self.run_cbq_query()
+            actual_result = self.sort_nested_list(actual_list['results'])
+            actual_result = sorted(actual_result, key=lambda doc: (doc['job_title']))
+
+            tmp_groups = set([doc['job_title'] for doc in self.full_list])
+            expected_result = [{"job_title" : group,
+                                "names" : sorted(set([x["name"] for x in self.full_list
+                                               if x["job_title"] == group and x["name"]!= value]))}
+                               for group in tmp_groups]
+            expected_result = sorted(expected_result, key=lambda doc: (doc['job_title']))
+            self._verify_results(actual_result, expected_result)
+
+            value1 = 'employee-2'
+            value2 = 'emp-2'
+            value3 = 'employee-1'
+            self.query = "SELECT job_title," +\
+                         " array_remove((select DISTINCT value name from g), '%s','%s','%s') as names" % (value1,value2,value3) +\
+                         " FROM %s GROUP BY job_title GROUP AS g" % (bucket.name)
+
+            actual_list = self.run_cbq_query()
+            actual_result = self.sort_nested_list(actual_list['results'])
+            actual_result = sorted(actual_result, key=lambda doc: (doc['job_title']))
+            tmp_groups = set([doc['job_title'] for doc in self.full_list])
+            expected_result = [{"job_title" : group,
+                                "names" : sorted(set([x["name"] for x in self.full_list
+                                               if x["job_title"] == group and x["name"]!= value1 and x["name"]!=value3]))}
+                               for group in tmp_groups]
+            expected_result = sorted(expected_result, key=lambda doc: (doc['job_title']))
+            self._verify_results(actual_result, expected_result)
+
+    def test_array_prepend(self):
+        for bucket in self.buckets:
+            self.query = "SELECT job_title," +\
+                         " array_prepend(1.2, (select value test_rate from g)) as rates" +\
+                         " FROM %s GROUP BY job_title GROUP AS g" % (bucket.name)
+
+            actual_list = self.run_cbq_query()
+            actual_result = self.sort_nested_list(actual_list['results'])
+            actual_result = sorted(actual_result, key=lambda doc: (doc['job_title']))
+            tmp_groups = set([doc['job_title'] for doc in self.full_list])
+            expected_result = [{"job_title" : group,
+                                "rates" : sorted([x["test_rate"] for x in self.full_list
+                                                  if x["job_title"] == group] + [1.2])}
+
+                               for group in tmp_groups]
+            expected_result = sorted(expected_result, key=lambda doc: (doc['job_title']))
+            self._verify_results(actual_result, expected_result)
+            self.query = "SELECT job_title," +\
+                         " array_prepend(1.2,2.4, (select value test_rate from g)) as rates" +\
+                         " FROM %s GROUP BY job_title" % (bucket.name)
+
+            actual_list = self.run_cbq_query()
+            actual_result = self.sort_nested_list(actual_list['results'])
+            actual_result = sorted(actual_result, key=lambda doc: (doc['job_title']))
+
+            tmp_groups = set([doc['job_title'] for doc in self.full_list])
+            expected_result = [{"job_title" : group,
+                                "rates" : sorted([x["test_rate"] for x in self.full_list
+                                                  if x["job_title"] == group] + [1.2]+[2.4])}
+                               for group in tmp_groups]
+            expected_result = sorted(expected_result, key=lambda doc: (doc['job_title']))
+            self._verify_results(actual_result, expected_result)
+
+            self.query = "SELECT job_title," +\
+                         " array_prepend(['skill5', 'skill8'], (select value skills from g)) as skills_new" +\
+                         " FROM %s GROUP BY job_title GROUP AS g" % (bucket.name)
+
+            actual_list = self.run_cbq_query()
+            actual_result = self.sort_nested_list(actual_list['results'])
+            actual_result = sorted(actual_result, key=lambda doc: (doc['job_title']))
+
+            tmp_groups = set([doc['job_title'] for doc in self.full_list])
+            expected_result = [{"job_title" : group,
+                                "skills_new" : sorted([x["skills"] for x in self.full_list
+                                                  if x["job_title"] == group] + \
+                                                  [['skill5', 'skill8']])}
+                               for group in tmp_groups]
+            expected_result = sorted(expected_result, key=lambda doc: (doc['job_title']))
+            self._verify_results(actual_result, expected_result)
+
+            self.query = "SELECT job_title," +\
+                         " array_prepend(['skill5', 'skill8'],['skill9','skill10'], (select value skills from g)) as skills_new" +\
+                         " FROM %s GROUP BY job_title GROUP AS g" % (bucket.name)
+
+            actual_list = self.run_cbq_query()
+            actual_result = self.sort_nested_list(actual_list['results'])
+            actual_result = sorted(actual_result, key=lambda doc: (doc['job_title']))
+
+            tmp_groups = set([doc['job_title'] for doc in self.full_list])
+            expected_result = [{"job_title" : group,
+                                "skills_new" : sorted([x["skills"] for x in self.full_list
+                                                  if x["job_title"] == group] + \
+                                                  [['skill5', 'skill8']]+ [['skill9','skill10']])}
+                               for group in tmp_groups]
+            expected_result = sorted(expected_result, key=lambda doc: (doc['job_title']))
+
+            self._verify_results(actual_result, expected_result)
+
+    def test_array_put(self):
+        for bucket in self.buckets:
+            self.query = "SELECT job_title, array_put((select distinct value name from g), 'employee-1') as emp_job" +\
+            " FROM %s GROUP BY job_title GROUP AS g" % (bucket.name)
+
+            actual_list = self.run_cbq_query()
+            actual_result = self.sort_nested_list(actual_list['results'])
+            actual_result = sorted(actual_result,
+                                   key=lambda doc: (doc['job_title']))
+
+            tmp_groups = set([doc['job_title'] for doc in self.full_list])
+            expected_result = [{"job_title" : group,
+                                "emp_job" : sorted(set([x["name"] for x in self.full_list
+                                           if x["job_title"] == group]))}
+                               for group in tmp_groups]
+            expected_result = sorted(expected_result, key=lambda doc: (doc['job_title']))
+            self._verify_results(actual_result, expected_result)
+
+            self.query = "SELECT job_title, array_put((select distinct value name from g), 'employee-50','employee-51') as emp_job" +\
+            " FROM %s GROUP BY job_title GROUP AS g" % (bucket.name)
+
+            actual_list = self.run_cbq_query()
+            actual_result = self.sort_nested_list(actual_list['results'])
+            actual_result = sorted(actual_result,
+                                   key=lambda doc: (doc['job_title']))
+
+            tmp_groups = set([doc['job_title'] for doc in self.full_list])
+            expected_result = [{"job_title" : group,
+                                "emp_job" : sorted(set([x["name"] for x in self.full_list
+                                           if x["job_title"] == group]  + ['employee-50'] + ['employee-51']))}
+                               for group in tmp_groups]
+            expected_result = sorted(expected_result, key=lambda doc: (doc['job_title']))
+            self._verify_results(actual_result, expected_result)
+
+            self.query = "SELECT job_title, array_put((select distinct value name from %s), 'employee-47') as emp_job"% (bucket.name) +\
+            " FROM %s GROUP BY job_title" % (bucket.name)
+
+            actual_list = self.run_cbq_query()
+            actual_result = self.sort_nested_list(actual_list['results'])
+            actual_result = sorted(actual_result,
+                                   key=lambda doc: (doc['job_title']))
+
+            expected_result = [{"job_title" : group,
+                                "emp_job" : sorted(set([x["name"] for x in self.full_list
+                                           if x["job_title"] == group] + ['employee-47']))}
+                               for group in tmp_groups]
+            expected_result = sorted(expected_result, key=lambda doc: (doc['job_title']))
+            self._verify_results(actual_result, expected_result)
+
     def test_check_types(self):
         types_list = [("name", "ISSTR", True), ("skills[0]", "ISSTR", True),
                       ("test_rate", "ISSTR", False), ("VMs", "ISSTR", False),
