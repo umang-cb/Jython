@@ -307,23 +307,44 @@ class DateTimeFunctionClass(QueryTests):
             self.assertEqual(actual_result["results"][0]["$1"],
                              expected_result["results"][0]["$1"],
                              "{0} failed ".format(query))
-#             query = 'SELECT STR_TO_ZONE_NAME(CLOCK_STR("{0}"), "UTC")'.format(
-#                 expression)
-#             expected_result = self.run_cbq_query(query)
-#             self.log.info("Expected Result : %s", expected_result)
-#             query = 'SELECT CLOCK_TZ("UTC", "{0}")'.format(expression)
-#             actual_result = self.run_cbq_query(query)
-#             self.log.info("Actual Result : %s", actual_result)
-#             self.assertEqual(actual_result["results"][0]["$1"],
-#                              expected_result["results"][0]["$1"],
-#                              "{0} failed ".format(query))
-#             query = 'SELECT STR_TO_ZONE_NAME(NOW_STR("{0}"), "UTC")'.format(
-#                 expression)
-#             expected_result = self.run_cbq_query(query)
-#             self.log.info("Expected Result : %s", expected_result)
-#             query = 'SELECT NOW_TZ("UTC", "{0}")'.format(expression)
-#             actual_result = self.run_cbq_query(query)
-#             self.log.info("Actual Result : %s", actual_result)
-#             self.assertEqual(actual_result["results"][0]["$1"],
-#                              expected_result["results"][0]["$1"],
-#                              "{0} failed ".format(query))
+            query = 'SELECT STR_TO_ZONE_NAME(CLOCK_STR("{0}"), "UTC")'.format(
+                expression)
+            expected_result = self.run_cbq_query(query)
+            self.log.info("Expected Result : %s", expected_result)
+            query = 'SELECT CLOCK_TZ("UTC", "{0}")'.format(expression)
+            actual_result = self.run_cbq_query(query)
+            self.log.info("Actual Result : %s", actual_result)
+            self.assertEqual(actual_result["results"][0]["$1"],
+                             expected_result["results"][0]["$1"],
+                             "{0} failed ".format(query))
+            query = 'SELECT STR_TO_ZONE_NAME(NOW_STR("{0}"), "UTC")'.format(
+                expression)
+            expected_result = self.run_cbq_query(query)
+            self.log.info("Expected Result : %s", expected_result)
+            query = 'SELECT NOW_TZ("UTC", "{0}")'.format(expression)
+            actual_result = self.run_cbq_query(query)
+            self.log.info("Actual Result : %s", actual_result)
+            self.assertEqual(actual_result["results"][0]["$1"],
+                             expected_result["results"][0]["$1"],
+                             "{0} failed ".format(query))
+            
+            query = 'SELECT STR_TO_TZ(CLOCK_STR("{0}"), "UTC")'.format(
+                expression)
+            expected_result = self.run_cbq_query(query)
+            self.log.info("Expected Result : %s", expected_result)
+            query = 'SELECT CLOCK_TZ("UTC", "{0}")'.format(expression)
+            actual_result = self.run_cbq_query(query)
+            self.log.info("Actual Result : %s", actual_result)
+            self.assertEqual(actual_result["results"][0]["$1"],
+                             expected_result["results"][0]["$1"],
+                             "{0} failed ".format(query))
+            query = 'SELECT STR_TO_TZ(NOW_STR("{0}"), "UTC")'.format(
+                expression)
+            expected_result = self.run_cbq_query(query)
+            self.log.info("Expected Result : %s", expected_result)
+            query = 'SELECT NOW_TZ("UTC", "{0}")'.format(expression)
+            actual_result = self.run_cbq_query(query)
+            self.log.info("Actual Result : %s", actual_result)
+            self.assertEqual(actual_result["results"][0]["$1"],
+                             expected_result["results"][0]["$1"],
+                             "{0} failed ".format(query))

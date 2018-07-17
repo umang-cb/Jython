@@ -982,6 +982,45 @@ class CBASTuqSanity(QuerySanityTests):
                     ]
         self.assertTrue(res['results']==expected, "Query %s failed."%self.query)
 
+    def test_STR_TO_TZ(self):
+        self.query = "SELECT STR_TO_TZ('1111-11-11T00:00:00+08:00', 'America/New_York') as est,\
+        STR_TO_TZ('1111-11-11T00:00:00+08:00', 'UTC') as utc,\
+        STR_TO_TZ('1111-11-11', 'UTC') as utc_short;"
+        
+        res = self.run_cbq_query()
+        self.assertTrue(res['status']=="success", "Query %s failed."%self.query)         
+        
+        expected = [
+                      {
+                        "est": "1111-11-10T11:00:00-05:00",
+                        "utc": "1111-11-10T16:00:00Z",
+                        "utc_short": "1111-11-11"
+                      }
+                    ]
+        self.assertTrue(res['results']==expected, "Query %s failed."%self.query)
+        
+    def test_MILLIS_TO_TZ(self):
+        self.query = "SELECT MILLIS_TO_TZ(1463284740000, 'America/New_York') as est,\
+        MILLIS_TO_TZ(1463284740000, 'Asia/Kolkata') as ist,\
+        MILLIS_TO_TZ(1463284740000, 'UTC') as utc;"
+        
+        res = self.run_cbq_query()
+        self.assertTrue(res['status']=="success", "Query %s failed."%self.query)         
+        
+        expected = [
+                      {
+                        "est": "2016-05-14T23:59:00-04:00",
+                        "ist": "2016-05-15T09:29:00+05:30",
+                        "utc": "2016-05-15T03:59:00Z"
+                      }
+                    ]
+        self.assertTrue(res['results']==expected, "Query %s failed."%self.query)
+        
+        self.query = "SELECT MILLIS_TO_ZONE_NAME(1463284740000, 'America/New_York') as est,\
+        MILLIS_TO_ZONE_NAME(1463284740000, 'Asia/Kolkata') as ist,\
+        MILLIS_TO_ZONE_NAME(1463284740000, 'UTC') as utc;"
+        self.assertTrue(res['results']==expected, "Query %s failed."%self.query)
+        
     def test_MILLIS_TO_UTC(self):
         self.query = "SELECT MILLIS_TO_UTC(1463284740000) as full_date,\
         MILLIS_TO_UTC(1463284740000, 'invalid format') as invalid_format,\
