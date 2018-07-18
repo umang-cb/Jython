@@ -6,73 +6,73 @@ class CBASError:
     errors = [
         {
             "id": "query_timeout",
-            "msg": "Query timed out and will be cancelled",
-            "code": 25000,
+            "msg": ["Request timed out and will be cancelled"],
+            "code": 21002,
             "query": "select sleep(count(*), 2000) from ds"
         },
         {
             "id": "drop_shadow_when_cbas_bucket_connected",
-            "msg": "Can't drop shadow dataset because its bucket is in the connected state",
-            "code": 25000,
+            "msg": ["Dataset cannot be dropped because the bucket", "is connected", '"bucket" : "default"'],
+            "code": 23022,
             "query": "drop dataset ds"
         },
         {
             "id": "create_index_with_cbas_bucket_connected",
-            "msg": "Dataset Default.ds is currently being fed into by the following active entities.\nDefault.Local.default(CouchbaseMetadataExtension)",
-            "code": 25000,
+            "msg": ["Dataset Default.ds is currently being fed into by the following active entities.\nDefault.Local.default(CouchbaseMetadataExtension)"],
+            "code": 24001,
             "query": "create index sec_idx on ds(name:string)"
         },
         {
             "id": "create_index_with_index_name_already_exist",
-            "msg": "An index with this name sec_idx already exists",
-            "code": 25000,
+            "msg": ["An index with this name sec_idx already exists"],
+            "code": 24048,
             "query": "create index sec_idx on ds(name:string)"
         },
         {
             "id": "user_permission",
-            "msg": "User must have permission (cluster.bucket[default].analytics!manage)",
+            "msg": ["User must have permission (cluster.bucket[default].analytics!manage)"],
             "code": 20001,
             "query": "drop dataset ds"
         },
         {
             "id": "create_shadow_when_cbas_bucket_connected",
-            "msg": "Dataset cannot be created because the bucket default is connected",
-            "code": 25000,
+            "msg": ["Dataset cannot be created because the bucket default is connected"],
+            "code": 23006,
             "query": "create dataset ds1 on default"
         },
         {
             "id": "user_unauthorized",
-            "msg": "Unauthorized user",
+            "msg": ["Unauthorized user"],
             "code": 20000,
             "query": "select count(*) from ds"
         },
         {
             "id": "index_on_unsupported_type",
-            "msg": "Cannot index field [click] on type date. Supported types: bigint, double, string",
-            "code": 25000,
+            "msg": ["Cannot index field [click] on type date. Supported types: bigint, double, string"],
+            "code": 24002,
             "query": "create index idx on ds(click:date)"
         },
         {
             "id": "cb_bucket_does_not_exist",
-            "msg": "Bucket (default1) does not exist",
-            "code": 25000,
+            "msg": ["Bucket (default1) does not exist"],
+            "code": 24003,
             "query": "create dataset ds1 on default1"
         },
         {   
             "id": "max_writable_datasets",
-            "msg": "Maximum number of active writable datasets (8) exceeded",
-            "code": 25000,
+            "msg": ["Maximum number of active writable datasets (8) exceeded"],
+            "code": 23002,
             "query": "connect link Local"
         },
         {   
             "id": "incorrect_aggregate_query",
-            "msg": "count is a SQL-92 aggregate function. The SQL++ core aggregate function array_count could potentially express the intent",
-            "code": 25000,
+            "msg": ["count is a SQL-92 aggregate function. The SQL++ core aggregate function array_count could potentially express the intent"],
+            "code": 24001,
             "query": "select count(*) ds1"
         },
         {
             "id": "unstable_cbas_node",
-            "msg": "Cannot execute request, cluster is RECOVERING",
+            "msg": ["Cannot execute request, cluster is RECOVERING"],
             "code": 25000,
             "query": "select count(*) from ds"
         }
@@ -107,8 +107,9 @@ class CBASErrorValidator(CBASBaseTest):
         self.log.info("Connect to Local link")
         self.cbas_util.connect_to_bucket()
 
-    def validate_error_response(self, status, errors, expected_error, expected_error_code):
-        self.assertTrue(self.cbas_util.validate_error_in_response(status, errors, expected_error, expected_error_code), msg="Error msg or Error code mismatch. Refer logs for actual and expected")
+    def validate_error_response(self, status, errors, expected_errors, expected_error_code):
+        for expected_error in expected_errors:
+            self.assertTrue(self.cbas_util.validate_error_in_response(status, errors, expected_error, expected_error_code), msg="Mismatch. Refer logs for actual and expected error code/msg")
     
     """
     cbas.cbas_error_codes.CBASErrorValidator.test_error_response_for_analytics_timeout,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=cbas,cbas_dataset_name=ds,error_id=query_timeout

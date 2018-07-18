@@ -205,18 +205,13 @@ class CBASBugAutomation(CBASBaseTest):
         self.log.info("Create a connection")
         self.cbas_util.createConn(self.cb_bucket_name)
 
-        self.log.info("Create a CBAS bucket")
-        query = 'create bucket %s with {"name":"%s"}' % (self.cbas_bucket_name, self.cb_bucket_name)
+        self.log.info("Create a  data-set")
+        query = 'create dataset %s on %s' % (self.cbas_dataset_name, self.cb_bucket_name)
         result = self.analytics_helper.run_commands_using_cbq_shell(query, self.cbas_node, 8095)
         self.assertTrue(result['status'] == "success", "Query %s failed." % query)
 
-        self.log.info("Create a default data-set")
-        query = 'create dataset %s on default_cbas' % self.cbas_dataset_name
-        result = self.analytics_helper.run_commands_using_cbq_shell(query, self.cbas_node, 8095)
-        self.assertTrue(result['status'] == "success", "Query %s failed." % query)
-
-        self.log.info("Connect to cbas bucket")
-        query = 'connect bucket %s' % self.cbas_bucket_name
+        self.log.info("Connect link Local")
+        query = 'connect link Local'
         result = self.analytics_helper.run_commands_using_cbq_shell(query, self.cbas_node, 8095)
         self.assertTrue(result['status'] == "success", "Query %s failed." % query)
 
@@ -226,18 +221,13 @@ class CBASBugAutomation(CBASBaseTest):
         self.assertTrue(result['results'][0]['$1'] == self.num_items,
                         "Number of items incorrect %s != %s" % (result["results"][0], self.num_items))
 
-        self.log.info("Disconnect cbas bucket")
-        query = 'disconnect bucket %s' % self.cbas_bucket_name
+        self.log.info("Disconnect link Local")
+        query = 'disconnect link Local'
         result = self.analytics_helper.run_commands_using_cbq_shell(query, self.cbas_node, 8095)
         self.assertTrue(result['status'] == "success", "Query %s failed." % query)
 
         self.log.info("Drop a dataset")
         query = 'drop dataset %s' % self.cbas_dataset_name
-        result = self.analytics_helper.run_commands_using_cbq_shell(query, self.cbas_node, 8095)
-        self.assertTrue(result['status'] == "success", "Query %s failed." % query)
-
-        self.log.info("Drop bucket")
-        query = 'drop bucket %s' % self.cbas_bucket_name
         result = self.analytics_helper.run_commands_using_cbq_shell(query, self.cbas_node, 8095)
         self.assertTrue(result['status'] == "success", "Query %s failed." % query)
 
@@ -572,14 +562,15 @@ class CBASBugAutomation(CBASBaseTest):
         fixed_partitions = self.input.param("fixed_partitions", False)
         if fixed_partitions:
             self.log.info("Fixed partitions : Pick min of length of cbas_path, cbas_memory_quota")
+            self.log.info(self.cbas_path)
             expected_partitions = min(len(self.cbas_path), int(self.cbas_memory_quota/1024))
         else:
             self.log.info("Variable partitions : Pick min of cores on machine, cbas_memory_quota")
             expected_partitions = min(min(16, int(cores)), int(self.cbas_memory_quota/1024))
         self.log.info("Expected partitions %d" % expected_partitions)
 
-        self.assertTrue(partitions==expected_partitions, msg="Number of partitions mismatch")
-        self.assertTrue(io_devices==expected_partitions, msg="Number of IO devices mismatch")
+        self.assertTrue(partitions==expected_partitions, msg="Number of partitions mismatch. Expected %s Actual %s" %(expected_partitions, partitions))
+        self.assertTrue(io_devices==expected_partitions, msg="Number of IO devices mismatch. Expected %s Actual %s" %(expected_partitions, io_devices))
 
     def tearDown(self):
         super(CBASBugAutomation, self).tearDown()
