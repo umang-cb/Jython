@@ -382,7 +382,7 @@ class CBASTuqSanity(QuerySanityTests):
             
     def test_array_contains(self):
         for bucket in self.buckets:
-            self.query = "SELECT job_title, array_contains((select value name from g), 'employee-1')"  +\
+            self.query = "SELECT job_title, array_contains((select value %s.name from g), 'employee-1')"% (bucket.name)  +\
             " as emp_job FROM %s GROUP BY job_title GROUP AS g" % (bucket.name)
             actual_result = self.run_cbq_query()
             actual_result = sorted(actual_result['results'])
@@ -398,7 +398,7 @@ class CBASTuqSanity(QuerySanityTests):
     def test_array_append(self):
         for bucket in self.buckets:
             self.query = "SELECT job_title," +\
-                         " array_append((select DISTINCT value name from g), 'new_name') as names" +\
+                         " array_append((select DISTINCT value %s.name from g), 'new_name') as names"% (bucket.name) +\
                          " FROM %s GROUP BY job_title GROUP AS g" % (bucket.name)
 
             actual_list = self.run_cbq_query()
@@ -414,7 +414,7 @@ class CBASTuqSanity(QuerySanityTests):
             self._verify_results(actual_result, expected_result)
 
             self.query = "SELECT job_title," +\
-                         " array_append((select DISTINCT value name from g), 'new_name','123') as names" +\
+                         " array_append((select DISTINCT value %s.name from g), 'new_name','123') as names"% (bucket.name) +\
                          " FROM %s GROUP BY job_title GROUP AS g" % (bucket.name)
 
             actual_list = self.run_cbq_query()
@@ -432,7 +432,7 @@ class CBASTuqSanity(QuerySanityTests):
         value = 'employee-1'
         for bucket in self.buckets:
             self.query = "SELECT job_title," +\
-                         " array_remove((select DISTINCT value name from g), '%s') as names" % (value) +\
+                         " array_remove((select DISTINCT value %s.name from g), '%s') as names" % (bucket.name, value) +\
                          " FROM %s GROUP BY job_title GROUP AS g" % (bucket.name)
 
             actual_list = self.run_cbq_query()
@@ -451,7 +451,7 @@ class CBASTuqSanity(QuerySanityTests):
             value2 = 'emp-2'
             value3 = 'employee-1'
             self.query = "SELECT job_title," +\
-                         " array_remove((select DISTINCT value name from g), '%s','%s','%s') as names" % (value1,value2,value3) +\
+                         " array_remove((select DISTINCT value %s.name from g), '%s','%s','%s') as names" % (bucket.name,value1,value2,value3) +\
                          " FROM %s GROUP BY job_title GROUP AS g" % (bucket.name)
 
             actual_list = self.run_cbq_query()
@@ -468,7 +468,7 @@ class CBASTuqSanity(QuerySanityTests):
     def test_array_prepend(self):
         for bucket in self.buckets:
             self.query = "SELECT job_title," +\
-                         " array_prepend(1.2, (select value test_rate from g)) as rates" +\
+                         " array_prepend(1.2, (select value %s.test_rate from g)) as rates"% (bucket.name) +\
                          " FROM %s GROUP BY job_title GROUP AS g" % (bucket.name)
 
             actual_list = self.run_cbq_query()
@@ -483,7 +483,7 @@ class CBASTuqSanity(QuerySanityTests):
             expected_result = sorted(expected_result, key=lambda doc: (doc['job_title']))
             self._verify_results(actual_result, expected_result)
             self.query = "SELECT job_title," +\
-                         " array_prepend(1.2,2.4, (select value test_rate from g)) as rates" +\
+                         " array_prepend(1.2,2.4, (select value %s.test_rate from g)) as rates"% (bucket.name) +\
                          " FROM %s GROUP BY job_title" % (bucket.name)
 
             actual_list = self.run_cbq_query()
@@ -499,7 +499,7 @@ class CBASTuqSanity(QuerySanityTests):
             self._verify_results(actual_result, expected_result)
 
             self.query = "SELECT job_title," +\
-                         " array_prepend(['skill5', 'skill8'], (select value skills from g)) as skills_new" +\
+                         " array_prepend(['skill5', 'skill8'], (select value %s.skills from g)) as skills_new"% (bucket.name) +\
                          " FROM %s GROUP BY job_title GROUP AS g" % (bucket.name)
 
             actual_list = self.run_cbq_query()
@@ -516,7 +516,7 @@ class CBASTuqSanity(QuerySanityTests):
             self._verify_results(actual_result, expected_result)
 
             self.query = "SELECT job_title," +\
-                         " array_prepend(['skill5', 'skill8'],['skill9','skill10'], (select value skills from g)) as skills_new" +\
+                         " array_prepend(['skill5', 'skill8'],['skill9','skill10'], (select value %s.skills from g)) as skills_new"% (bucket.name) +\
                          " FROM %s GROUP BY job_title GROUP AS g" % (bucket.name)
 
             actual_list = self.run_cbq_query()
@@ -535,7 +535,7 @@ class CBASTuqSanity(QuerySanityTests):
 
     def test_array_put(self):
         for bucket in self.buckets:
-            self.query = "SELECT job_title, array_put((select distinct value name from g), 'employee-1') as emp_job" +\
+            self.query = "SELECT job_title, array_put((select distinct value %s.name from g), 'employee-1') as emp_job"% (bucket.name) +\
             " FROM %s GROUP BY job_title GROUP AS g" % (bucket.name)
 
             actual_list = self.run_cbq_query()
@@ -551,7 +551,7 @@ class CBASTuqSanity(QuerySanityTests):
             expected_result = sorted(expected_result, key=lambda doc: (doc['job_title']))
             self._verify_results(actual_result, expected_result)
 
-            self.query = "SELECT job_title, array_put((select distinct value name from g), 'employee-50','employee-51') as emp_job" +\
+            self.query = "SELECT job_title, array_put((select distinct value %s.name from g), 'employee-50','employee-51') as emp_job"% (bucket.name) +\
             " FROM %s GROUP BY job_title GROUP AS g" % (bucket.name)
 
             actual_list = self.run_cbq_query()
@@ -567,7 +567,7 @@ class CBASTuqSanity(QuerySanityTests):
             expected_result = sorted(expected_result, key=lambda doc: (doc['job_title']))
             self._verify_results(actual_result, expected_result)
 
-            self.query = "SELECT job_title, array_put((select distinct value name from %s), 'employee-47') as emp_job"% (bucket.name) +\
+            self.query = "SELECT job_title, array_put((select distinct value %s.name from g), 'employee-47') as emp_job"% (bucket.name) +\
             " FROM %s GROUP BY job_title" % (bucket.name)
 
             actual_list = self.run_cbq_query()
