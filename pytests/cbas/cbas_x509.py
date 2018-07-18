@@ -7,6 +7,7 @@ from remote.remote_util import RemoteMachineShellConnection
 import subprocess
 import copy
 from lib.BucketLib.BucketOperations import BucketHelper
+from Rbac_utils.Rbac_ready_functions import rbac_utils
 
 class x509tests(BaseTestCase):
 
@@ -32,6 +33,11 @@ class x509tests(BaseTestCase):
         self.uri = self.input.param('uri',None)
         
         copy_servers = copy.deepcopy(self.servers)
+        
+        self.rbac_user = self.input.param('rbac_user',None)
+        if self.rbac_user:
+            self.rbac_util = rbac_utils(self.master)
+            self.rbac_util._create_user_and_grant_role("ro_admin", "ro_admin")
         
         #Generate cert and pass on the client ip for cert generation
         if (self.dns is not None) or (self.uri is not None):
@@ -99,7 +105,40 @@ class x509tests(BaseTestCase):
         else:
             return False
 
-          
+    def test_limited_access_user(self):
+        servs_inout = self.servers[1:4]
+        rest = RestConnection(self.master)
+        services_in = []
+        self.log.info ("list of services to be added {0}".format(self.services_in))
+        
+        for service in self.services_in.split("-"):
+            services_in.append(service.split(":")[0])
+        self.log.info ("list of services to be added after formatting {0}".format(services_in))
+        
+        #add nodes to the cluster
+        rebalance = self.cluster.async_rebalance(self.servers[:self.nodes_init], servs_inout, [],
+                                                     services=services_in)
+        rebalance.get_result()
+        
+        self.sleep(20)
+        
+        #check for analytics services, for Vulcan check on http port
+        cbas_node = self.get_nodes_from_services_map(service_type='cbas')
+        if cbas_node is not None:
+            helper = BucketHelper(cbas_node)
+            if not helper.bucket_exists('default'):
+                helper.create_bucket(bucket='default', ramQuotaMB=100)
+            
+            query = "'statement=create dataset default_ds on default'"
+            if self.client_cert_state == 'enable':
+                output = x509main()._execute_command_clientcert(cbas_node.ip,url='/analytics/service',port=18095,headers=' --data pretty=true --data-urlencode '+query,client_cert=True,curl=True,verb='POST')
+            else:
+                output = x509main()._execute_command_clientcert(cbas_node.ip,url='/analytics/service',port=18095,headers=' --data pretty=true --data-urlencode '+query+' -u Administrator:password ',client_cert=False,curl=True,verb='POST')
+            
+            self.assertEqual(json.loads(output)['status'],"fatal","Create Index Failed")
+            self.assertEqual(json.loads(output)['errors'][0]['msg'],'User must have permission (cluster.analytics!select)',"Incorrect error message.")
+            self.assertEqual(json.loads(output)['errors'][0]['code'],20001,"Incorrect code.")
+    
     def test_incorrect_user(self):
         host = self.master
         rest = BucketHelper(self.master)
