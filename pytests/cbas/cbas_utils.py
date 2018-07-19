@@ -74,7 +74,94 @@ class cbas_utils():
     
         except Exception,e:
             raise Exception(str(e))
+
+    def create_dataverse_on_cbas(self, dataverse_name=None,
+                            username=None, 
+                            password=None, 
+                            validate_error_msg=False, 
+                            expected_error=None,
+                            expected_error_code=None):
         
+        if dataverse_name == "Default" or dataverse_name == None:
+            cmd = "create dataverse Default;"
+        else:
+            cmd = "create dataverse %s"%(dataverse_name)
+
+        status, metrics, errors, results, _ = self.execute_statement_on_cbas_util(
+            cmd, username=username, password=password)
+        if validate_error_msg:
+            return self.validate_error_in_response(status, errors, expected_error,expected_error_code)
+        else:
+            if status != "success":
+                return False
+            else:
+                return True
+
+    def drop_dataverse_on_cbas(self, dataverse_name=None,
+                          username=None, 
+                          password=None, 
+                          validate_error_msg=False, 
+                          expected_error=None,
+                          expected_error_code=None):
+        if dataverse_name:
+            cmd = "drop dataverse %s;"%(dataverse_name)
+        else:
+            cmd = "drop dataverse Default;"
+
+        status, metrics, errors, results, _ = self.execute_statement_on_cbas_util(
+            cmd, username=username, password=password)
+        if validate_error_msg:
+            return self.validate_error_in_response(status, errors, expected_error,expected_error_code)
+        else:
+            if status != "success":
+                return False
+            else:
+                return True
+
+    def create_link_on_cbas(self, link_name=None,
+                            ip_address=None, 
+                            username=None, 
+                            password=None, 
+                            validate_error_msg=False, 
+                            expected_error=None,
+                            expected_error_code=None):
+        
+        if link_name == "Local" or link_name == None:
+            cmd = "create link Local;"
+        else:
+            cmd = "create link %s WITH {'nodes': %s, 'user': %s, 'password': %s}"%(link_name,ip_address,username,password)
+
+        status, metrics, errors, results, _ = self.execute_statement_on_cbas_util(
+            cmd, username=username, password=password)
+        if validate_error_msg:
+            return self.validate_error_in_response(status, errors, expected_error,expected_error_code)
+        else:
+            if status != "success":
+                return False
+            else:
+                return True
+
+    def drop_link_on_cbas(self, link_name=None,
+                          username=None, 
+                          password=None, 
+                          validate_error_msg=False, 
+                          expected_error=None,
+                          expected_error_code=None):
+        if link_name:
+            cmd = "drop link %s;"%(link_name)
+        else:
+            cmd = "drop link Local;"
+
+        status, metrics, errors, results, _ = self.execute_statement_on_cbas_util(
+            cmd, username=username, password=password)
+        if validate_error_msg:
+            return self.validate_error_in_response(status, errors, expected_error,expected_error_code)
+        else:
+            if status != "success":
+                return False
+            else:
+                return True
+
     def create_bucket_on_cbas(self, cbas_bucket_name, cb_bucket_name,
                               cb_server_ip=None,
                               validate_error_msg=False,
@@ -151,6 +238,69 @@ class cbas_utils():
             cmd_create_dataset, username=username, password=password)
         if validate_error_msg:
             return self.validate_error_in_response(status, errors, expected_error)
+        else:
+            if status != "success":
+                return False
+            else:
+                return True
+
+    def connect_link(self, link_name="Local",
+                          validate_error_msg=False,
+                          username=None, 
+                          password=None, 
+                          expected_error=None,
+                          expected_error_code=None):
+        """
+        Connects to a Link
+        """
+        cmd_connect_bucket = "connect link %s;"%link_name
+        
+        retry_attempt = 5
+        connect_bucket_failed = True
+        while connect_bucket_failed and retry_attempt > 0:
+            status, metrics, errors, results, _ = self.execute_statement_on_cbas_util(cmd_connect_bucket,
+                                                                                      username=username,
+                                                                                      password=password)
+
+            if errors:
+                # Below errors are to be fixed in Alice, until they are fixed retry is only option
+                actual_error = errors[0]["msg"]
+                if "Failover response The vbucket belongs to another server" in actual_error or "Bucket configuration doesn't contain a vbucket map" in actual_error:
+                    retry_attempt -= 1
+                    time.sleep(10)
+                    self.log.info("Retrying connecting of bucket")
+                else:
+                    self.log.info("Not a vbucket error, so don't retry")
+                    connect_bucket_failed = False
+            else:
+                connect_bucket_failed = False
+        if validate_error_msg:
+            return self.validate_error_in_response(status, errors, expected_error,expected_error_code)
+        else:
+            if status != "success":
+                return False
+            else:
+                return True
+
+    def disconnect_link(self, link_name="Local",
+                               disconnect_if_connected=False,
+                               validate_error_msg=False, 
+                               username=None,
+                               password=None, 
+                               expected_error=None,
+                               expected_error_code=None):
+        """
+        Disconnects from a CBAS bucket
+        """
+        if disconnect_if_connected:
+            cmd_disconnect_link = 'disconnect link %s if connected;'%link_name
+        else:
+            cmd_disconnect_link = 'disconnect link %s;'%link_name
+        
+        status, metrics, errors, results, _ = self.execute_statement_on_cbas_util(
+            cmd_disconnect_link, username=username, password=password)
+        if validate_error_msg:
+            return self.validate_error_in_response(status, errors, expected_error,expected_error_code)
         else:
             if status != "success":
                 return False
@@ -426,9 +576,12 @@ class cbas_utils():
             if expected_error not in actual_error:
                 log.info("Error message mismatch. Expected: %s, Actual: %s" % (expected_error, actual_error))
                 return False
-            if expected_error_code is not None and expected_error_code != errors[0]["code"]:
-                log.info("Error code mismatch. Expected: %s, Actual: %s" % (expected_error_code, errors[0]["code"]))
-                return False
+            log.info("Error message matches correctly. Expected: %s, Actual: %s" % (expected_error, actual_error))
+            if expected_error_code is not None:
+                if expected_error_code != errors[0]["code"]:
+                    log.info("Error code mismatch. Expected: %s, Actual: %s" % (expected_error_code, errors[0]["code"]))
+                    return False
+                log.info("Error code matches correctly. Expected: %s, Actual: %s" % (expected_error_code, errors[0]["code"]))
             return True
         return False
 
