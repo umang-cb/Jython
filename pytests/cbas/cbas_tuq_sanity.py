@@ -484,7 +484,7 @@ class CBASTuqSanity(QuerySanityTests):
             self._verify_results(actual_result, expected_result)
             self.query = "SELECT job_title," +\
                          " array_prepend(1.2,2.4, (select value %s.test_rate from g)) as rates"% (bucket.name) +\
-                         " FROM %s GROUP BY job_title" % (bucket.name)
+                         " FROM %s GROUP BY job_title GROUP AS g" % (bucket.name)
 
             actual_list = self.run_cbq_query()
             actual_result = self.sort_nested_list(actual_list['results'])
@@ -568,7 +568,7 @@ class CBASTuqSanity(QuerySanityTests):
             self._verify_results(actual_result, expected_result)
 
             self.query = "SELECT job_title, array_put((select distinct value %s.name from g), 'employee-47') as emp_job"% (bucket.name) +\
-            " FROM %s GROUP BY job_title" % (bucket.name)
+            " FROM %s GROUP BY job_title GROUP AS g" % (bucket.name)
 
             actual_list = self.run_cbq_query()
             actual_result = self.sort_nested_list(actual_list['results'])

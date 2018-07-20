@@ -3655,7 +3655,7 @@ class QuerySanityTests(QueryTests):
         self._verify_results(actual_list['results'], expected_result)
     #This test has no usages anywhere
     def test_ln(self):
-        self.query = "select ln(10) = ln(2) + ln(5)"
+        self.query = "select log(10) = log(2) + log(5)"
         actual_list = self.run_cbq_query()
         expected_result = [{'$1': True}]
         self._verify_results(actual_list['results'], expected_result)
