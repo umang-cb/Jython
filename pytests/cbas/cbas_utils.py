@@ -75,6 +75,52 @@ class cbas_utils():
         except Exception,e:
             raise Exception(str(e))
 
+    def execute_parameter_statement_on_cbas_util(self, statement, mode=None, rest=None, timeout=120,
+                                                 client_context_id=None, username=None, password=None,
+                                                 analytics_timeout=120, parameters=[]):
+        """
+        Executes a statement on CBAS using the REST API using REST Client
+        """
+        pretty = "true"
+        try:
+            log.info("Running query on cbas: %s" % statement)
+            response = self.cbas_helper.execute_parameter_statement_on_cbas(statement, mode, pretty, timeout,
+                                                                            client_context_id, username, password,
+                                                                            analytics_timeout=analytics_timeout,
+                                                                            parameters=parameters)
+            if type(response) == str:
+                response = json.loads(response)
+            if "errors" in response:
+                errors = response["errors"]
+                if type(errors) == str:
+                    errors = json.loads(errors)
+            else:
+                errors = None
+
+            if "results" in response:
+                results = response["results"]
+                if type(results) == str:
+                    results = json.loads(results, parse_int=int)
+            else:
+                results = None
+
+            if "handle" in response:
+                handle = response["handle"]
+            else:
+                handle = None
+
+            if "metrics" in response:
+                metrics = response["metrics"]
+                if type(metrics) == str:
+                    metrics = json.loads(metrics)
+            else:
+                metrics = None
+
+            return response["status"], metrics, errors, results, handle
+
+        except Exception, e:
+            raise Exception(str(e))
+
     def create_dataverse_on_cbas(self, dataverse_name=None,
                             username=None, 
                             password=None, 

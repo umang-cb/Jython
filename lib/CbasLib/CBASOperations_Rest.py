@@ -58,6 +58,37 @@ class CBASHelper(RestConnection):
                 status, content))
             raise Exception("Analytics Service API failed")
 
+    def execute_parameter_statement_on_cbas(self, statement, mode, pretty=True, timeout=70, client_context_id=None,
+                                            username=None, password=None, analytics_timeout=120, parameters=[]):
+        if not username:
+            username = self.username
+        if not password:
+            password = self.password
+        api = self.cbas_base_url + "/analytics/service"
+        headers = self._create_capi_headers(username, password)
+        params = {'statement': statement, 'mode': mode, 'pretty': pretty, 'client_context_id': client_context_id,
+                  'timeout': str(analytics_timeout) + "s"}
+        for i in range(len(parameters)):
+            params.update(parameters[i])
+        params = json.dumps(params)
+        status, content, header = self._http_request(api, 'POST', headers=headers, params=params, timeout=timeout)
+        # print("cbas response:{}".format(content))
+        if status:
+            return content
+        elif str(header['status']) == '503':
+            log.info("Request Rejected")
+            raise Exception("Request Rejected")
+        elif str(header['status']) in ['500', '400']:
+            json_content = json.loads(content)
+            msg = json_content['errors'][0]['msg']
+            if "Job requirement" in msg and "exceeds capacity" in msg:
+                raise Exception("Capacity cannot meet job requirement")
+            else:
+                return content
+        else:
+            log.error("/analytics/service status:{0},content:{1}".format(status, content))
+            raise Exception("Analytics Service API failed")
+
     def delete_active_request_on_cbas(self, payload, username=None, password=None):
         if not username:
             username = self.username
