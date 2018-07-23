@@ -39,18 +39,11 @@ class cbas_object_tests(CBASBaseTest):
         self.query = "SELECT object_add(indexMap,'key3','value3') from %s;"%self.cbas_dataset_name
         
         status, _, _, result, _ = self.cbas_util.execute_statement_on_cbas_util(self.query,"immediate")
-        expected_result = [{
-                        "name": "key1",
-                        "value": "val1"
-                      },
-                      {
-                        "name": "key2",
-                        "value": "val2"
-                      },
-                      {
-                        "name": "key3",
-                        "value": "val3"
-                      }]
+        expected_result = {
+                            "key1": "val1",
+                            "key2": "val2",
+                            "key3": "value3"
+                            }
         self.assertTrue(status=="success")
         self.assertTrue(result[0]['$1']==expected_result)
         
@@ -59,32 +52,22 @@ class cbas_object_tests(CBASBaseTest):
         self.query = "SELECT object_put(indexMap,'key3','value3') from %s;"%self.cbas_dataset_name
         
         status, _, _, result, _ = self.cbas_util.execute_statement_on_cbas_util(self.query,"immediate")
-        expected_result = [{
-                        "name": "key1",
-                        "value": "val1"
-                      },
-                      {
-                        "name": "key2",
-                        "value": "val2"
-                      },
-                      {
-                        "name": "key3",
-                        "value": "val3"
-                      }]
+        expected_result = {
+                            "key1": "val1",
+                            "key2": "val2",
+                            "key3": "value3"
+                            }
+        
         self.assertTrue(status=="success")
         self.assertTrue(result[0]['$1']==expected_result)
         
         self.query = "SELECT object_put(indexMap,'key2','new_value') from %s;"%self.cbas_dataset_name
         
         status, _, _, result, _ = self.cbas_util.execute_statement_on_cbas_util(self.query,"immediate")
-        expected_result = [{
-                        "name": "key1",
-                        "value": "val1"
-                      },
-                      {
-                        "name": "key2",
-                        "value": "new_value"
-                      }]
+        expected_result = {
+                            "key1": "val1",
+                            "key2": "new_value",
+                            }
         
         self.assertTrue(status=="success")
         self.assertTrue(result[0]['$1']==expected_result)
@@ -103,11 +86,11 @@ class cbas_object_tests(CBASBaseTest):
         
         status, _, _, result, _ = self.cbas_util.execute_statement_on_cbas_util(self.query,"immediate")
         self.assertTrue(status=="success")
-        self.assertTrue(result[0]['$1']['new_type'])
+        self.assertFalse(result[0]['$1'].get('indexMap',False))
 
     def test_object_replace(self):
         self.setup_cbas_bucket_dataset_connect()
-        self.query = "SELECT object_replace(%s, 'testType', 'devType') from %s;"%self.cbas_dataset_name
+        self.query = "SELECT object_replace(%s, 'testType', 'devType') from %s;"%(self.cbas_dataset_name,self.cbas_dataset_name)
         
         status, _, _, result, _ = self.cbas_util.execute_statement_on_cbas_util(self.query,"immediate")
         self.assertTrue(status=="success")
@@ -119,7 +102,7 @@ class cbas_object_tests(CBASBaseTest):
         
         status, _, _, result, _ = self.cbas_util.execute_statement_on_cbas_util(self.query,"immediate")
         self.assertTrue(status=="success")
-        self.assertTrue(result[0]['$1']['type']=='devType')
+        self.assertTrue(result[0]['$1']=='bar')
 
     def test_object_values(self):
         self.setup_cbas_bucket_dataset_connect()
@@ -134,6 +117,7 @@ class cbas_object_tests(CBASBaseTest):
         self.assertTrue(result[0]['$1']==expected_result)
         
         self.query = "SELECT count(*) from %s where OBJECT_VALUES( indexMap )[0] = 'val1';"%(self.cbas_dataset_name)
+        status, _, _, result, _ = self.cbas_util.execute_statement_on_cbas_util(self.query,"immediate")
         self.assertTrue(status=="success")
         self.assertTrue(result[0]['$1']==1)
         
