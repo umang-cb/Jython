@@ -659,11 +659,54 @@ class CBASTuqSanity(QuerySanityTests):
             self.assertTrue(actual_result['results'] == [{u'skills_diff3': [u'skill2012', u'skill2017', u'skills2010']}, {u'skills_diff3': [u'skill2012', u'skill2017', u'skills2010']}, {u'skills_diff3': [u'skill2012', u'skill2017', u'skills2010']}, {u'skills_diff3': [u'skill2012', u'skill2017', u'skills2010']}, {u'skills_diff3': [u'skill2012', u'skill2017', u'skills2010']}])
 
     def test_array_intersect(self):
-        self.fail_if_no_buckets()
         self.query = 'select ARRAY_INTERSECT([2011,2012,2016,"test"], [2011,2016], [2012,2016]) as test'
         actual_result = self.run_cbq_query()
         self.assertTrue(actual_result['results'][0]["test"] == [2016]) 
-                        
+
+    def test_array_star(self):
+        for bucket in self.buckets:
+            self.query = 'SELECT ARRAY_STAR(ARRAY_FLATTEN((select value VMs from %s  where %s.VMs is not missing limit 1),1)) as test'%(bucket.name)
+            actual_result = self.run_cbq_query()
+            self.assertTrue(len(actual_result['results'][0]["test"]["RAM"] == 2))
+            self.assertTrue(len(actual_result['results'][0]["test"]["memory"] == 2))
+            self.assertTrue(len(actual_result['results'][0]["test"]["name"] == 2))
+            self.assertTrue(len(actual_result['results'][0]["test"]["os"] == 2))
+
+    def test_array_sort(self):
+        for bucket in self.buckets:
+            self.query = "SELECT job_title, array_sort((select distinct value test_rate from %s)) as emp_job"%(bucket.name)
+
+            actual_result = self.run_cbq_query()
+            actual_result = sorted(actual_result['results'],
+                                   key=lambda doc: (doc['job_title']))
+            tmp_groups = set([doc['job_title'] for doc in self.full_list])
+            expected_result = [{"job_title" : group,
+                                "emp_job" : sorted(set([x["test_rate"] for x in self.full_list
+                                             if x["job_title"] == group]))}
+                               for group in tmp_groups]
+            expected_result = sorted(expected_result, key=lambda doc: (doc['job_title']))
+            self._verify_results(actual_result, expected_result)
+            
+    def test_pairs(self):
+        for bucket in self.buckets:
+            self.query = 'select VMs as orig_t, PAIRS(VMs) AS pairs_t from %s  where %s.VMs is not missing limit 1'%(bucket.name)
+            actual_result = self.run_cbq_query()
+            pairs_t = actual_result['results'][0]["test"]["pairs_t"]
+            orig_t = actual_result['results'][0]["test"]["orig_t"]
+            
+            for item in orig_t:
+                for key in item.keys():
+                    self.assertTrue([key,item[key]] in pairs_t)
+                   
+    def test_array_flatten(self):
+        # Create bucket on CBAS
+        self.query = 'INSERT INTO %s (KEY, value) VALUES ("na", {"a":2, "b":[1,2,[31,32,33],4,[[511, 512], 52]]});'%(self.default_bucket_name)
+        result = RestConnection(self.master).query_tool(self.query)
+        self.assertTrue(result['status'] == "success")
+        self.query = 'SELECT ARRAY_FLATTEN(b,1) AS flatten_by_1level FROM default where meta().id = "na";'
+        actual_result = self.run_cbq_query()
+        self.assertTrue(actual_result['results'][0]["flatten_by_1level"] == [1,2,31,32,33,4,[511,512],52]) 
+             
     def test_check_types(self):
         types_list = [("name", "ISSTR", True), ("skills[0]", "ISSTR", True),
                       ("test_rate", "ISSTR", False), ("VMs", "ISSTR", False),
