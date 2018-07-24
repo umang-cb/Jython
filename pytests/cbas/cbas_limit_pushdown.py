@@ -31,7 +31,7 @@ class CBASLimitPushdown(CBASBaseTest):
         self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name, self.cbas_dataset_name)
 
         self.log.info("Connect to Local link")
-        self.cbas_util.connect_to_bucket()
+        self.cbas_util.connect_link()
 
         self.log.info("Wait for ingestion to complete")
         self.total_documents = self.rest.query_tool(CBASLimitQueries.BUCKET_COUNT_QUERY)['results'][0]['$1']
@@ -101,7 +101,7 @@ class CBASLimitPushdown(CBASBaseTest):
     def test_cbas_limit_pushdown_with_index(self):
 
         self.log.info("Disconnect to Local link")
-        self.cbas_util.disconnect_from_bucket()
+        self.cbas_util.disconnect_link()
 
         self.log.info("Create secondary index")
         status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util("create index idx_age on default(age:int)")
@@ -114,7 +114,7 @@ class CBASLimitPushdown(CBASBaseTest):
         self.assertEquals(status, "success", msg="Create secondary index gender failed")
 
         self.log.info("Connect to Local link")
-        self.cbas_util.connect_to_bucket()
+        self.cbas_util.connect_link()
         
         self.log.info("Execute LIMIT queries")
         self.run_queries_and_assert_results()
@@ -250,15 +250,15 @@ class CBASLimitQueries:
         },
         {
             'id': 'limit+distinct',
-            'query': 'select distinct * from default limit 1'
+            'query': 'select distinct * from default order by name limit 1'
         },
         {
             'id': 'limit+greater+than+document+count',
-            'query': 'select  * from default limit 100'
+            'query': 'select * from default limit 100'
         },
         {
             'id': 'limit+offset+greater+than+document+count',
-            'query': 'select  * from default limit 1 offset 6'
+            'query': 'select * from default limit 1 offset 6'
         },
         {
             'id': 'limit+group+by+having',

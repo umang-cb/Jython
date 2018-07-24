@@ -259,7 +259,6 @@ class CBASHelper(RestConnection):
         if not password:
             password = self.password
         headers = self._create_capi_headers(username, password)
-        cbas_base_url = "http://{0}:{1}".format(self.ip, 8095)
-        api = cbas_base_url + "/analytics/buckets"
+        api = self.cbas_base_url + "/analytics/buckets"
         status, content, response = self._http_request(api, method=method, headers=headers)
         return status, content, response

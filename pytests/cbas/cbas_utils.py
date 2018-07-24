@@ -292,6 +292,7 @@ class cbas_utils():
 
     def connect_link(self, link_name="Local",
                           validate_error_msg=False,
+                          with_force=False,
                           username=None, 
                           password=None, 
                           expected_error=None,
@@ -299,7 +300,10 @@ class cbas_utils():
         """
         Connects to a Link
         """
-        cmd_connect_bucket = "connect link %s;"%link_name
+        cmd_connect_bucket = "connect link %s" % link_name
+        
+        if with_force is True:
+            cmd_connect_bucket += " with {'force':true}"
         
         retry_attempt = 5
         connect_bucket_failed = True
