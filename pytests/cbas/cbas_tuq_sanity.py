@@ -566,6 +566,104 @@ class CBASTuqSanity(QuerySanityTests):
             expected_result = sorted(expected_result, key=lambda doc: (doc['job_title']))
             self._verify_results(actual_result, expected_result)
 
+    def test_array_concat(self):
+        for bucket in self.buckets:
+            self.query = "SELECT job_title," +\
+                         " array_concat((select value %s.name from g), (select value %s.email from g)) as names"% (bucket.name,bucket.name) +\
+                         " FROM %s GROUP BY job_title GROUP AS g" % (bucket.name)
+
+            actual_list = self.run_cbq_query()
+            actual_result = self.sort_nested_list(actual_list['results'])
+            actual_result1 = sorted(actual_result, key=lambda doc: (doc['job_title']))
+            tmp_groups = set([doc['job_title'] for doc in self.full_list])
+            expected_result = [{"job_title" : group,
+                                "names" : sorted([x["name"] for x in self.full_list
+                                                  if x["job_title"] == group] + \
+                                                 [x["email"] for x in self.full_list
+                                                  if x["job_title"] == group])}
+                               for group in tmp_groups]
+            expected_result1 = sorted(expected_result, key=lambda doc: (doc['job_title']))
+
+            self._verify_results(actual_result1, expected_result1)
+
+            self.query = "SELECT job_title," +\
+                         " array_concat((select value %s.name from g), (select value %s.email from g),(select value %s.join_day from g)) as names"%(bucket.name,bucket.name,bucket.name) +\
+                         " FROM %s GROUP BY job_title GROUP AS g limit 10" % (bucket.name)
+
+            actual_list = self.run_cbq_query()
+            actual_result = self.sort_nested_list(actual_list['results'])
+            actual_result2 = sorted(actual_result, key=lambda doc: (doc['job_title']))
+
+
+            expected_result = [{"job_title" : group,
+                                "names" : sorted([x["name"] for x in self.full_list
+                                                  if x["job_title"] == group] + \
+                                                 [x["email"] for x in self.full_list
+                                                  if x["job_title"] == group] + \
+                                                 [x["join_day"] for x in self.full_list
+                                                  if x["job_title"] == group])}
+                               for group in tmp_groups][0:10]
+            expected_result2 = sorted(expected_result, key=lambda doc: (doc['job_title']))
+            self.assertTrue(actual_result2==expected_result2)
+
+    def test_array_distinct(self):
+        for bucket in self.buckets:
+            self.query = "SELECT job_title, array_distinct((select value %s.name from g)) as names"%(bucket.name) +\
+            " FROM %s GROUP BY job_title GROUP AS g" % (bucket.name)
+
+            actual_list = self.run_cbq_query()
+            actual_result = self.sort_nested_list(actual_list['results'])
+            actual_result = sorted(actual_result, key=lambda doc: (doc['job_title']))
+
+            tmp_groups = set([doc['job_title'] for doc in self.full_list])
+            expected_result = [{"job_title" : group,
+                                "names" : sorted(set([x["name"] for x in self.full_list
+                                               if x["job_title"] == group]))}
+                               for group in tmp_groups]
+            expected_result = sorted(expected_result, key=lambda doc: (doc['job_title']))
+            self._verify_results(actual_result, expected_result)
+
+    def test_array_replace(self):
+        for bucket in self.buckets:
+
+            self.query = "SELECT job_title, array_replace((select value %s.name from g), 'employee-1', 'employee-47') as emp_job"%(bucket.name) +\
+            " FROM %s GROUP BY job_title GROUP AS g" % (bucket.name)
+
+            actual_list = self.run_cbq_query()
+            actual_result = self.sort_nested_list(actual_list['results'])
+            actual_result = sorted(actual_result,
+                                   key=lambda doc: (doc['job_title']))
+            tmp_groups = set([doc['job_title'] for doc in self.full_list])
+            expected_result = [{"job_title" : group,
+                                "emp_job" : sorted(["employee-47" if x["name"] == 'employee-1' else x["name"]
+                                             for x in self.full_list
+                                             if x["job_title"] == group])}
+                               for group in tmp_groups]
+            expected_result = sorted(expected_result, key=lambda doc: (doc['job_title']))
+            self._verify_results(actual_result, expected_result)
+
+    def test_array_union_symdiff(self):
+        for bucket in self.buckets:
+            self.query = 'select ARRAY_SORT(ARRAY_UNION(["skill1","skill2","skill2010","skill2011"],skills)) as skills_union from {0} order by meta().id limit 5'.format(bucket.name)
+            actual_result = self.run_cbq_query()
+            self.assertTrue(actual_result['results']==([{u'skills_union': [u'skill1', u'skill2', u'skill2010', u'skill2011']}, {u'skills_union': [u'skill1', u'skill2', u'skill2010', u'skill2011']},
+                            {u'skills_union': [u'skill1', u'skill2', u'skill2010', u'skill2011']}, {u'skills_union': [u'skill1', u'skill2', u'skill2010', u'skill2011']},
+                            {u'skills_union': [u'skill1', u'skill2', u'skill2010', u'skill2011']}]))
+
+            self.query = 'select ARRAY_SORT(ARRAY_SYMDIFF(["skill1","skill2","skill2010","skill2011"],skills)) as skills_diff1 from {0} order by meta().id limit 5'.format(bucket.name)
+            actual_result = self.run_cbq_query()
+            self.assertTrue(actual_result['results']==[{u'skills_diff1': [u'skill1', u'skill2']}, {u'skills_diff1': [u'skill1', u'skill2']}, {u'skills_diff1': [u'skill1', u'skill2']}, {u'skills_diff1': [u'skill1', u'skill2']}, {u'skills_diff1': [u'skill1', u'skill2']}])
+
+            self.query = 'select ARRAY_SORT(ARRAY_SYMDIFFN(skills,["skill2010","skill2011","skill2012"],["skills2010","skill2017"])) as skills_diff3 from {0} order by meta().id limit 5'.format(bucket.name)
+            actual_result = self.run_cbq_query()
+            self.assertTrue(actual_result['results'] == [{u'skills_diff3': [u'skill2012', u'skill2017', u'skills2010']}, {u'skills_diff3': [u'skill2012', u'skill2017', u'skills2010']}, {u'skills_diff3': [u'skill2012', u'skill2017', u'skills2010']}, {u'skills_diff3': [u'skill2012', u'skill2017', u'skills2010']}, {u'skills_diff3': [u'skill2012', u'skill2017', u'skills2010']}])
+
+    def test_array_intersect(self):
+        self.fail_if_no_buckets()
+        self.query = 'select ARRAY_INTERSECT([2011,2012,2016,"test"], [2011,2016], [2012,2016]) as test'
+        actual_result = self.run_cbq_query()
+        self.assertTrue(actual_result['results'][0]["test"] == [2016]) 
+                        
     def test_check_types(self):
         types_list = [("name", "ISSTR", True), ("skills[0]", "ISSTR", True),
                       ("test_rate", "ISSTR", False), ("VMs", "ISSTR", False),
