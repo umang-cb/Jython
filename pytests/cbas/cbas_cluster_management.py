@@ -716,7 +716,6 @@ class CBASServiceOperations(CBASBaseTest):
                                                batch_size=self.batch_size)
 
         self.log.info("Wait for ingestion to complete")
-        self.cbas_util.wait_for_ingestion_complete([self.dataset_name], self.num_items * 2)
         self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items * 2))
 
     def test_analytics_recovery_on_busy_system(self):
@@ -770,7 +769,6 @@ class CBASServiceOperations(CBASBaseTest):
                                                batch_size=self.batch_size)
 
         self.log.info("Wait for ingestion to complete")
-        self.cbas_util.wait_for_ingestion_complete([self.dataset_name], self.num_items * 2)
         self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items * 2))
 
     def tearDown(self):
