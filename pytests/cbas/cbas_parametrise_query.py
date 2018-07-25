@@ -91,7 +91,7 @@ class QueryParameterTest(CBASBaseTest):
         self.log.info("params:{}".format(params))
         return cbas_query,params
 
-    def test_positional_parameters(self):
+    def test_parametrise_query(self):
         success = 0
         fail = []
         with open(self.query_file) as f:
@@ -118,3 +118,53 @@ class QueryParameterTest(CBASBaseTest):
         self.log.info("Queries failed:{}".format(len(fail)))
         assert len(fail) == 0 , "Following queries fail has mis match with n1ql {}".format(fail)
         assert success == len(query_list) , "All queries not executed"
+
+
+    def test_parameter_queries_negative(self):
+        cbas_query="SELECT * FROM `travel_ds` where country = ? limit ?"
+        cbas_param=[{"args":["United States"]}]
+        status, _, errors, cbas_result, _ = self.cbas_util.execute_parameter_statement_on_cbas_util(cbas_query,
+                                                                                               parameters=cbas_param)
+        print(errors)
+        self.verify_error(errors,"No value for parameter: $2")
+
+        cbas_query = "SELECT * FROM `travel_ds` where country = ? limit 2"
+        cbas_param = []
+        status, _, errors, cbas_result, _ = self.cbas_util.execute_parameter_statement_on_cbas_util(cbas_query,
+                                                                                                    parameters=cbas_param)
+        print(errors)
+        self.verify_error(errors, "No value for parameter: $1")
+
+        cbas_query = "SELECT * FROM `travel_ds` where country = $country limit 2"
+        cbas_param = []
+        status, _, errors, cbas_result, _ = self.cbas_util.execute_parameter_statement_on_cbas_util(cbas_query,
+                                                                                                    parameters=cbas_param)
+        print(errors)
+        self.verify_error(errors, "No value for parameter: $country")
+
+        cbas_query = "SELECT * FROM `travel_ds` where country = $country limit $li"
+        cbas_param = [{"$country":"United States"}]
+        status, _, errors, cbas_result, _ = self.cbas_util.execute_parameter_statement_on_cbas_util(cbas_query,
+                                                                                                    parameters=cbas_param)
+        print(errors)
+        self.verify_error(errors, "No value for parameter: $li")
+
+        cbas_query = "SELECT * FROM `travel_ds` where country = $country limit $li"
+        cbas_param = [{"$country": "United States","$l":2}]
+        status, _, errors, cbas_result, _ = self.cbas_util.execute_parameter_statement_on_cbas_util(cbas_query,
+                                                                                                    parameters=cbas_param)
+        print(errors)
+        self.verify_error(errors, "No value for parameter: $li")
+
+        ## fail because of MB-30620
+        cbas_query = "SELECT * FROM `travel_ds` where country = ? limit $1"
+        cbas_param = [{"args": ["United States", 2]}]
+        status, _, errors, cbas_result, _ = self.cbas_util.execute_parameter_statement_on_cbas_util(cbas_query,
+                                                                                                    parameters=cbas_param)
+        print(errors)
+
+    def verify_error(self,errors,err_msg,code=24050):
+        if err_msg in errors[0]["msg"]:
+            assert True, "Error expected {}".format(err_msg)
+        if code == errors[0]["code"]:
+            assert True, "expeceted code {} but found {}".format(code,errors[0]["code"])
