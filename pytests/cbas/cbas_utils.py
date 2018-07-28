@@ -33,7 +33,7 @@ class cbas_utils():
 #         self.bucket_util.create_default_bucket()
 #         self.createConn("default")
     
-    def execute_statement_on_cbas_util(self, statement, mode=None, rest=None, timeout=120, client_context_id=None, username=None, password=None, analytics_timeout=120):
+    def execute_statement_on_cbas_util(self, statement, mode=None, rest=None, timeout=120, client_context_id=None, username=None, password=None, analytics_timeout=120, time_out_unit="s"):
         """
         Executes a statement on CBAS using the REST API using REST Client
         """
@@ -41,7 +41,7 @@ class cbas_utils():
         try:
             log.info("Running query on cbas: %s"%statement)
             response = self.cbas_helper.execute_statement_on_cbas(statement, mode, pretty,
-                                                      timeout, client_context_id, username, password, analytics_timeout=analytics_timeout)
+                                                      timeout, client_context_id, username, password, analytics_timeout=analytics_timeout, time_out_unit=time_out_unit)
             if type(response) == str: 
                 response = json.loads(response)
             if "errors" in response:
@@ -654,17 +654,17 @@ class cbas_utils():
                                                                    statement,
                                                                    mode,
                                                                    pretty))
-
-        for task in tasks:
-            task.get_result()
-            if not task.passed:
-                fail_count += 1
-
-        if fail_count:
-            self.log.info("%s out of %s queries failed!" % (fail_count, num_queries))
-        else:
-            self.log.info("SUCCESS: %s out of %s queries passed"
-                          % (num_queries - fail_count, num_queries))
+        return tasks
+        #for task in tasks:
+        #    task.get_result()
+        #    if not task.passed:
+        #        fail_count += 1
+        #
+        #if fail_count:
+        #    self.log.info("%s out of %s queries failed!" % (fail_count, num_queries))
+        #else:
+        #    self.log.info("SUCCESS: %s out of %s queries passed"
+        #                  % (num_queries - fail_count, num_queries))
 
     def _run_concurrent_queries(self, query, mode, num_queries, rest=None, batch_size = 100, timeout=300, analytics_timeout=300):
         self.failed_count = 0
@@ -1149,4 +1149,12 @@ class cbas_utils():
     
     def fetch_bucket_state_on_cbas(self):
         status, content, response = self.cbas_helper.fetch_bucket_state_on_cbas(method="GET", username=None, password=None)
+        return status, content, response
+
+    def fetch_pending_mutation_on_cbas_node(self, node_ip, port=9110, username=None, password=None):
+        status, content, response = self.cbas_helper.fetch_pending_mutation_on_cbas_node(node_ip, port, method="GET", username=username, password=password)
+        return status, content, response
+
+    def fetch_pending_mutation_on_cbas_cluster(self, port=9110, username=None, password=None):
+        status, content, response = self.cbas_helper.fetch_pending_mutation_on_cbas_cluster(port, method="GET", username=username, password=password)
         return status, content, response

@@ -26,7 +26,7 @@ class CBASHelper(RestConnection):
     
     def execute_statement_on_cbas(self, statement, mode, pretty=True,
                                   timeout=70, client_context_id=None,
-                                  username=None, password=None,analytics_timeout=120):
+                                  username=None, password=None,analytics_timeout=120, time_out_unit="s"):
         if not username:
             username = self.username
         if not password:
@@ -35,7 +35,7 @@ class CBASHelper(RestConnection):
         headers = self._create_capi_headers(username, password)
 
         params = {'statement': statement, 'mode': mode, 'pretty': pretty,
-                  'client_context_id': client_context_id, 'timeout':str(analytics_timeout)+"s"}
+                  'client_context_id': client_context_id, 'timeout': str(analytics_timeout) + time_out_unit}
         params = json.dumps(params)
         status, content, header = self._http_request(api, 'POST',
                                                      headers=headers,
@@ -260,5 +260,27 @@ class CBASHelper(RestConnection):
             password = self.password
         headers = self._create_capi_headers(username, password)
         api = self.cbas_base_url + "/analytics/buckets"
+        status, content, response = self._http_request(api, method=method, headers=headers)
+        return status, content, response
+
+    def fetch_pending_mutation_on_cbas_node(self, node_ip, port=9110, method="GET", username="None", password="None"):
+        if not username:
+            username = self.username
+        if not password:
+            password = self.password
+        headers = self._create_capi_headers(username, password)
+        node_url = "http://{0}:{1}".format(node_ip, port)
+        api = node_url + "/analytics/node/stats"
+        status, content, response = self._http_request(api, method=method, headers=headers)
+        return status, content, response
+
+    def fetch_pending_mutation_on_cbas_cluster(self, port=9110, method="GET", username="None", password="None"):
+        if not username:
+            username = self.username
+        if not password:
+            password = self.password
+        headers = self._create_capi_headers(username, password)
+        node_url = "http://{0}:{1}".format(self.ip, port)
+        api = node_url + "/analytics/node/agg/stats/shadowing"
         status, content, response = self._http_request(api, method=method, headers=headers)
         return status, content, response
