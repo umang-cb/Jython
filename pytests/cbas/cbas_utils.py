@@ -1158,3 +1158,9 @@ class cbas_utils():
     def fetch_pending_mutation_on_cbas_cluster(self, port=9110, username=None, password=None):
         status, content, response = self.cbas_helper.fetch_pending_mutation_on_cbas_cluster(port, method="GET", username=username, password=password)
         return status, content, response
+    
+    def fetch_dcp_state_on_cbas(self, dataset, dataverse="Default", username=None, password=None):
+        if not dataset:
+            raise ValueError("dataset is required field")
+        status, content, response = self.cbas_helper.fetch_dcp_state_on_cbas(dataset, method="GET", dataverse=dataverse, username=username, password=password)
+        return status, content, response

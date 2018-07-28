@@ -13,7 +13,7 @@ class CBASDCPState(CBASBaseTest):
 
         self.log.info("Establish remote connection to CBAS node and Empty analytics log")
         self.shell = RemoteMachineShellConnection(self.cbas_node)
-        self.shell.execute_command("echo '' > /opt/couchbase/var/lib/couchbase/logs/analytics.log")
+        self.shell.execute_command("echo '' > /opt/couchbase/var/lib/couchbase/logs/analytics*.log")
         
         self.log.info("Load documents in the default bucket")
         self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items)
@@ -47,6 +47,24 @@ class CBASDCPState(CBASBaseTest):
         self.log.info("Delete KV bucket")
         self.delete_bucket_or_assert(serverInfo=self.master)
         
+        self.log.info("Check DCP state")
+        start_time = time.time()
+        dcp_state_captured = False
+        while time.time() < start_time + 120:
+            try:
+                status, content, _  = self.cbas_util.fetch_dcp_state_on_cbas(self.cbas_dataset_name)
+                if status:
+                    dcp_state_captured = True
+                    content = json.loads(content)
+                    break
+            except:
+                pass
+        
+        self.log.info("Check DCP state is inconsistent, if not rebalance will pass")
+        self.log.info(content)
+        self.assertTrue(dcp_state_captured, msg="DCP state not found. Failing the test")
+        self.assertFalse(content["exact"], msg="DCP state is consistent. Failing the test since subsequent rebalance will pass.")
+        
         self.log.info("Add a CBAS nodes")
         self.assertTrue(self.add_node(self.servers[3], services=["cbas"], rebalance=False), msg="Failed to add CBAS node")
         
@@ -59,7 +77,7 @@ class CBASDCPState(CBASBaseTest):
         self.assertFalse(rebalance_success, msg="Rebalance in of CBAS node must fail")
         
         self.log.info("Grep Analytics logs for user action")
-        result, _ = self.shell.execute_command("grep 'Datasets in different partitions have different DCP states.' /opt/couchbase/var/lib/couchbase/logs/analytics.log")
+        result, _ = self.shell.execute_command("grep 'Datasets in different partitions have different DCP states.' /opt/couchbase/var/lib/couchbase/logs/analytics*.log")
         self.assertTrue("User action: Try again later" in result[0], msg="User error message not found...")
         
         self.log.info("Wait for CBAS bucket to be disconnected")
@@ -109,7 +127,7 @@ class CBASDCPState(CBASBaseTest):
         self.assertTrue(self.rebalance(), msg="Rebalance in CBAS node failed")
         
         self.log.info("Grep Analytics logs for message")
-        result, _ = self.shell.execute_command("grep 'exist in KV anymore... nullifying its DCP state' /opt/couchbase/var/lib/couchbase/logs/analytics.log")
+        result, _ = self.shell.execute_command("grep 'exist in KV anymore... nullifying its DCP state' /opt/couchbase/var/lib/couchbase/logs/analytics*.log")
         self.assertTrue("nullifying its DCP state" in result[0], msg="Expected message 'nullifying its DCP state' not found")
     
     """
@@ -140,7 +158,7 @@ class CBASDCPState(CBASBaseTest):
         self.assertTrue(self.rebalance(), msg="Rebalance in CBAS node failed")
         
         self.log.info("Grep Analytics logs for message")
-        result, _ = self.shell.execute_command("grep 'exist in KV anymore... nullifying its DCP state' /opt/couchbase/var/lib/couchbase/logs/analytics.log")
+        result, _ = self.shell.execute_command("grep 'exist in KV anymore... nullifying its DCP state' /opt/couchbase/var/lib/couchbase/logs/analytics*.log")
         self.assertTrue("nullifying its DCP state" in result[0], msg="Expected message 'nullifying its DCP state' not found")
         
         self.log.info("Recreate KV bucket")
@@ -189,7 +207,7 @@ class CBASDCPState(CBASBaseTest):
         self.assertFalse(rebalance_success, msg="Rebalance in of CBAS node must fail")
         
         self.log.info("Grep Analytics logs for user action")
-        result, _ = self.shell.execute_command("grep 'Datasets in different partitions have different DCP states.' /opt/couchbase/var/lib/couchbase/logs/analytics.log")
+        result, _ = self.shell.execute_command("grep 'Datasets in different partitions have different DCP states.' /opt/couchbase/var/lib/couchbase/logs/analytics*.log")
         self.assertTrue("User action: Connect the bucket:" in result[0] and "or drop the dataset: Default.ds" in result[0], msg="User action not found.")
         
         user_action = self.input.param("user_action", "drop_dataset")

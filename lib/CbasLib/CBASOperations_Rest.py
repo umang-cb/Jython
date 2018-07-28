@@ -284,3 +284,14 @@ class CBASHelper(RestConnection):
         api = node_url + "/analytics/node/agg/stats/shadowing"
         status, content, response = self._http_request(api, method=method, headers=headers)
         return status, content, response
+    
+    def fetch_dcp_state_on_cbas(self, dataset,  method="GET", dataverse="Default", username=None, password=None):
+        if not username:
+            username = self.username
+        if not password:
+            password = self.password
+        headers = self._create_capi_headers(username, password)
+        api = self.cbas_base_url + "/analytics/dataset/dcp/{0}/{1}".format(dataverse, dataset)
+        status, content, response = self._http_request(api, method=method, headers=headers)
+        return status, content, response
+    
