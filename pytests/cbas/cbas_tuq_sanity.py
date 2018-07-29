@@ -665,7 +665,7 @@ class CBASTuqSanity(QuerySanityTests):
 
     def test_array_star(self):
         for bucket in self.buckets:
-            self.query = 'SELECT ARRAY_STAR(ARRAY_FLATTEN((select value VMs from %s  where %s.VMs is not missing limit 1),1)) as test'%(bucket.name)
+            self.query = 'SELECT ARRAY_STAR(ARRAY_FLATTEN((select value VMs from %s  where %s.VMs is not missing limit 1),1)) as test'%(bucket.name,bucket.name)
             actual_result = self.run_cbq_query()
             self.assertTrue(len(actual_result['results'][0]["test"]["RAM"] == 2))
             self.assertTrue(len(actual_result['results'][0]["test"]["memory"] == 2))
@@ -689,7 +689,7 @@ class CBASTuqSanity(QuerySanityTests):
             
     def test_pairs(self):
         for bucket in self.buckets:
-            self.query = 'select VMs as orig_t, PAIRS(VMs) AS pairs_t from %s  where %s.VMs is not missing limit 1'%(bucket.name)
+            self.query = 'select VMs as orig_t, PAIRS(VMs) AS pairs_t from %s  where %s.VMs is not missing limit 1'%(bucket.name,bucket.name)
             actual_result = self.run_cbq_query()
             pairs_t = actual_result['results'][0]["test"]["pairs_t"]
             orig_t = actual_result['results'][0]["test"]["orig_t"]
