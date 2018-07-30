@@ -7,7 +7,7 @@ from pytests.query_tests_helper import QueryHelperTests
 import testconstants
 import json
 import traceback
-
+from testrunner import TestInputSingleton
 
 class QueryParameterTest(CBASBaseTest):
 
