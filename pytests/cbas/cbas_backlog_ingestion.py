@@ -181,10 +181,10 @@ class CBASBacklogIngestion(CBASBaseTest):
 
         self.log.info("Create CBAS buckets")
         num_of_cbas_buckets = self.input.param("num_of_cbas_buckets", 2)
-        for index in range(num_of_cbas_buckets):
-            self.assertTrue(self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=cbas_bucket_name + str(index),
-                                                                 cb_bucket_name=self.cb_bucket_name),
-                            "Failed to create cbas bucket " + self.cbas_bucket_name + str(index))
+#         for index in range(num_of_cbas_buckets):
+#             self.assertTrue(self.cbas_util.create_bucket_on_cbas(cbas_bucket_name=cbas_bucket_name + str(index),
+#                                                                  cb_bucket_name=self.cb_bucket_name),
+#                             "Failed to create cbas bucket " + self.cbas_bucket_name + str(index))
 
         self.log.info("Create data-sets")
         field = self.input.param("where_field", "")
@@ -195,7 +195,7 @@ class CBASBacklogIngestion(CBASBaseTest):
             for join_value in join_values:
                 tmp += join_operator + " `" + field + "`=\"" + join_value + "\""
             tmp = tmp[1:-1]
-            self.assertTrue(self.cbas_util.create_dataset_on_bucket((self.cb_bucket_name + str(index)),
+            self.assertTrue(self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name,
                                                                     cbas_dataset_name=(self.cbas_dataset_name + str(
                                                                         index)),
                                                                     where_field=field, where_value=tmp))
@@ -370,11 +370,12 @@ class BucketOperations(CBASBaseTest):
         self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items))
 
         self.log.info("Load back data in the default bucket")
+        self.log.info("Now that the UUID of this new bucet is different hence cbas will not ingest anything from this bucket anymore.")
         self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", self.num_items, self.num_items * 2)
 
         self.log.info("Wait for ingestion to complete and verify count")
-        self.cbas_util.wait_for_ingestion_complete([self.dataset_name], self.num_items * 2)
-        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items * 2))
+        self.cbas_util.wait_for_ingestion_complete([self.dataset_name], self.num_items)
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items))
 
     '''
     test_create_multiple_cb_cbas_and_datasets,num_of_cb_buckets=8,num_of_cbas_buckets_per_cb_bucket=2,num_of_dataset_per_cbas=8,default_bucket=False,cbas_bucket_prefix=_cbas_bucket_,dataset_prefix=_ds_,items=10
@@ -404,6 +405,7 @@ class BucketOperations(CBASBaseTest):
         self.log.info("Create connection to all buckets")
         for bucket in buckets:
             self.cbas_util.createConn(bucket.name)
+            break
             
         self.log.info("Create {0} cbas buckets".format(self.num_of_cb_buckets * self.num_of_cbas_buckets_per_cb_bucket))
         for bucket in buckets:
@@ -428,7 +430,7 @@ class BucketOperations(CBASBaseTest):
             for index in range(self.num_of_dataset_per_cbas):
                 self.assertTrue(self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=cbas_bucket.name,
                                                                         cbas_dataset_name=
-                                                                        cbas_bucket + self.dataset_prefix + str(index)),
+                                                                        cbas_bucket.name + self.dataset_prefix + str(index)),
                                 msg="Failed to create dataset {0}".format(self.dataset_name))
 
         self.log.info("Update storageMaxActiveWritableDatasets count")
