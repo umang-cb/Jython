@@ -1934,6 +1934,25 @@ class RestConnection(object):
                 log.error("Unable to set data_path {0} : {1}".format(data, content))
             return status
 
+    def set_jre_path(self,jre_path=None):
+        api = self.baseUrl + '/nodes/self/controller/settings'
+        from urllib3._collections import HTTPHeaderDict
+        data = HTTPHeaderDict()
+        paths={}
+        if jre_path:
+            data.add('java_home',jre_path)
+            paths['java_home']=jre_path
+
+        if paths:
+            params = urllib.urlencode(paths)
+            log.info('/nodes/self/controller/settings params : {0}'.format(urllib.urlencode(data)))
+            status, content, header = self._http_request(api, 'POST', urllib.urlencode(data))
+            if status:
+                log.info("Setting paths: {0}: status {1}".format(data, status))
+            else:
+                log.error("Unable to set data_path {0} : {1}".format(data, content))
+            return status
+
     def get_database_disk_size(self, bucket='default'):
         api = self.baseUrl + "pools/{0}/buckets".format(bucket)
         status, content, header = self._http_request(api)

@@ -166,9 +166,9 @@ class QueryParameterTest(CBASBaseTest):
         status, _, errors, cbas_result, _ = self.cbas_util.execute_parameter_statement_on_cbas_util(cbas_query,
                                                                                                     parameters=cbas_param)
         print(errors)
+        self.verify_error(errors, "Type mismatch: expected value of type integer, but got the value of type string",code=24057)
 
     def verify_error(self,errors,err_msg,code=24050):
         if err_msg in errors[0]["msg"]:
             assert True, "Error expected {}".format(err_msg)
-        if code == errors[0]["code"]:
-            assert True, "expeceted code {} but found {}".format(code,errors[0]["code"])
+            assert code == errors[0]["code"], "expeceted code {} but found {}".format(code,errors[0]["code"])
