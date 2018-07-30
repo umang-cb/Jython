@@ -430,7 +430,7 @@ class BucketOperations(CBASBaseTest):
             for index in range(self.num_of_dataset_per_cbas):
                 self.assertTrue(self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=cbas_bucket.name,
                                                                         cbas_dataset_name=
-                                                                        cbas_bucket.name + self.dataset_prefix + str(index)),
+                                                                        bucket.name.replace("-", "_") + self.dataset_prefix + str(index)),
                                 msg="Failed to create dataset {0}".format(self.dataset_name))
 
         self.log.info("Update storageMaxActiveWritableDatasets count")
