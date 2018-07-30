@@ -587,7 +587,7 @@ class CBASTuqSanity(QuerySanityTests):
             self._verify_results(actual_result1, expected_result1)
 
             self.query = "SELECT job_title," +\
-                         " array_concat((select value %s.name from g), (select value %s.email from g),(select value %s.join_day from g)) as names"%(bucket.name,bucket.name,bucket.name) +\
+                         " array_concat((select value %s.name from g), (select value %s.email from g), (select value %s.join_day from g)) as names"%(bucket.name,bucket.name,bucket.name) +\
                          " FROM %s GROUP BY job_title GROUP AS g limit 10" % (bucket.name)
 
             actual_list = self.run_cbq_query()
@@ -674,8 +674,9 @@ class CBASTuqSanity(QuerySanityTests):
 
     def test_array_sort(self):
         for bucket in self.buckets:
-            self.query = "SELECT job_title, array_sort((select distinct value test_rate from %s)) as emp_job"%(bucket.name)
-
+            self.query = "SELECT job_title, array_sort((select distinct value test_rate from %s)) as emp_job"%(bucket.name) +\
+            " FROM %s GROUP BY job_title GROUP AS g" % (bucket.name)
+            
             actual_result = self.run_cbq_query()
             actual_result = sorted(actual_result['results'],
                                    key=lambda doc: (doc['job_title']))
@@ -691,8 +692,8 @@ class CBASTuqSanity(QuerySanityTests):
         for bucket in self.buckets:
             self.query = 'select VMs as orig_t, PAIRS(VMs) AS pairs_t from %s  where %s.VMs is not missing limit 1'%(bucket.name,bucket.name)
             actual_result = self.run_cbq_query()
-            pairs_t = actual_result['results'][0]["test"]["pairs_t"]
-            orig_t = actual_result['results'][0]["test"]["orig_t"]
+            pairs_t = actual_result['results'][0]["pairs_t"]
+            orig_t = actual_result['results'][0]["orig_t"]
             
             for item in orig_t:
                 for key in item.keys():

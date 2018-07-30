@@ -80,11 +80,11 @@ class CBASHelper(CBAS_helper_rest, SDKClient):
                 
     def execute_statement_on_cbas(self, statement, mode, pretty=True, 
         timeout=70, client_context_id=None, 
-        username=None, password=None, analytics_timeout=120):
+        username=None, password=None, analytics_timeout=120, time_out_unit="s"):
 
         params = AnalyticsParams.build()
         params = params.rawParam("pretty", pretty)
-        params = params.rawParam("timeout", str(analytics_timeout)+"s")
+        params = params.rawParam("timeout", str(analytics_timeout)+ time_out_unit)
         params = params.rawParam("username", username)
         params = params.rawParam("password", password)
         params = params.rawParam("clientContextID", client_context_id)

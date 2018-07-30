@@ -12,6 +12,10 @@ import traceback
 class QueryParameterTest(CBASBaseTest):
 
     def setUp(self):
+        
+        self.input = TestInputSingleton.input
+        self.input.test_params.update({"standard_buckets":0})
+            
         super(QueryParameterTest,self).setUp()
         self.query_file = self.input.param("query_file","b/resources/analytics_query_with_parameter.txt")
         self.n1ql_server = self.get_nodes_from_services_map(service_type="n1ql")
