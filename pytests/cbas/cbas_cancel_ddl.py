@@ -16,6 +16,10 @@ class CBASCancelDDL(CBASBaseTest):
 
         self.log.info("Create connection")
         self.cbas_util.createConn(self.cb_bucket_name)
+        
+        self.log.info("Load documents in KV")
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items, batch_size=5000)
+        
 
     """
     cbas.cbas_cancel_ddl.CBASCancelDDL.test_cancel_ddl_dataset_creation,default_bucket=True,cb_bucket_name=default,cbas_dataset_name=ds,items=10000
@@ -30,8 +34,12 @@ class CBASCancelDDL(CBASBaseTest):
         dataset_not_created = 0
         times = 0
         start_time = time.time()
-        while time.time() < start_time + 600:
+        while time.time() < start_time + 700:
             times += 1
+
+            self.log.info("Disconnect link")
+            self.cbas_util.disconnect_link()
+
             self.log.info("Drop dataset if exists")
             status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util("drop dataset %s if exists" % self.cbas_dataset_name)
             self.assertEquals(status, "success", msg="Drop dataset failed")
@@ -75,6 +83,8 @@ class CBASCancelDDL(CBASBaseTest):
             self.assertEquals(status, "success", msg="CBAS query failed")
             if cbas_result:
                 dataset_created += 1
+                self.cbas_util.connect_link()
+                self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items), msg="Count mismatch on CBAS")
             else:
                 dataset_not_created += 1
         
@@ -82,7 +92,7 @@ class CBASCancelDDL(CBASBaseTest):
         self.log.info("Test ran for a total of %d times" % times)      
         self.log.info("Dataset %s was created %d times" % (self.cbas_dataset_name, dataset_created))
         self.log.info("Dataset %s was not created %d times" % (self.cbas_dataset_name,  dataset_not_created))
-        
+        self.assertFalse(times == dataset_created, msg="No DDL was cancelled. Please revisit test and make sure we see few DDL cancelled.")
 
-    # def tearDown(self):
-    # super(CBASCancelDDL, self).tearDown()
+    def tearDown(self):
+        super(CBASCancelDDL, self).tearDown()

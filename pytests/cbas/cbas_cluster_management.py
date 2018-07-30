@@ -699,15 +699,21 @@ class CBASServiceOperations(CBASBaseTest):
             shell = RemoteMachineShellConnection(node)
             shell.kill_process(self.process, self.service, signum=self.signum)
 
-        self.log.info("Observe no reingestion on node after restart")
+        self.log.info("Wait for request to complete and cluster to be active: Using private ping() function")
+        service_up = False
         start_time = time.time()
         while time.time() < start_time + 120:
             try:
-                items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.dataset_name)
-                if items_in_cbas_bucket != -1:
+                status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util("set `import-private-functions` `true`;ping();")
+                if status == "success":
+                    service_up = True
                     break
             except:
                 pass
+        self.assertTrue(service_up, msg="CBAS service was not up even after 120 seconds of process kill. Failing the test possible a bug")
+        
+        self.log.info("Observe no reingestion on node after restart")
+        items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.dataset_name)
         self.assertTrue(items_in_cbas_bucket > 0, msg="Items in CBAS bucket must greather than 0. If not re-ingestion has happened")
         self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items))
 
@@ -750,17 +756,22 @@ class CBASServiceOperations(CBASBaseTest):
         for node in self.nodes_to_kill_service_on:
             shell = RemoteMachineShellConnection(node)
             shell.kill_process(self.process, self.service, signum=self.signum)
-            self.sleep(20, message="wait for service to be back again...")
-
-        self.log.info("Observe no reingestion on node after restart")
+        
+        self.log.info("Wait for request to complete and cluster to be active: Using private ping() function")
+        service_up = False
         start_time = time.time()
         while time.time() < start_time + 120:
             try:
-                items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.dataset_name)
-                if items_in_cbas_bucket != -1:
+                status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util("set `import-private-functions` `true`;ping();")
+                if status == "success":
+                    service_up = True
                     break
             except:
                 pass
+        self.assertTrue(service_up, msg="CBAS service was not up even after 120 seconds of process kill. Failing the test possible a bug")
+
+        self.log.info("Observe no reingestion on node after restart")
+        items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.dataset_name)
         self.assertTrue(items_in_cbas_bucket > 0, msg="Items in CBAS bucket must greather than 0. If not re-ingestion has happened")
         self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.dataset_name, self.num_items))
 

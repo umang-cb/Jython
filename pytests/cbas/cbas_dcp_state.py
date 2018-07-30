@@ -321,6 +321,5 @@ class CBASPendingMutations(CBASBaseTest):
         self.assertFalse(count_reducing, msg="Remaining mutation must increase as ingestion progress's")
         self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items * 2), msg="Count mismatch on CBAS")
         
-        
     def tearDown(self):
         super(CBASPendingMutations, self).tearDown()

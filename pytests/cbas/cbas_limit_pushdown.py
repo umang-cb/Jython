@@ -137,10 +137,6 @@ class CBASLimitQueries:
             'query': 'select * from default where age = 25 limit 1'
         },
         {
-            'id': 'limit+where+double+equals',
-            'query': 'select * from default where age == 25 limit 1'
-        },
-        {
             'id': 'limit+where+not+equals',
             'query': 'select * from default where gender <> "Female" limit 2'
         },
