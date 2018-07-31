@@ -254,48 +254,41 @@ class CBASPendingMutations(CBASBaseTest):
             content = json.loads(content)
             if content:
                 aggregate_remaining_mutations_list.append(content["Default.ds"])
-
-            total_count, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
-            if total_count == self.num_items:
-                break
+                if content["Default.ds"] == 0:
+                    break
                     
         self.log.info("Verify remaining mutation count is reducing as ingestion progress's")
         self.log.info(aggregate_remaining_mutations_list)
         count_reducing = True
         for i in range(1, len(aggregate_remaining_mutations_list)):
-            if not aggregate_remaining_mutations_list[i-1] >= aggregate_remaining_mutations_list[i]:
+            if not aggregate_remaining_mutations_list[i-1] >= aggregate_remaining_mutations_list[i] and aggregate_remaining_mutations_list[i-1] <= self.num_items:
                 count_reducing = False
                 break
         
         self.log.info("Assert mutation progress API response")
-        self.assertTrue(aggregate_remaining_mutations_list > 0, msg="Found no items during ingestion")
-        self.assertTrue(count_reducing, msg="Remaining mutation count must reduce as ingestion progress's")
         self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items), msg="Count mismatch on CBAS")
+        self.assertTrue(len(aggregate_remaining_mutations_list) > 1, msg="Found no remaining mutations during ingestion")
+        self.assertTrue(count_reducing, msg="Remaining mutation count must reduce as ingestion progress's")
         
     """
-    cbas.cbas_dcp_state.CBASPendingMutations.test_pending_mutations_busy_kv_system,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=cbas,cbas_dataset_name=ds,items=50000
+    cbas.cbas_dcp_state.CBASPendingMutations.test_pending_mutations_busy_kv_system,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=cbas,cbas_dataset_name=ds,items=100000
     """
     def test_pending_mutations_busy_kv_system(self):
 
         self.log.info("Load documents in KV")
-        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items, batch_size=5000)
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items)
 
         self.log.info("Create dataset on the CBAS")
-        self.cbas_util.create_dataset_on_bucket(
-            self.cb_bucket_name, self.cbas_dataset_name)
+        self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name, self.cbas_dataset_name)
 
         self.log.info("Connect link")
         self.cbas_util.connect_link()
         
         self.log.info("Perform async doc operations on KV")
         json_generator = JsonGenerator()
-        generators = json_generator.generate_docs_simple(docs_per_day=self.num_items * 2, start=self.num_items)
-        kv_task = self._async_load_all_buckets(self.master, generators, "create", 0, batch_size=5000)
+        generators = json_generator.generate_docs_simple(docs_per_day=self.num_items * 4, start=self.num_items)
+        kv_task = self._async_load_all_buckets(self.master, generators, "create", 0, batch_size=3000)
         
-        self.log.info("Get KV ops result")
-        for task in kv_task:
-            task.get_result()
-            
         self.log.info("Fetch cluster remaining mutations")
         aggregate_remaining_mutations_list = []
         while True:
@@ -304,9 +297,13 @@ class CBASPendingMutations(CBASBaseTest):
             content = json.loads(content)
             if content:
                 aggregate_remaining_mutations_list.append(content["Default.ds"])
-
-            if content['Default.ds'] == 0:
-                break
+                total_count, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+                if total_count == self.num_items * 4:
+                    break
+        
+        self.log.info("Get KV ops result")
+        for task in kv_task:
+            task.get_result()
                     
         self.log.info("Verify remaining mutation count is reducing as ingestion progress's")
         self.log.info(aggregate_remaining_mutations_list)
@@ -317,9 +314,9 @@ class CBASPendingMutations(CBASBaseTest):
                 break
         
         self.log.info("Assert mutation progress API response")
-        self.assertTrue(aggregate_remaining_mutations_list > 0, msg="Found no items during ingestion")
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items * 4), msg="Count mismatch on CBAS")
+        self.assertTrue(len(aggregate_remaining_mutations_list) > 1, msg="Found no items during ingestion")
         self.assertFalse(count_reducing, msg="Remaining mutation must increase as ingestion progress's")
-        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items * 2), msg="Count mismatch on CBAS")
         
     def tearDown(self):
         super(CBASPendingMutations, self).tearDown()

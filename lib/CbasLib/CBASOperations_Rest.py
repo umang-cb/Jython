@@ -281,7 +281,7 @@ class CBASHelper(RestConnection):
             password = self.password
         headers = self._create_capi_headers(username, password)
         node_url = "http://{0}:{1}".format(self.ip, port)
-        api = node_url + "/analytics/node/agg/stats/shadowing"
+        api = node_url + "/analytics/node/agg/stats/remaining"
         status, content, response = self._http_request(api, method=method, headers=headers)
         return status, content, response
     
