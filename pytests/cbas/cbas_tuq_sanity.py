@@ -674,7 +674,7 @@ class CBASTuqSanity(QuerySanityTests):
 
     def test_array_sort(self):
         for bucket in self.buckets:
-            self.query = "SELECT job_title, array_sort((select distinct value test_rate from %s)) as emp_job"%(bucket.name) +\
+            self.query = "SELECT job_title, array_sort((select distinct value %s.test_rate from g)) as emp_job"%(bucket.name) +\
             " FROM %s GROUP BY job_title GROUP AS g" % (bucket.name)
             
             actual_result = self.run_cbq_query()
@@ -688,6 +688,19 @@ class CBASTuqSanity(QuerySanityTests):
             expected_result = sorted(expected_result, key=lambda doc: (doc['job_title']))
             self._verify_results(actual_result, expected_result)
             
+    def test_encode_json(self):
+        self.query = 'select ENCODE_JSON({"key":"value"})'
+        
+        actual_result = self.run_cbq_query()
+        self.assertTrue(actual_result['status'] == "success")
+
+    def test_decode_json(self):
+        self.query = 'select DECODE_JSON("{"key":"value"}")'
+        
+        actual_result = self.run_cbq_query()
+        self.assertTrue(actual_result['status'] == "success")
+        self.assertTrue(actual_result['results'][0]['$1']["key"] == "value")
+        
     def test_pairs(self):
         for bucket in self.buckets:
             self.query = 'select VMs as orig_t, PAIRS(VMs) AS pairs_t from %s  where %s.VMs is not missing limit 1'%(bucket.name,bucket.name)
