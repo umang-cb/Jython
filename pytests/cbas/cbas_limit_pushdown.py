@@ -64,8 +64,11 @@ class CBASLimitPushdown(CBASBaseTest):
                 self.assertEquals(status, "success", msg="CBAS query failed")
 
                 self.log.info("Assert on query statistics")
-                if query_object['id'] != "limit": 
-                    self.assertTrue(metrics["processedObjects"] <= self.total_documents, msg="Processed object must be <= total documents. Actual %s" % (metrics["processedObjects"]))
+                if query_object['id'] != "limit":
+                    if "skip_processed_count" not in query_object: 
+                        self.assertTrue(metrics["processedObjects"] <= self.total_documents, msg="Processed object must be <= total documents. Actual %s" % (metrics["processedObjects"]))
+                    else:
+                        self.log.info("Skipping process object count check.In cases of sub query processed object count can be greater than total document count.")
                 else:
                     self.assertEqual(self.partitions * query_object["limit_value"], metrics["processedObjects"], 
                                      msg="Processed Object count mismatch. Actual %s Expected %s" %(metrics["processedObjects"], self.partitions * query_object["limit_value"]))
@@ -118,7 +121,6 @@ class CBASLimitPushdown(CBASBaseTest):
         
         self.log.info("Execute LIMIT queries")
         self.run_queries_and_assert_results()
-
 
     def tearDown(self):
         super(CBASLimitPushdown, self).tearDown()
@@ -267,6 +269,11 @@ class CBASLimitQueries:
         {
             'id': 'limit+select+where+on+same+key',
             'query': 'select name from default where name = "dave" limit 1'
+        },
+        {
+            'id': 'limit+sub+query',
+            'query': 'select name from default d where d.gender = (select RAW gender from default limit 1)[0] limit 2',
+            'skip_processed_count':True
         }
     ]
 

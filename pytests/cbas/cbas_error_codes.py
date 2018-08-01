@@ -1,3 +1,5 @@
+import time
+
 from Rbac_utils.Rbac_ready_functions import rbac_utils
 from cbas.cbas_base import CBASBaseTest
 from remote.remote_util import RemoteMachineShellConnection
@@ -71,6 +73,12 @@ class CBASError:
         
         
         # Error codes starting with 23XXX
+        {
+            "id": "service_unavailable",
+            "msg": ['"msg": "Analytics Service is temporarily unavailable'],
+            "code": '"code": 23000',
+            "query": "set `import-private-functions` `true`;ping();"
+        },
         {
             "id": "dataverse_drop_link_connected",
             "msg": ["Dataverse Default cannot be dropped while link Local is connected"],
@@ -360,6 +368,35 @@ class CBASErrorValidator(CBASBaseTest):
 
         status, _, errors, _, _ = self.cbas_util.execute_statement_on_cbas_util(self.error_response["query"])
         self.validate_error_response(status, errors, self.error_response["msg"], self.error_response["code"])
+    
+    """
+    cbas.cbas_error_codes.CBASErrorValidator.test_service_tmp_unavailable,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=cbas,cbas_dataset_name=ds,error_id=service_unavailable
+    """
+    def test_service_tmp_unavailable(self):
+
+        self.log.info("Create dataset and connect link")
+        self.create_dataset_connect_link()
+
+        self.log.info("Establish remote connection to CBAS node and restart couchbase")
+        shell = RemoteMachineShellConnection(self.cbas_node)
+        shell.execute_command("sudo service couchbase-server restart")
+
+        self.log.info("Wait until we get into the state while Analytics service is unavailable")
+        hit_service_unavailable = False
+        cluster_recovery_time = time.time()
+        while time.time() < cluster_recovery_time + 120:
+            cbas_url = "http://{0}:{1}/analytics/service".format(self.cbas_node.ip, 8095)
+            output, error = shell.execute_command("curl -X POST {0} -u {1}:{2} -d 'statement={3}'".format(cbas_url, "Administrator", "password", self.error_response["query"]))
+            self.log.info(output)
+            self.log.info(error)
+            if self.error_response["msg"][0] in str(output):
+                self.log.info("Hit service unavailable condition")
+                hit_service_unavailable = True
+                break
+            
+        self.assertTrue(hit_service_unavailable, msg="Did not hit service is unavailable situtation")
+        self.assertTrue(self.error_response["msg"][0] in str(output), msg="Error message mismatch")
+        self.assertTrue(self.error_response["code"] in str(output), msg="Error code mismatch")
            
     def tearDown(self):
         super(CBASErrorValidator, self).tearDown()

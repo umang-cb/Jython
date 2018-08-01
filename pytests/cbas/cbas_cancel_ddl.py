@@ -341,7 +341,7 @@ class CBASCancelDDL(CBASBaseTest):
             times += 1
 
             self.log.info("Create secondary index")
-            status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util("create index idx_age on default(age:int)")
+            status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util("create index idx_age on ds(age:int)")
             self.assertEquals(status, "success", msg="Create secondary index on age failed")
 
             self.log.info("Connect to Local link")
