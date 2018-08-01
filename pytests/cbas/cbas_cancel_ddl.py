@@ -92,7 +92,87 @@ class CBASCancelDDL(CBASBaseTest):
         self.log.info("Test ran for a total of %d times" % times)      
         self.log.info("Dataset %s was created %d times" % (self.cbas_dataset_name, dataset_created))
         self.log.info("Dataset %s was not created %d times" % (self.cbas_dataset_name,  dataset_not_created))
-        self.assertFalse(times == dataset_created, msg="No DDL was cancelled. Please revisit test and make sure we see few DDL cancelled.")
+        self.assertFalse(times == dataset_created, msg="Create dataset DDL was not cancelled even once. Please revisit test and make sure we see few DDL's are cancelled.")
+        
+    """
+    cbas.cbas_cancel_ddl.CBASCancelDDL.test_cancel_ddl_index_creation,default_bucket=True,cb_bucket_name=default,cbas_dataset_name=ds,items=10000
+    """
+
+    def test_cancel_ddl_index_creation(self):
+        """
+        Cover's the scenario: Cancel secondary index creation
+        Expected Behaviour: Request sent will now either succeed or fail, or its connection will be abruptly closed
+        """
+        
+        self.log.info("Create dataset")
+        self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name, self.cbas_dataset_name)
+
+        self.log.info("Connect to Local link")
+        self.cbas_util.connect_link()
+            
+        self.log.info("Assert document count")
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items), msg="Count mismatch on CBAS")
+        
+        self.log.info("Disconnect link")
+        self.cbas_util.disconnect_link()
+            
+        sec_idx_created = 0
+        sec_idx_not_created = 0
+        times = 0
+        start_time = time.time()
+        while time.time() < start_time + 600:
+            times += 1
+
+            self.log.info("Drop index if exists")
+            self.cbas_util.execute_statement_on_cbas_util("drop index %s.%s" % (self.cbas_dataset_name, "sec_idx"))
+
+            self.log.info("Pick a time window between 0 - 300ms for killing of node")
+            self.kill_window = random.randint(1, 30)
+            print(self.kill_window)
+
+            self.log.info("Pick the cbas node to kill java process")
+            server_to_kill_java = self.cbas_servers[random.randint(0, 2)]
+            shell = RemoteMachineShellConnection(server_to_kill_java)
+
+            self.log.info("Pick the java process id to kill")
+            java_process_id, _ = shell.execute_command("pgrep java")
+
+            # Run the task Create sec index/Sleep window/Kill Java process in parallel
+            self.log.info("Create index")
+            tasks = self.cbas_util.async_query_execute("create index sec_idx on ds(age:int)", "immediate", 1)
+
+            self.log.info("Sleep for the window time")
+            self.sleep(self.kill_window)
+
+            self.log.info("kill Java process with id %s" % java_process_id[0])
+            shell.execute_command("kill -9 %s" % (java_process_id[0]))
+
+            self.log.info("Fetch task result")
+            for task in tasks:
+                task.get_result()
+
+            self.log.info("Wait for request to complete and cluster to be active: Using private ping() function")
+            while True:
+                try:
+                    status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util("set `import-private-functions` `true`;ping();")
+                    if status == "success":
+                        break
+                except:
+                    pass
+
+            self.log.info("Request sent will now either succeed or fail, or its connection will be abruptly closed. Verify the state")
+            status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util('select * from Metadata.`Index` where IndexName = "sec_idx"')
+            self.assertEquals(status, "success", msg="CBAS query failed")
+            if cbas_result:
+                sec_idx_created += 1
+            else:
+                sec_idx_not_created += 1
+        
+        self.log.info("Test run summary")
+        self.log.info("Test ran for a total of %d times" % times)
+        self.log.info("Secondary index %s was created %d times" % (self.cbas_dataset_name, sec_idx_created))
+        self.log.info("Secondary index %s was not created %d times" % (self.cbas_dataset_name,  sec_idx_not_created))
+        self.assertFalse(times == sec_idx_created, msg="Secondary index create DDL was not cancelled even once. Please revisit test and make sure we see few DDL's are cancelled.")
 
     def tearDown(self):
         super(CBASCancelDDL, self).tearDown()

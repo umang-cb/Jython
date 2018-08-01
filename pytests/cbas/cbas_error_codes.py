@@ -61,16 +61,16 @@ class CBASError:
             "code": 22001,
             "query": "connect link Local"
         },
+        {   
+            "id": "max_writable_datasets",
+            "msg": ["Maximum number of active writable datasets (8) exceeded"],
+            "code": 22001,
+            "query": "connect link Local"
+        },
 
         
         
         # Error codes starting with 23XXX
-        {   
-            "id": "max_writable_datasets",
-            "msg": ["Maximum number of active writable datasets (8) exceeded"],
-            "code": 23002,
-            "query": "connect link Local"
-        },
         {
             "id": "dataverse_drop_link_connected",
             "msg": ["Dataverse Default cannot be dropped while link Local is connected"],
@@ -138,7 +138,7 @@ class CBASError:
         },
         {
             "id": "type_mismatch",
-            "msg": ["Type mismatch: function contains expects its 2nd input parameter to be type string, but the actual input type is bigint"],
+            "msg": ["Type mismatch: function contains expects its 2nd input parameter to be of type string, but the actual input type is bigint"],
             "code": 24011,
             "query": 'SELECT CONTAINS("N1QL is awesome", 123) as n1ql'
         },
