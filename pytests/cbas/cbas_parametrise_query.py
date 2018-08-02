@@ -62,28 +62,30 @@ class QueryParameterTest(CBASBaseTest):
         json_output = json.loads(concat_string)
         return json_output
 
-    def verify_result_from_n1ql_cbas(self,cbas_result,n1ql_result):
+    def verify_result_from_n1ql_cbas(self,cbas_result,n1ql_result,validate):
         self.log.info("cbas_result:{}".format(cbas_result))
         self.log.info("n1ql_result:{}".format(n1ql_result["results"]))
         if len(cbas_result) != len(n1ql_result["results"]):
             assert False, "cbas result set: %s not equal to n1ql result set: %s" %(len(cbas_result),len(n1ql_result["results"]))
-        # for  i in range(len(cbas_result))   :
-        #     if "travel_ds" in cbas_result[i] :
-        #         a, b = json.dumps(cbas_result[i]["travel_ds"], sort_keys=True), json.dumps(
-        #             n1ql_result["results"][i]["travel-sample"],sort_keys=True)
-        #         assert a == b , "result from cbas: %s and from n1ql: %s not same" %(cbas_result[i]["travel_ds"],
-        #                                                                             n1ql_result["results"][i]["travel-sample"])
-        #     else:
-        #         a, b = json.dumps(cbas_result[i], sort_keys=True), json.dumps(
-        #             n1ql_result["results"][i], sort_keys=True)
-        #         assert a == b, "result from cbas: %s and from n1ql: %s not same" % (
-        #         cbas_result[i], n1ql_result["results"][i])
+        if validate:
+            for  i in range(len(cbas_result))   :
+                if "travel_ds" in cbas_result[i] :
+                    a, b = json.dumps(cbas_result[i]["travel_ds"], sort_keys=True), json.dumps(
+                        n1ql_result["results"][i]["travel-sample"],sort_keys=True)
+                    assert a == b , "result from cbas: %s and from n1ql: %s not same" %(cbas_result[i]["travel_ds"],
+                                                                                        n1ql_result["results"][i]["travel-sample"])
+                else:
+                    a, b = json.dumps(cbas_result[i], sort_keys=True), json.dumps(
+                        n1ql_result["results"][i], sort_keys=True)
+                    assert a == b, "result from cbas: %s and from n1ql: %s not same" % (
+                    cbas_result[i], n1ql_result["results"][i])
 
     def excute_n1ql_query(self,query):
         n1ql_result = self.curl_helper(query)
         return n1ql_result
 
     def get_cbas_query(self,query):
+        query = query.split("#")[0]
         args = query.split("&")
         cbas_query = args[0]
         params = []
@@ -103,15 +105,20 @@ class QueryParameterTest(CBASBaseTest):
         for i in range(len(query_list)):
             try :
                 self.log.info("=========== Running {} ===============".format(query_list[i]))
+                if "validate" in query_list[i]:
+                    validate=True
+                else:
+                    validate=False
                 cbas_query,cbas_param=self.get_cbas_query(query_list[i].rstrip("\n"))
                 status, _, _, cbas_result, _ = self.cbas_util.execute_parameter_statement_on_cbas_util(cbas_query,
                                                                                                        parameters=cbas_param)
+                query_list[i]= query_list[i].split("#")[0]
                 if "%s" in query_list[i]:
                     n1ql_query= query_list[i].replace("%s","`travel-sample`")
                 else:
                     n1ql_query= query_list[i]
                 n1ql_result = self.excute_n1ql_query(n1ql_query)
-                self.verify_result_from_n1ql_cbas(cbas_result, n1ql_result)
+                self.verify_result_from_n1ql_cbas(cbas_result, n1ql_result,validate)
                 success=success+1
                 self.log.info("=========== Query passed {} ===============".format(query_list[i]))
             except Exception as e :
