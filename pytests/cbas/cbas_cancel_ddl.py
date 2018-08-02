@@ -205,7 +205,7 @@ class CBASCancelDDL(CBASBaseTest):
         self.assertFalse(times == dataset_dropped or times == dataset_not_dropped, msg="Please revisit test and update such that few request cancel and few get processed")
 
     """
-    cbas.cbas_cancel_ddl.CBASCancelDDL.test_cancel_ddl_index_create,default_bucket=True,cb_bucket_name=default,cbas_dataset_name=ds,items=10000
+    cbas.cbas_cancel_ddl.CBASCancelDDL.test_cancel_ddl_index_create,default_bucket=True,cb_bucket_name=default,cbas_dataset_name=ds,items=100
     """
     def test_cancel_ddl_index_create(self):
         """
@@ -253,8 +253,8 @@ class CBASCancelDDL(CBASBaseTest):
             self.log.info("Drop index")
             self.cbas_util.execute_statement_on_cbas_util("drop index %s.%s" % (self.cbas_dataset_name, "sec_idx"))
 
-            self.log.info("Pick a time window between 0 - 300ms for killing of node")
-            self.kill_window = random.randint(10, 30)
+            self.log.info("Pick a time window between 0 - 500ms for killing of node")
+            self.kill_window = random.randint(0, 500) / 1000.0
 
             self.log.info("Pick the cbas node to kill java process")
             server_to_kill_java = self.cbas_servers[random.randint(0, 2)]
@@ -304,7 +304,7 @@ class CBASCancelDDL(CBASBaseTest):
         self.assertFalse(times == sec_idx_created or times == sec_idx_not_created, msg="Please revisit test and update such that few request cancel and few get processed")
 
     """
-    cbas.cbas_cancel_ddl.CBASCancelDDL.test_cancel_ddl_index_drop,default_bucket=True,cb_bucket_name=default,cbas_dataset_name=ds,items=10000
+    cbas.cbas_cancel_ddl.CBASCancelDDL.test_cancel_ddl_index_drop,default_bucket=True,cb_bucket_name=default,cbas_dataset_name=ds,items=100
     """
     def test_cancel_ddl_index_drop(self):
         """
@@ -354,7 +354,7 @@ class CBASCancelDDL(CBASBaseTest):
             self.cbas_util.disconnect_link()
 
             self.log.info("Pick a time window between 0 - 300ms for killing of node")
-            self.kill_window = random.randint(10, 30)
+            self.kill_window = random.randint(0, 300) / 1000.0
 
             self.log.info("Pick the cbas node to kill java process")
             server_to_kill_java = self.cbas_servers[random.randint(0, 2)]
@@ -489,7 +489,7 @@ class CBASCancelDDL(CBASBaseTest):
         self.assertFalse(times == link_connected or times == link_not_connected, msg="Please revisit test and update such that few request cancel and few get processed")
     
     """
-    cbas.cbas_cancel_ddl.CBASCancelDDL.test_cancel_ddl_link_disconnect,default_bucket=True,cb_bucket_name=default,cbas_dataset_name=ds,items=10000
+    cbas.cbas_cancel_ddl.CBASCancelDDL.test_cancel_ddl_link_disconnect,default_bucket=True,cb_bucket_name=default,cbas_dataset_name=ds,items=50000
     """
     def test_cancel_ddl_link_disconnect(self):
         """
@@ -517,8 +517,8 @@ class CBASCancelDDL(CBASBaseTest):
             self.log.info("Connect link")
             self.cbas_util.connect_link()
 
-            self.log.info("Pick a time window between 0 - 300ms for killing of node")
-            self.kill_window = random.randint(0, 300) / 1000.0
+            self.log.info("Pick a time window between 0 - 1000ms for killing of node")
+            self.kill_window = random.randint(0, 1000) / 1000.0
 
             self.log.info("Pick the cbas node to kill java process")
             server_to_kill_java = self.cbas_servers[random.randint(0, 2)]
