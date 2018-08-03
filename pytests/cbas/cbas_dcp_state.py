@@ -42,7 +42,7 @@ class CBASDCPState(CBASBaseTest):
     def test_dcp_state_with_cbas_bucket_connected_kv_bucket_deleted(self):
         """
         Cover's the scenario: CBAS bucket is connected, KV bucket is deleted
-        Expected Behaviour: Rebalance fail's and we see error in logs "Datasets in different partitions have different DCP states. Mutations needed to catch up = <Mutation_count>. User action: Try again later"
+        Expected Behaviour: Rebalance must pass once we receive DCP state API response
         """
         self.log.info("Delete KV bucket")
         self.delete_bucket_or_assert(serverInfo=self.master)
@@ -60,8 +60,7 @@ class CBASDCPState(CBASBaseTest):
             except:
                 pass
         
-        self.log.info("Check DCP state is inconsistent, if not rebalance will pass")
-        self.log.info(content)
+        self.log.info("Check DCP state is inconsistent, and rebalance passes since KV bucket does not exist and we don't care about the state")
         self.assertTrue(dcp_state_captured, msg="DCP state not found. Failing the test")
         self.assertFalse(content["exact"], msg="DCP state is consistent. Failing the test since subsequent rebalance will pass.")
         
@@ -74,31 +73,8 @@ class CBASDCPState(CBASBaseTest):
             rebalance_success = self.rebalance()
         except Exception as e:
             pass
-        self.assertFalse(rebalance_success, msg="Rebalance in of CBAS node must fail")
-        
-        self.log.info("Grep Analytics logs for user action")
-        result, _ = self.shell.execute_command("grep 'Datasets in different partitions have different DCP states.' /opt/couchbase/var/lib/couchbase/logs/analytics*.log")
-        self.assertTrue("User action: Try again later" in result[0], msg="User error message not found...")
-        
-        self.log.info("Wait for CBAS bucket to be disconnected")
-        start_time = time.time()
-        cbas_disconnected = False
-        while time.time() < start_time + 120:
-            try:
-                status, content, _ = self.cbas_util.fetch_bucket_state_on_cbas()
-                self.assertTrue(json.loads(content)['buckets'][0]['state'] == "disconnected")
-                cbas_disconnected = True
-                break
-            except:
-                self.sleep(15, message="Wait 15 more seconds for CBAS bucket to be disconnected")
-                pass
-        
-        if not cbas_disconnected:
-            self.fail(msg="Failing the test case before rebalance.Since, CBAS bucket is connected even after 120 seconds despite no KV bucket")
-            
-        self.log.info("Rebalance in CBAS node")
-        self.assertTrue(self.rebalance(), msg="Rebalance in CBAS node failed")
-    
+        self.assertTrue(rebalance_success, msg="Rebalance in of CBAS node must succeed since DCP state API returned success")
+
     """
     test_dcp_state_with_cbas_bucket_disconnected_kv_bucket_deleted,default_bucket=True,cb_bucket_name=default,cbas_dataset_name=ds,items=10000
     """

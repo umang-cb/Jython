@@ -10,10 +10,15 @@ class CBASCancelDDL(CBASBaseTest):
 
     def setUp(self):
         super(CBASCancelDDL, self).setUp()
+        self.analytics_servers = []
+        self.analytics_servers.append(self.cbas_node)
 
-        self.log.info("Add all CBAS nodes")
-        self.add_all_nodes_then_rebalance(self.cbas_servers)
-        self.cbas_servers.append(self.cbas_node)
+        self.log.info("Add CBAS nodes")
+        self.add_node(self.servers[1], services=["cbas"], rebalance=False)
+        self.analytics_servers.append(self.servers[1])
+
+        self.add_node(self.cbas_servers[0], services=["cbas"], rebalance=True)
+        self.analytics_servers.append(self.cbas_servers[0])
 
         self.log.info("Create connection")
         self.cbas_util.createConn(self.cb_bucket_name)
@@ -63,7 +68,7 @@ class CBASCancelDDL(CBASBaseTest):
             self.kill_window = random.randint(0, 300) / 1000.0
 
             self.log.info("Pick the cbas node to kill java process")
-            server_to_kill_java = self.cbas_servers[random.randint(0, 2)]
+            server_to_kill_java = self.analytics_servers[random.randint(0, 2)]
             shell = RemoteMachineShellConnection(server_to_kill_java)
 
             self.log.info("Pick the java process id to kill")
@@ -85,7 +90,7 @@ class CBASCancelDDL(CBASBaseTest):
 
             self.log.info("Wait for request to complete and cluster to be active: Using private ping() function")
             cluster_recover_start_time = time.time()
-            while time.time() < cluster_recover_start_time + 120:
+            while time.time() < cluster_recover_start_time + 180:
                 try:
                     status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util("set `import-private-functions` `true`;ping()")
                     if status == "success":
@@ -157,7 +162,7 @@ class CBASCancelDDL(CBASBaseTest):
             self.kill_window = random.randint(0, 300) / 1000.0
 
             self.log.info("Pick the cbas node to kill java process")
-            server_to_kill_java = self.cbas_servers[random.randint(0, 2)]
+            server_to_kill_java = self.analytics_servers[random.randint(0, 2)]
             shell = RemoteMachineShellConnection(server_to_kill_java)
 
             self.log.info("Pick the java process id to kill")
@@ -179,7 +184,7 @@ class CBASCancelDDL(CBASBaseTest):
 
             self.log.info("Wait for request to complete and cluster to be active: Using private ping() function")
             cluster_recover_start_time = time.time()
-            while time.time() < cluster_recover_start_time + 120:
+            while time.time() < cluster_recover_start_time + 180:
                 try:
                     status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util("set `import-private-functions` `true`;ping();")
                     if status == "success":
@@ -257,7 +262,7 @@ class CBASCancelDDL(CBASBaseTest):
             self.kill_window = random.randint(0, 500) / 1000.0
 
             self.log.info("Pick the cbas node to kill java process")
-            server_to_kill_java = self.cbas_servers[random.randint(0, 2)]
+            server_to_kill_java = self.analytics_servers[random.randint(0, 2)]
             shell = RemoteMachineShellConnection(server_to_kill_java)
 
             self.log.info("Pick the java process id to kill")
@@ -279,7 +284,7 @@ class CBASCancelDDL(CBASBaseTest):
 
             self.log.info("Wait for request to complete and cluster to be active: Using private ping() function")
             cluster_recover_start_time = time.time()
-            while time.time() < cluster_recover_start_time + 120:
+            while time.time() < cluster_recover_start_time + 180:
                 try:
                     status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util("set `import-private-functions` `true`;ping();")
                     if status == "success":
@@ -339,10 +344,9 @@ class CBASCancelDDL(CBASBaseTest):
         start_time = time.time()
         while time.time() < start_time + 600:
             times += 1
-
+            
             self.log.info("Create secondary index")
-            status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util("create index idx_age on ds(age:int)")
-            self.assertEquals(status, "success", msg="Create secondary index on age failed")
+            self.cbas_util.execute_statement_on_cbas_util("create index idx_age on ds(age:int)")
 
             self.log.info("Connect to Local link")
             self.cbas_util.connect_link()
@@ -357,7 +361,7 @@ class CBASCancelDDL(CBASBaseTest):
             self.kill_window = random.randint(0, 300) / 1000.0
 
             self.log.info("Pick the cbas node to kill java process")
-            server_to_kill_java = self.cbas_servers[random.randint(0, 2)]
+            server_to_kill_java = self.analytics_servers[random.randint(0, 2)]
             shell = RemoteMachineShellConnection(server_to_kill_java)
 
             self.log.info("Pick the java process id to kill")
@@ -379,7 +383,7 @@ class CBASCancelDDL(CBASBaseTest):
 
             self.log.info("Wait for request to complete and cluster to be active: Using private ping() function")
             cluster_recover_start_time = time.time()
-            while time.time() < cluster_recover_start_time + 120:
+            while time.time() < cluster_recover_start_time + 180:
                 try:
                     status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util("set `import-private-functions` `true`;ping();")
                     if status == "success":
@@ -394,8 +398,10 @@ class CBASCancelDDL(CBASBaseTest):
             self.log.info(cbas_result)
             if cbas_result[0] == 0:
                 sec_idx_dropped += 1
+                print(sec_idx_dropped)
             else:
                 sec_idx_not_dropped += 1
+                print(sec_idx_not_dropped)
 
         self.log.info("Test run summary")
         self.log.info("Times ran %d" % times)
@@ -439,7 +445,7 @@ class CBASCancelDDL(CBASBaseTest):
             self.kill_window = random.randint(0, 300) / 1000.0
 
             self.log.info("Pick the cbas node to kill java process")
-            server_to_kill_java = self.cbas_servers[random.randint(0, 2)]
+            server_to_kill_java = self.analytics_servers[random.randint(0, 2)]
             shell = RemoteMachineShellConnection(server_to_kill_java)
 
             self.log.info("Pick the java process id to kill")
@@ -461,7 +467,7 @@ class CBASCancelDDL(CBASBaseTest):
 
             self.log.info("Wait for request to complete and cluster to be active: Using private ping() function")
             cluster_recover_start_time = time.time()
-            while time.time() < cluster_recover_start_time + 120:
+            while time.time() < cluster_recover_start_time + 180:
                 try:
                     status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util("set `import-private-functions` `true`;ping()")
                     if status == "success":
@@ -477,10 +483,13 @@ class CBASCancelDDL(CBASBaseTest):
             self.log.info(content)
             if content['buckets'][0]['state'] == "connected":
                 link_connected += 1
-                self.cbas_util.connect_link()
+                print("connected")
+                print(link_connected)
                 self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items), msg="Count mismatch on CBAS")
             else:
                 link_not_connected += 1
+                print("link not connected")
+                print(link_not_connected)
 
         self.log.info("Test run summary")
         self.log.info("Times ran %d" % times)
@@ -521,14 +530,14 @@ class CBASCancelDDL(CBASBaseTest):
             self.kill_window = random.randint(0, 1000) / 1000.0
 
             self.log.info("Pick the cbas node to kill java process")
-            server_to_kill_java = self.cbas_servers[random.randint(0, 2)]
+            server_to_kill_java = self.analytics_servers[random.randint(0, 2)]
             shell = RemoteMachineShellConnection(server_to_kill_java)
 
             self.log.info("Pick the java process id to kill")
             java_process_id, _ = shell.execute_command("pgrep java")
 
             # Run the task Connect link/Sleep window/Kill Java process in parallel
-            self.log.info("Connect Link")
+            self.log.info("Disconnect Link")
             tasks = self.cbas_util.async_query_execute("disconnect link Local", "async", 1)
 
             self.log.info("Sleep for the window time")
@@ -543,7 +552,7 @@ class CBASCancelDDL(CBASBaseTest):
 
             self.log.info("Wait for request to complete and cluster to be active: Using private ping() function")
             cluster_recover_start_time = time.time()
-            while time.time() < cluster_recover_start_time + 120:
+            while time.time() < cluster_recover_start_time + 180:
                 try:
                     status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util("set `import-private-functions` `true`;ping()")
                     if status == "success":
@@ -559,10 +568,12 @@ class CBASCancelDDL(CBASBaseTest):
             self.log.info(content)
             if content['buckets'][0]['state'] == "disconnected":
                 link_disconnected += 1
-                self.cbas_util.connect_link()
-                self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items), msg="Count mismatch on CBAS")
+                print("disconnected")
+                print(link_disconnected)
             else:
                 link_not_disconnected += 1
+                print("not - disconnected")
+                print(link_not_disconnected)
 
         self.log.info("Test run summary")
         self.log.info("Times ran %d" % times)
