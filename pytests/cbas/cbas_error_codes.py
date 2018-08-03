@@ -20,6 +20,7 @@ class CBASErrorValidator(CBASBaseTest):
 
         self.log.info("Establish remote connection to CBAS node")
         self.shell = RemoteMachineShellConnection(self.cbas_node)
+        self.shell_kv = RemoteMachineShellConnection(self.master)
         self.cbas_url = "http://{0}:{1}/analytics/service".format(self.cbas_node.ip, 8095)
 
     def create_dataset_connect_link(self):
@@ -220,6 +221,20 @@ class CBASErrorValidator(CBASBaseTest):
             
         self.assertTrue(self.error_response["msg"] in str(output), msg="Error message mismatch")
         self.assertTrue(str(self.error_response["code"]) in str(output), msg="Error code mismatch")
+
+    """
+    test_error_response_memcached_bucket,default_bucket=False,cb_bucket_name=default,error_id=memcached_bucket
+    """
+    def test_error_response_memcached_bucket(self):
+
+        self.log.info("create memcached bucket")
+        self.shell_kv.execute_command(
+            "curl 'http://{0}:8091/pools/default/buckets' --data 'name={1}&bucketType=memcached&ramQuotaMB=100' -u Administrator:password".format(self.master.ip,
+
+                                                                                                                                                  self.cb_bucket_name))
+        self.log.info("Execute query and validate error response")
+        status, _, errors, _, _ = self.cbas_util.execute_statement_on_cbas_util(self.error_response["query"])
+        self.validate_error_response(status, errors, self.error_response["msg"], self.error_response["code"])
         
     def tearDown(self):
         super(CBASErrorValidator, self).tearDown()
@@ -278,6 +293,12 @@ class CBASError:
             "msg": "Connect link failed",
             "code": 22001,
             "query": "connect link Local"
+        },
+        {
+            "id": "memcached_bucket",
+            "msg": "Memcached buckets are not supported",
+            "code": 22003,
+            "query": "create dataset ds on default"
         },
         # Error codes starting with 23XXX
         {

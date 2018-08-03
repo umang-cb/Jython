@@ -263,8 +263,8 @@ class CBASPendingMutations(CBASBaseTest):
         is_remaining_mutation_count_reducing = True
         
         for i in range(len(aggregate_remaining_mutations_list)):
-            if aggregate_remaining_mutations_list[i] > self.num_items:
-                self.fail("Remaining mutation count must not be greater than total documents")
+            if aggregate_remaining_mutations_list[i] > self.num_items or aggregate_remaining_mutations_list[i] < 0:
+                self.fail("Remaining mutation count must not be greater than total documents and must be non -ve")
                 
         for i in range(1, len(aggregate_remaining_mutations_list)):
             if not aggregate_remaining_mutations_list[i-1] >= aggregate_remaining_mutations_list[i]:
@@ -314,6 +314,10 @@ class CBASPendingMutations(CBASBaseTest):
         self.log.info("Verify remaining mutation count is reducing as ingestion progress's")
         self.log.info(aggregate_remaining_mutations_list)
         is_remaining_mutation_count_reducing = True
+
+        for i in range(len(aggregate_remaining_mutations_list)):
+            if aggregate_remaining_mutations_list[i] < 0:
+                self.fail("Remaining mutation count must be non -ve")
 
         for i in range(1, len(aggregate_remaining_mutations_list)):
             if not aggregate_remaining_mutations_list[i-1] >= aggregate_remaining_mutations_list[i]:

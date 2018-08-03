@@ -41,6 +41,7 @@ class CBASLimitPushdown(CBASBaseTest):
         shell = RemoteMachineShellConnection(self.cbas_node)
         response = self.cbas_util.fetch_analytics_cluster_response(shell)
         if 'partitions' in response:
+            print(response)
             self.partitions = len(response['partitions'])
             self.log.info("Number of data partitions on cluster %d" % self.partitions)
         else:
@@ -52,7 +53,7 @@ class CBASLimitPushdown(CBASBaseTest):
         query_count = 0
         for query_object in CBASLimitQueries.LIMIT_QUERIES:
             query_count += 1
-            self.log.info("-------------------------------------------- Running Query:%d ----------------------------------------------------------------------" % (query_count))
+            self.log.info("-------------------------------------------- Running Query:%d ----------------------------------------------------------------------" % query_count)
             self.log.info("%s : %s" % (query_object['id'], query_object['query']))
 
             try:
@@ -81,7 +82,7 @@ class CBASLimitPushdown(CBASBaseTest):
             self.log.info("-------------------------------------------- Completed ------------------------------------------------------------------------------")
 
         self.log.info("LIMIT pushdown result summary")
-        self.log.info("Total:%d Passed:%d Failed:%d" % (query_count, query_count-len(query_errors),len(query_errors)))
+        self.log.info("Total:%d Passed:%d Failed:%d" % (query_count, query_count-len(query_errors), len(query_errors)))
         
         if query_errors:
             for id in query_errors:
@@ -272,7 +273,7 @@ class CBASLimitQueries:
         },
         {
             'id': 'limit+sub+query',
-            'query': 'select name from default d where d.gender = (select RAW gender from default limit 1)[0] limit 2',
+            'query': 'select name from default d where d.gender = (select RAW gender from default limit 1)[0] order by name limit 2',
             'skip_processed_count':True
         }
     ]
