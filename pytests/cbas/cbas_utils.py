@@ -521,7 +521,7 @@ class cbas_utils():
             while count != expected_count and tries > 0:
                 time.sleep(10)
                 count, mutated_count = self.get_num_items_in_cbas_dataset(
-                    dataset_name)
+                    dataset_name,timeout=timeout,analytics_timeout=analytics_timeout)
                 tries -= 1
 
         self.log.info("Expected Count: %s, Actual Count: %s" % (expected_count, count))
@@ -539,7 +539,11 @@ class cbas_utils():
         Deletes a request from CBAS
         """
         try:
-            payload = "client_context_id=" + client_context_id
+            if client_context_id:
+                payload = "client_context_id=" + client_context_id
+            elif client_context_id == None:
+                payload = "client_context_id=None"
+                
             status = self.cbas_helper.delete_active_request_on_cbas(payload,username, password)
             self.log.info (status)
             return status
