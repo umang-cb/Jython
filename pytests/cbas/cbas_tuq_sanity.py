@@ -986,15 +986,15 @@ class CBASTuqSanity(QuerySanityTests):
         self.query = "select tan(radians(45))"
         actual_list = self.run_cbq_query()
         expected_result = 1
-        actual_result = int(math.ceil(actual_list['results'][0]['$1']*10000000000000000)/10000000000000000)
+        actual_result = int(math.ceil(actual_list['results'][0]['$1']*1000000000000000)/1000000000000000)
         self.assertTrue(actual_result==expected_result, "The result of the query is: %s"%actual_list)
         
     def test_asin(self):
         self.query = "select degrees(asin(0.5))"
         actual_list = self.run_cbq_query()
-        actual_result = int(math.ceil(actual_list['results'][0]['$1']*100000000000000)/100000000000000)
+        actual_result = int(math.ceil(actual_list['results'][0]['$1']*1000000000000000)/1000000000000000)
         expected_result = 30
-        self._verify_results(actual_result, expected_result)
+        self.assertTrue(actual_result==expected_result, "The result of the query is: %s"%actual_list)
         
     def test_clock_formats(self):
         self.query = 'SELECT NOW_LOCAL("2006-01-02") as NOW_LOCAL, \
