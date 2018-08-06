@@ -235,7 +235,22 @@ class CBASErrorValidator(CBASBaseTest):
         self.log.info("Execute query and validate error response")
         status, _, errors, _, _ = self.cbas_util.execute_statement_on_cbas_util(self.error_response["query"])
         self.validate_error_response(status, errors, self.error_response["msg"], self.error_response["code"])
-        
+
+    """
+    test_error_response_index_not_found,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=cbas,cbas_dataset_name=ds,error_id=index_not_found
+    """
+    def test_error_response_index_not_found(self):
+
+        self.log.info("Create dataset and connect link")
+        self.create_dataset_connect_link()
+
+        self.log.info("Disconnect Local link")
+        self.assertTrue(self.cbas_util.disconnect_link(), msg="Failed to disconnect connected bucket")
+
+        self.log.info("Execute query and validate error response")
+        status, _, errors, _, _ = self.cbas_util.execute_statement_on_cbas_util(self.error_response["query"])
+        self.validate_error_response(status, errors, self.error_response["msg"], self.error_response["code"])
+
     def tearDown(self):
         super(CBASErrorValidator, self).tearDown()
 
@@ -369,13 +384,6 @@ class CBASError:
             "run_in_loop": True
         },
         {
-            "id": "create_dataset_that_exist",
-            "msg": "A dataset with name ds already exists",
-            "code": 24005,
-            "query": "create dataset ds on default",
-            "run_in_loop": True
-        },
-        {
             "id": "drop_link_not_exist",
             "msg": "Link Default.Local1 does not exist",
             "code": 24006,
@@ -397,10 +405,31 @@ class CBASError:
             "run_in_loop": True
         },
         {
+            "id": "dataset_not_found",
+            "msg": "Cannot find dataset with name Bucket in dataverse Default",
+            "code": 24025,
+            "query": 'drop index Bucket.Bucket',
+            "run_in_loop": True
+        },
+        {
             "id": "dataverse_not_found",
             "msg": "Cannot find dataverse with name custom",
             "code": 24034,
             "query": 'use custom',
+            "run_in_loop": True
+        },
+        {
+            "id": "dataverse_already_exist",
+            "msg": "A dataverse with this name Default already exists",
+            "code": 24039,
+            "query": 'create dataverse Default',
+            "run_in_loop": True
+        },
+        {
+            "id": "create_dataset_that_exist",
+            "msg": "A dataset with name ds already exists in dataverse Default",
+            "code": 24040,
+            "query": "create dataset ds on default",
             "run_in_loop": True
         },
         {
@@ -409,6 +438,12 @@ class CBASError:
             "code": 24045,
             "query": 'select * from ds1',
             "run_in_loop": True
+        },
+        {
+            "id": "index_not_found",
+            "msg": "Cannot find index with name idx",
+            "code": 24047,
+            "query": 'drop index ds.idx'
         },
         {
             "id": "index_already_exist",
