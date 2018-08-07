@@ -123,6 +123,17 @@ class CBASLimitPushdown(CBASBaseTest):
         self.log.info("Execute LIMIT queries")
         self.run_queries_and_assert_results()
 
+    """
+    cbas.cbas_limit_pushdown.CBASLimitPushdown.test_query_plan,default_bucket=True,cb_bucket_name=default,cbas_dataset_name=default
+    """
+    def test_query_plan(self):
+
+        self.log.info("Execute query fetch plan json")
+        status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util("explain select * from default limit 1")
+
+        print(cbas_result)
+
+
     def tearDown(self):
         super(CBASLimitPushdown, self).tearDown()
 

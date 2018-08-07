@@ -22,18 +22,19 @@ class CBASCancelDDL(CBASBaseTest):
 
         self.log.info("Create connection")
         self.cbas_util.createConn(self.cb_bucket_name)
-        
+
         self.log.info("Load documents in KV")
         self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items, batch_size=5000)
 
     """
     cbas.cbas_cancel_ddl.CBASCancelDDL.test_cancel_ddl_dataset_create,default_bucket=True,cb_bucket_name=default,cbas_dataset_name=ds,items=10000
     """
+
     def test_cancel_ddl_dataset_create(self):
         """
         Cover's the scenario: Cancel create dataset DDL statement
         Expected Behaviour: Request sent will now either succeed or fail, or its connection will be abruptly closed
-        
+
         steps:
         1.  Add all CBAS nodes(At least 3)
         2.  Create connection to KV bucket
@@ -64,8 +65,8 @@ class CBASCancelDDL(CBASBaseTest):
             self.assertEquals(status, "success", msg="Drop dataset failed")
             self.log.info(cbas_result)
 
-            self.log.info("Pick a time window between 0 - 300ms for killing of node")
-            self.kill_window = random.randint(0, 300) / 1000.0
+            self.log.info("Pick a time window between 0 - 50ms for killing of node")
+            self.kill_window = random.randint(0, 50) / 1000.0
 
             self.log.info("Pick the cbas node to kill java process")
             server_to_kill_java = self.analytics_servers[random.randint(0, 2)]
@@ -76,7 +77,7 @@ class CBASCancelDDL(CBASBaseTest):
 
             # Run the task Create dataset/Sleep window/Kill Java process in parallel
             self.log.info("Create dataset")
-            tasks = self.cbas_util.async_query_execute("create dataset %s on %s" % (self.cbas_dataset_name, self.cb_bucket_name), "async", 1)
+            tasks = self.cbas_util.async_query_execute("create dataset %s on %s" % (self.cbas_dataset_name, self.cb_bucket_name), "immediate", 1)
 
             self.log.info("Sleep for the window time")
             self.sleep(self.kill_window)
@@ -100,7 +101,8 @@ class CBASCancelDDL(CBASBaseTest):
                     pass
 
             self.log.info("Request sent will now either succeed or fail, or its connection will be abruptly closed. Verify the state")
-            status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util('select value count(*) from Metadata.`Dataset` d WHERE d.DataverseName <> "Metadata" and DatasetName = "ds"')
+            status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util(
+                'select value count(*) from Metadata.`Dataset` d WHERE d.DataverseName <> "Metadata" and DatasetName = "ds"')
             self.assertEquals(status, "success", msg="CBAS query failed")
             self.log.info(cbas_result)
             if cbas_result[0] == 1:
@@ -109,21 +111,22 @@ class CBASCancelDDL(CBASBaseTest):
                 self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items), msg="Count mismatch on CBAS")
             else:
                 dataset_not_created += 1
-        
-        self.log.info("Test run summary")  
+
+        self.log.info("Test run summary")
         self.log.info("Times ran %d" % times)
         self.log.info("Dataset %s was created %d times" % (self.cbas_dataset_name, dataset_created))
-        self.log.info("Dataset %s was not created %d times" % (self.cbas_dataset_name,  dataset_not_created))
+        self.log.info("Dataset %s was not created %d times" % (self.cbas_dataset_name, dataset_not_created))
         self.assertFalse(times == dataset_created or times == dataset_not_created, msg="Please revisit test and update such that few request cancel and few get processed")
-        
+
     """
     cbas.cbas_cancel_ddl.CBASCancelDDL.test_cancel_ddl_dataset_drop,default_bucket=True,cb_bucket_name=default,cbas_dataset_name=ds,items=10000
     """
+
     def test_cancel_ddl_dataset_drop(self):
         """
         Cover's the scenario: Cancel drop dataset DDL statement
         Expected Behaviour: Request sent will now either succeed or fail, or its connection will be abruptly closed
-        
+
         steps:
         1.  Add all CBAS nodes(At least 3)
         2.  Create connection to KV bucket
@@ -149,17 +152,17 @@ class CBASCancelDDL(CBASBaseTest):
 
             self.log.info("Disconnect link")
             self.cbas_util.disconnect_link()
-            
+
             self.log.info("Drop dataset if exists")
             status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util("drop dataset %s if exists" % self.cbas_dataset_name)
             self.assertEquals(status, "success", msg="Drop dataset failed")
             self.log.info(cbas_result)
-            
+
             self.log.info("Create dataset")
             self.assertTrue(self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name, self.cbas_dataset_name), msg="Create dataset failed")
 
-            self.log.info("Pick a time window between 0 - 300ms for killing of node")
-            self.kill_window = random.randint(0, 300) / 1000.0
+            self.log.info("Pick a time window between 0 - 50ms for killing of node")
+            self.kill_window = random.randint(0, 50) / 1000.0
 
             self.log.info("Pick the cbas node to kill java process")
             server_to_kill_java = self.analytics_servers[random.randint(0, 2)]
@@ -170,7 +173,7 @@ class CBASCancelDDL(CBASBaseTest):
 
             # Run the task Drop dataset/Sleep window/Kill Java process in parallel
             self.log.info("Drop dataset")
-            tasks = self.cbas_util.async_query_execute("drop dataset %s" % self.cbas_dataset_name, "async", 1)
+            tasks = self.cbas_util.async_query_execute("drop dataset %s" % self.cbas_dataset_name, "immediate", 1)
 
             self.log.info("Sleep for the window time")
             self.sleep(self.kill_window)
@@ -194,7 +197,8 @@ class CBASCancelDDL(CBASBaseTest):
                     pass
 
             self.log.info("Request sent will now either succeed or fail, or its connection will be abruptly closed. Verify the state")
-            status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util('select value count(*) from Metadata.`Dataset` d WHERE d.DataverseName <> "Metadata" and DatasetName = "ds"')
+            status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util(
+                'select value count(*) from Metadata.`Dataset` d WHERE d.DataverseName <> "Metadata" and DatasetName = "ds"')
             self.assertEquals(status, "success", msg="CBAS query failed")
             self.log.info(cbas_result)
             if cbas_result[0] == 0:
@@ -212,6 +216,7 @@ class CBASCancelDDL(CBASBaseTest):
     """
     cbas.cbas_cancel_ddl.CBASCancelDDL.test_cancel_ddl_index_create,default_bucket=True,cb_bucket_name=default,cbas_dataset_name=ds,items=100
     """
+
     def test_cancel_ddl_index_create(self):
         """
         Cover's the scenario: Cancel create index DDL statement
@@ -235,19 +240,19 @@ class CBASCancelDDL(CBASBaseTest):
         15. Repeat step 4 - 11 for a period of 10 minutes
         16. Make sure we see at least a few create index statements fail
         """
-        
+
         self.log.info("Create dataset")
         self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name, self.cbas_dataset_name)
 
         self.log.info("Connect to Local link")
         self.cbas_util.connect_link()
-            
+
         self.log.info("Assert document count")
         self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items), msg="Count mismatch on CBAS")
-        
+
         self.log.info("Disconnect link")
         self.cbas_util.disconnect_link()
-            
+
         sec_idx_created = 0
         sec_idx_not_created = 0
         times = 0
@@ -258,8 +263,8 @@ class CBASCancelDDL(CBASBaseTest):
             self.log.info("Drop index")
             self.cbas_util.execute_statement_on_cbas_util("drop index %s.%s" % (self.cbas_dataset_name, "sec_idx"))
 
-            self.log.info("Pick a time window between 0 - 500ms for killing of node")
-            self.kill_window = random.randint(0, 500) / 1000.0
+            self.log.info("Pick a time window between 0 - 200ms for killing of node")
+            self.kill_window = random.randint(0, 200) / 1000.0
 
             self.log.info("Pick the cbas node to kill java process")
             server_to_kill_java = self.analytics_servers[random.randint(0, 2)]
@@ -301,16 +306,17 @@ class CBASCancelDDL(CBASBaseTest):
                 sec_idx_created += 1
             else:
                 sec_idx_not_created += 1
-        
+
         self.log.info("Test run summary")
         self.log.info("Times ran %d" % times)
         self.log.info("Secondary index %s was created %d times" % (self.cbas_dataset_name, sec_idx_created))
-        self.log.info("Secondary index %s was not created %d times" % (self.cbas_dataset_name,  sec_idx_not_created))
+        self.log.info("Secondary index %s was not created %d times" % (self.cbas_dataset_name, sec_idx_not_created))
         self.assertFalse(times == sec_idx_created or times == sec_idx_not_created, msg="Please revisit test and update such that few request cancel and few get processed")
 
     """
     cbas.cbas_cancel_ddl.CBASCancelDDL.test_cancel_ddl_index_drop,default_bucket=True,cb_bucket_name=default,cbas_dataset_name=ds,items=100
     """
+
     def test_cancel_ddl_index_drop(self):
         """
         Cover's the scenario: Cancel drop index DDL statement
@@ -344,7 +350,7 @@ class CBASCancelDDL(CBASBaseTest):
         start_time = time.time()
         while time.time() < start_time + 600:
             times += 1
-            
+
             self.log.info("Create secondary index")
             self.cbas_util.execute_statement_on_cbas_util("create index idx_age on ds(age:int)")
 
@@ -357,8 +363,8 @@ class CBASCancelDDL(CBASBaseTest):
             self.log.info("Disconnect link")
             self.cbas_util.disconnect_link()
 
-            self.log.info("Pick a time window between 0 - 300ms for killing of node")
-            self.kill_window = random.randint(0, 300) / 1000.0
+            self.log.info("Pick a time window between 0 - 100ms for killing of node")
+            self.kill_window = random.randint(0, 100) / 1000.0
 
             self.log.info("Pick the cbas node to kill java process")
             server_to_kill_java = self.analytics_servers[random.randint(0, 2)]
@@ -412,6 +418,7 @@ class CBASCancelDDL(CBASBaseTest):
     """
     cbas.cbas_cancel_ddl.CBASCancelDDL.test_cancel_ddl_link_connect,default_bucket=True,cb_bucket_name=default,cbas_dataset_name=ds,items=10000
     """
+
     def test_cancel_ddl_link_connect(self):
         """
         Cover's the scenario: Cancel link connect DDL statement
@@ -441,8 +448,8 @@ class CBASCancelDDL(CBASBaseTest):
             self.log.info("Disconnect link")
             self.cbas_util.disconnect_link()
 
-            self.log.info("Pick a time window between 0 - 300ms for killing of node")
-            self.kill_window = random.randint(0, 300) / 1000.0
+            self.log.info("Pick a time window between 0 - 100ms for killing of node")
+            self.kill_window = random.randint(0, 100) / 1000.0
 
             self.log.info("Pick the cbas node to kill java process")
             server_to_kill_java = self.analytics_servers[random.randint(0, 2)]
@@ -453,7 +460,7 @@ class CBASCancelDDL(CBASBaseTest):
 
             # Run the task Connect link/Sleep window/Kill Java process in parallel
             self.log.info("Connect Link")
-            tasks = self.cbas_util.async_query_execute("connect link Local", "async", 1)
+            tasks = self.cbas_util.async_query_execute("connect link Local", "immediate", 1)
 
             self.log.info("Sleep for the window time")
             self.sleep(self.kill_window)
@@ -496,10 +503,11 @@ class CBASCancelDDL(CBASBaseTest):
         self.log.info("link Local was connected %d times" % link_connected)
         self.log.info("link Local was not connected %d times" % link_not_connected)
         self.assertFalse(times == link_connected or times == link_not_connected, msg="Please revisit test and update such that few request cancel and few get processed")
-    
+
     """
     cbas.cbas_cancel_ddl.CBASCancelDDL.test_cancel_ddl_link_disconnect,default_bucket=True,cb_bucket_name=default,cbas_dataset_name=ds,items=50000
     """
+
     def test_cancel_ddl_link_disconnect(self):
         """
         Cover's the scenario: Cancel link disconnect DDL statement
@@ -526,8 +534,8 @@ class CBASCancelDDL(CBASBaseTest):
             self.log.info("Connect link")
             self.cbas_util.connect_link()
 
-            self.log.info("Pick a time window between 0 - 1000ms for killing of node")
-            self.kill_window = random.randint(0, 1000) / 1000.0
+            self.log.info("Pick a time window between 0 - 500ms for killing of node")
+            self.kill_window = random.randint(0, 500) / 1000.0
 
             self.log.info("Pick the cbas node to kill java process")
             server_to_kill_java = self.analytics_servers[random.randint(0, 2)]
@@ -538,7 +546,7 @@ class CBASCancelDDL(CBASBaseTest):
 
             # Run the task Connect link/Sleep window/Kill Java process in parallel
             self.log.info("Disconnect Link")
-            tasks = self.cbas_util.async_query_execute("disconnect link Local", "async", 1)
+            tasks = self.cbas_util.async_query_execute("disconnect link Local", "immediate", 1)
 
             self.log.info("Sleep for the window time")
             self.sleep(self.kill_window)
