@@ -719,6 +719,7 @@ class CBASServiceOperations(CBASBaseTest):
                     service_up = True
                     break
             except:
+                self.sleep(1)
                 pass
         self.assertTrue(service_up, msg="CBAS service was not up even after 120 seconds of process kill. Failing the test possible a bug")
         
@@ -779,6 +780,7 @@ class CBASServiceOperations(CBASBaseTest):
                     service_up = True
                     break
             except:
+                self.sleep(1)
                 pass
         self.assertTrue(service_up, msg="CBAS service was not up even after 120 seconds of process kill. Failing the test possible a bug")
 
