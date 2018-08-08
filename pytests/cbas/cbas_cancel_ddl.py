@@ -448,8 +448,8 @@ class CBASCancelDDL(CBASBaseTest):
             self.log.info("Disconnect link")
             self.cbas_util.disconnect_link()
 
-            self.log.info("Pick a time window between 0 - 100ms for killing of node")
-            self.kill_window = random.randint(0, 100) / 1000.0
+            self.log.info("Pick a time window between 0 - 1000ms for killing of node")
+            self.kill_window = random.randint(0, 1000) / 1000.0
 
             self.log.info("Pick the cbas node to kill java process")
             server_to_kill_java = self.analytics_servers[random.randint(0, 2)]
