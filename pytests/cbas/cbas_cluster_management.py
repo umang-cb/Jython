@@ -414,6 +414,15 @@ class CBASClusterManagement(CBASBaseTest):
         
         NodeHelper.reboot_server_new(self.cbas_node, self)
         
+        items_in_cbas_bucket = 0
+        start_time=time.time()
+        while (items_in_cbas_bucket == 0 or items_in_cbas_bucket == -1) and time.time()<start_time+120:
+            try:
+                items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
+            except:
+                pass
+            self.sleep(1)
+            
         self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.travel_sample_docs_count),"Data loss in CBAS.")
 
     def test_restart_cb(self):
