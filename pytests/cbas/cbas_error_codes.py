@@ -251,6 +251,46 @@ class CBASErrorValidator(CBASBaseTest):
         status, _, errors, _, _ = self.cbas_util.execute_statement_on_cbas_util(self.error_response["query"])
         self.validate_error_response(status, errors, self.error_response["msg"], self.error_response["code"])
 
+    """
+    test_error_response_max_writable_dataset_exceeded,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=cbas,cbas_dataset_name=ds,error_id=max_writable_datasets
+    """
+    def test_error_response_max_writable_dataset_exceeded(self):
+
+        self.log.info("Create dataset and connect link")
+        self.create_dataset_connect_link()
+
+        self.log.info("Disconnect Local link")
+        self.assertTrue(self.cbas_util.disconnect_from_bucket(), msg="Failed to disconnect Local link")
+
+        self.log.info("Create 8 more datasets on CBAS bucket")
+        for i in range(1, 9):
+            self.assertTrue(self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name, self.cbas_dataset_name + str(i)),
+                            msg="Create dataset %s failed" % self.cbas_dataset_name + str(i))
+
+        self.log.info("Connect back Local link and verify error response for max dataset exceeded")
+        status, _, errors, _, _ = self.cbas_util.execute_statement_on_cbas_util(self.error_response["query"])
+        self.validate_error_response(status, errors, self.error_response["msg"], self.error_response["code"])
+
+    """
+    test_error_response_for_bucket_uuid_change,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=cbas,cbas_dataset_name=ds,error_id=bucket_uuid_change
+    """
+    def test_error_response_for_bucket_uuid_change(self):
+
+        self.log.info("Create dataset and connect link")
+        self.create_dataset_connect_link()
+
+        self.log.info("Disconnect link")
+        self.cbas_util.disconnect_link()
+
+        self.log.info("Delete KV bucket")
+        self.delete_bucket_or_assert(serverInfo=self.master)
+
+        self.log.info("Recreate KV bucket")
+        self.create_default_bucket()
+
+        status, _, errors, _, _ = self.cbas_util.execute_statement_on_cbas_util(self.error_response["query"])
+        self.validate_error_response(status, errors, self.error_response["msg"], self.error_response["code"])
+
     def tearDown(self):
         super(CBASErrorValidator, self).tearDown()
 
@@ -306,6 +346,18 @@ class CBASError:
         {
             "id": "connect_link_failed",
             "msg": "Connect link failed",
+            "code": 22001,
+            "query": "connect link Local"
+        },
+        {
+            "id": "bucket_uuid_change",
+            "msg": 'Connect link failed {\"Default.Local.default\" : \"Bucket UUID has changed\"}',
+            "code": 22001,
+            "query": "connect link Local"
+        },
+        {
+            "id": "max_writable_datasets",
+            "msg": 'Connect link failed {\"Default.Local.default\" : \"Maximum number of active writable datasets (8) exceeded\"}',
             "code": 22001,
             "query": "connect link Local"
         },

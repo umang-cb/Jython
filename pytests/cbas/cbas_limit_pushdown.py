@@ -41,7 +41,6 @@ class CBASLimitPushdown(CBASBaseTest):
         shell = RemoteMachineShellConnection(self.cbas_node)
         response = self.cbas_util.fetch_analytics_cluster_response(shell)
         if 'partitions' in response:
-            print(response)
             self.partitions = len(response['partitions'])
             self.log.info("Number of data partitions on cluster %d" % self.partitions)
         else:
