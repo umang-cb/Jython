@@ -719,8 +719,8 @@ class CBASServiceOperations(CBASBaseTest):
                     service_up = True
                     break
             except:
-                self.sleep(1)
                 pass
+            self.sleep(1)
         self.assertTrue(service_up, msg="CBAS service was not up even after 120 seconds of process kill. Failing the test possible a bug")
         
         self.log.info("Observe no reingestion on node after restart")
@@ -780,8 +780,9 @@ class CBASServiceOperations(CBASBaseTest):
                     service_up = True
                     break
             except:
-                self.sleep(1)
                 pass
+            self.sleep(1)
+            
         self.assertTrue(service_up, msg="CBAS service was not up even after 120 seconds of process kill. Failing the test possible a bug")
 
         self.log.info("Observe no reingestion on node after restart")
