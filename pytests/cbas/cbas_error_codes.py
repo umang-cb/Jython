@@ -406,6 +406,13 @@ class CBASError:
             "query": "drop dataset ds",
             "run_in_loop": True
         },
+        {
+            "id": "limit_negative",
+            "msg": 'Expected integer value, got 1.1',
+            "code": 23025,
+            "query": "select * from ds limit 1.1",
+            "run_in_loop": True
+        },
         # Error codes starting with 24XXX
         {
             "id": "syntax_error",
@@ -433,6 +440,13 @@ class CBASError:
             "msg": "Bucket (default1) does not exist",
             "code": 24003,
             "query": "create dataset ds1 on default1",
+            "run_in_loop": True
+        },
+        {
+            "id": "unsupported_statement",
+            "msg": "Unsupported statement (UPSERT)",
+            "code": 24004,
+            "query": "UPSERT INTO ds (SELECT VALUE name FROM ds)",
             "run_in_loop": True
         },
         {
