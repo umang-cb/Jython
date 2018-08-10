@@ -32,7 +32,7 @@ class CBASErrorValidator(CBASBaseTest):
 
     def validate_error_response(self, status, errors, expected_error, expected_error_code):
         if errors is None:
-            self.fail("Query did not return error.")
+            return False
         return self.cbas_util.validate_error_in_response(status, errors, expected_error, expected_error_code)
 
     """
@@ -216,7 +216,7 @@ class CBASErrorValidator(CBASBaseTest):
         self.log.info("Create dataset and connect link")
         self.create_dataset_connect_link()
         
-        self.log.info("Wait until we get into the state while Analytics service is unavailable")
+        self.log.info("Execute query using CURL")
         output, _ = self.shell.execute_command("curl -X POST {0} -u {1}:{2} -d 'statement={3}'".format(self.cbas_url, "Administrator", "password", self.error_response["query"]))
             
         self.assertTrue(self.error_response["msg"] in str(output), msg="Error message mismatch")
@@ -229,9 +229,7 @@ class CBASErrorValidator(CBASBaseTest):
 
         self.log.info("create memcached bucket")
         self.shell_kv.execute_command(
-            "curl 'http://{0}:8091/pools/default/buckets' --data 'name={1}&bucketType=memcached&ramQuotaMB=100' -u Administrator:password".format(self.master.ip,
-
-                                                                                                                                                  self.cb_bucket_name))
+            "curl 'http://{0}:8091/pools/default/buckets' --data 'name={1}&bucketType=memcached&ramQuotaMB=100' -u Administrator:password".format(self.master.ip, self.cb_bucket_name))
         self.log.info("Execute query and validate error response")
         status, _, errors, _, _ = self.cbas_util.execute_statement_on_cbas_util(self.error_response["query"])
         self.validate_error_response(status, errors, self.error_response["msg"], self.error_response["code"])
@@ -291,6 +289,20 @@ class CBASErrorValidator(CBASBaseTest):
         status, _, errors, _, _ = self.cbas_util.execute_statement_on_cbas_util(self.error_response["query"])
         self.validate_error_response(status, errors, self.error_response["msg"], self.error_response["code"])
 
+    """
+    test_error_response_no_statement,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=cbas,cbas_dataset_name=ds,error_id=no_statement
+    """
+    def test_error_response_no_statement(self):
+
+        self.log.info("Create dataset and connect link")
+        self.create_dataset_connect_link()
+
+        self.log.info("Execute query on CBAS")
+        output, _ = self.shell.execute_command("curl -X POST {0} -u {1}:{2} ".format(self.cbas_url, "Administrator", "password"))
+
+        self.assertTrue(self.error_response["msg"] in str(output), msg="Error message mismatch")
+        self.assertTrue(str(self.error_response["code"]) in str(output), msg="Error code mismatch")
+
     def tearDown(self):
         super(CBASErrorValidator, self).tearDown()
 
@@ -341,6 +353,12 @@ class CBASError:
             "code": 21003,
             "query": "create dataset ds1 on default;connect link Local",
             "run_in_loop": True
+        },
+        {
+            "id": "no_statement",
+            "msg": "No statement provided",
+            "code": 21004,
+            "query": ""
         },
         # Error codes starting with 22xxx
         {
@@ -400,6 +418,13 @@ class CBASError:
             "query": 'SET `compiler.groupmemory` "10GB";select sleep(count(*),500) from ds GROUP BY name'
         },
         {
+            "id": "compare_non_primitive",
+            "msg": 'Cannot compare non-primitive values',
+            "code": 23021,
+            "query": "select ARRAY_INTERSECT([2011,2012], [[2011]])",
+            "run_in_loop": True
+        },
+        {
             "id": "dataset_drop_link_connected",
             "msg": 'Dataset cannot be dropped while link Local is connected',
             "code": 23022,
@@ -407,10 +432,10 @@ class CBASError:
             "run_in_loop": True
         },
         {
-            "id": "limit_negative",
+            "id": "limit_non_integer",
             "msg": 'Expected integer value, got 1.1',
             "code": 23025,
-            "query": "select * from ds limit 1.1",
+            "query": 'select "a" limit 1.1',
             "run_in_loop": True
         },
         # Error codes starting with 24XXX
@@ -522,6 +547,13 @@ class CBASError:
             "code": 24050,
             "msg": "No value for parameter: $1",
             "query": "SELECT * FROM ds where country = ? limit ?",
+            "run_in_loop": True
+        },
+        {
+            "id": "invalid_number_of_arguments",
+            "code": 24051,
+            "msg": "Invalid number of arguments for function array-intersect",
+            "query": "select ARRAY_INTERSECT([2011,2012])",
             "run_in_loop": True
         },
         {
