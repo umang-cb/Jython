@@ -4,7 +4,7 @@ Created on 21-Mar-2018
 @author: tanzeem
 '''
 import json
-import datetime
+import time
 
 from cbas.cbas_base import CBASBaseTest
 from cbas.cbas_utils import cbas_utils
@@ -282,20 +282,15 @@ class CbasLogging(CBASBaseTest):
             self.log.info("Reboot couchbase NC node")
             NodeHelper.reboot_server(self.cbas_servers[0], self)
 
-        end_time = datetime.datetime.now() + datetime.timedelta(minutes=int(2))
-        self.log.info("Wait for nodes to be bootstrapped, neglect the unreachable server exceptions")
-        while datetime.datetime.now() < end_time:
+        self.log.info("Wait for request to complete and cluster to be active: Using private ping() function")
+        cluster_recover_start_time = time.time()
+        while time.time() < cluster_recover_start_time + 180:
             try:
-                self.log.info("Get the logging configurations")
-                status, content, response = self.cbas_util.get_log_level_on_cbas()
-                self.assertTrue(status, msg="Response status incorrect for GET request")
-
-                self.log.info("Convert response to a dictionary")
-                log_dict = CbasLogging.convert_logger_get_result_to_a_dict(content)
-                if len(log_dict) >= len(CbasLogging.DEFAULT_LOGGER_CONFIG_DICT):
+                status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util("set `import-private-functions` `true`;ping();")
+                if status == "success":
                     break
-            except Exception as e:
-                pass
+            except:
+                self.sleep(2, message="Wait for service to up again")
 
         self.log.info("Verify logging configuration post service kill")
         for name, level in CbasLogging.DEFAULT_LOGGER_CONFIG_DICT.items():
