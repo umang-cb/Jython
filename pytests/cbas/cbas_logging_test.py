@@ -282,7 +282,7 @@ class CbasLogging(CBASBaseTest):
             self.log.info("Reboot couchbase NC node")
             NodeHelper.reboot_server(self.cbas_servers[0], self)
 
-        end_time = datetime.datetime.now() + datetime.timedelta(minutes=int(1))
+        end_time = datetime.datetime.now() + datetime.timedelta(minutes=int(2))
         self.log.info("Wait for nodes to be bootstrapped, neglect the unreachable server exceptions")
         while datetime.datetime.now() < end_time:
             try:

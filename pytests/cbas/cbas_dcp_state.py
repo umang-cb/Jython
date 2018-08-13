@@ -180,23 +180,26 @@ class CBASDCPState(CBASBaseTest):
             rebalance_success = self.rebalance()
         except Exception as e:
             pass
-        self.assertFalse(rebalance_success, msg="Rebalance in of CBAS node must fail")
+
+        if rebalance_success == False:
+            self.log.info("Grep Analytics logs for user action as rebalance in Failed")
+            result, _ = self.shell.execute_command("grep 'Datasets in different partitions have different DCP states.' /opt/couchbase/var/lib/couchbase/logs/analytics*.log")
+            self.assertTrue("User action: Connect the bucket:" in result[0] and "or drop the dataset: Default.ds" in result[0], msg="User action not found.")
+
+            user_action = self.input.param("user_action", "drop_dataset")
+            if user_action == "connect_cbas_bucket":
+                self.log.info("Connect back Local link")
+                self.cbas_util.connect_link()
+                self.sleep(15, message="Wait for link to be connected")
+            else:
+                self.log.info("Dropping the dataset")
+                self.cbas_util.drop_dataset(self.cbas_dataset_name)
         
-        self.log.info("Grep Analytics logs for user action")
-        result, _ = self.shell.execute_command("grep 'Datasets in different partitions have different DCP states.' /opt/couchbase/var/lib/couchbase/logs/analytics*.log")
-        self.assertTrue("User action: Connect the bucket:" in result[0] and "or drop the dataset: Default.ds" in result[0], msg="User action not found.")
-        
-        user_action = self.input.param("user_action", "drop_dataset")
-        if user_action == "connect_cbas_bucket":
-            self.log.info("Connect back Local link")
-            self.cbas_util.connect_link()
-            self.sleep(15, message="Wait for link to be connected")
+            self.log.info("Rebalance in CBAS node")
+            self.assertTrue(self.rebalance(), msg="Rebalance in CBAS node must succeed after user has taken the specified action.")
         else:
-            self.log.info("Dropping the dataset")
-            self.cbas_util.drop_dataset(self.cbas_dataset_name)
-        
-        self.log.info("Rebalance in CBAS node")
-        self.assertTrue(self.rebalance(), msg="Rebalance in CBAS node must succeed after user has taken the specified action.")
+            self.log.info("Rebalance was successful as DCP state were consistent")
+
           
     def tearDown(self):
         super(CBASDCPState, self).tearDown()

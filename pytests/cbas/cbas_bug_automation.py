@@ -563,7 +563,8 @@ class CBASBugAutomation(CBASBaseTest):
         if fixed_partitions:
             self.log.info("Fixed partitions : Pick min of length of cbas_path, cbas_memory_quota")
             self.log.info(self.cbas_path)
-            expected_partitions = min(len(self.cbas_path), int(self.cbas_memory_quota/1024))
+            self.log.info(type(self.cbas_path))
+            expected_partitions = len(self.cbas_path)
         else:
             self.log.info("Variable partitions : Pick min of cores on machine, cbas_memory_quota")
             expected_partitions = min(min(16, int(cores)), int(self.cbas_memory_quota/1024))

@@ -24,12 +24,11 @@ class CBASCancelDDL(CBASBaseTest):
         self.cbas_util.createConn(self.cb_bucket_name)
 
         self.log.info("Load documents in KV")
-        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items, batch_size=5000)
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items, batch_size=1000)
 
     """
     cbas.cbas_cancel_ddl.CBASCancelDDL.test_cancel_ddl_dataset_create,default_bucket=True,cb_bucket_name=default,cbas_dataset_name=ds,items=10000
     """
-
     def test_cancel_ddl_dataset_create(self):
         """
         Cover's the scenario: Cancel create dataset DDL statement
@@ -95,12 +94,11 @@ class CBASCancelDDL(CBASBaseTest):
                 try:
                     status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util("set `import-private-functions` `true`;ping()")
                     if status == "success":
-                        self.log.info(cbas_result)
                         break
                 except:
-                    pass
+                    self.sleep(2, message="Wait for service to up again")
 
-            self.log.info("Request sent will now either succeed or fail, or its connection will be abruptly closed. Verify the state")
+            self.log.info("Check DDL create dataset status")
             status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util(
                 'select value count(*) from Metadata.`Dataset` d WHERE d.DataverseName <> "Metadata" and DatasetName = "ds"')
             self.assertEquals(status, "success", msg="CBAS query failed")
@@ -112,11 +110,15 @@ class CBASCancelDDL(CBASBaseTest):
             else:
                 dataset_not_created += 1
 
+            # Let's break out as soon as one DDL is cancelled
+            if dataset_created != dataset_not_created and dataset_created > 0 and dataset_not_created > 0:
+                break
+
         self.log.info("Test run summary")
-        self.log.info("Times ran %d" % times)
+        self.log.info("Times ran: %d " % times)
         self.log.info("Dataset %s was created %d times" % (self.cbas_dataset_name, dataset_created))
         self.log.info("Dataset %s was not created %d times" % (self.cbas_dataset_name, dataset_not_created))
-        self.assertFalse(times == dataset_created or times == dataset_not_created, msg="Please revisit test and update such that few request cancel and few get processed")
+        self.assertFalse(times == dataset_created or times == dataset_not_created, msg="Please revisit test and update test such that few request cancel and few get processed")
 
     """
     cbas.cbas_cancel_ddl.CBASCancelDDL.test_cancel_ddl_dataset_drop,default_bucket=True,cb_bucket_name=default,cbas_dataset_name=ds,items=10000
@@ -191,10 +193,9 @@ class CBASCancelDDL(CBASBaseTest):
                 try:
                     status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util("set `import-private-functions` `true`;ping();")
                     if status == "success":
-                        self.log.info(cbas_result)
                         break
                 except:
-                    pass
+                    self.sleep(2, message="Wait for service to up again")
 
             self.log.info("Request sent will now either succeed or fail, or its connection will be abruptly closed. Verify the state")
             status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util(
@@ -206,6 +207,10 @@ class CBASCancelDDL(CBASBaseTest):
                 self.assertTrue(self.cbas_util.connect_link(), msg="Connect link Failed")
             else:
                 dataset_not_dropped += 1
+
+            # Let's break out as soon as one DDL is cancelled
+            if dataset_dropped != dataset_not_dropped and dataset_dropped > 0 and dataset_not_dropped > 0:
+                break
 
         self.log.info("Test run summary")
         self.log.info("Times ran %d" % times)
@@ -293,10 +298,9 @@ class CBASCancelDDL(CBASBaseTest):
                 try:
                     status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util("set `import-private-functions` `true`;ping();")
                     if status == "success":
-                        self.log.info(cbas_result)
                         break
                 except:
-                    pass
+                    self.sleep(2, message="Wait for service to up again")
 
             self.log.info("Request sent will now either succeed or fail, or its connection will be abruptly closed. Verify the state")
             status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util('select value count(*) from Metadata.`Index` where IndexName = "sec_idx"')
@@ -306,6 +310,10 @@ class CBASCancelDDL(CBASBaseTest):
                 sec_idx_created += 1
             else:
                 sec_idx_not_created += 1
+
+            # Let's break out as soon as one DDL is cancelled
+            if sec_idx_created != sec_idx_not_created and sec_idx_created > 0 and sec_idx_not_created > 0:
+                break
 
         self.log.info("Test run summary")
         self.log.info("Times ran %d" % times)
@@ -393,10 +401,9 @@ class CBASCancelDDL(CBASBaseTest):
                 try:
                     status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util("set `import-private-functions` `true`;ping();")
                     if status == "success":
-                        self.log.info(cbas_result)
                         break
                 except:
-                    pass
+                    self.sleep(2, message="Wait for service to up again")
 
             self.log.info("Request sent will now either succeed or fail, or its connection will be abruptly closed. Verify the state")
             status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util('select value count(*) from Metadata.`Index` where IndexName = "sec_idx"')
@@ -404,16 +411,18 @@ class CBASCancelDDL(CBASBaseTest):
             self.log.info(cbas_result)
             if cbas_result[0] == 0:
                 sec_idx_dropped += 1
-                print(sec_idx_dropped)
             else:
                 sec_idx_not_dropped += 1
-                print(sec_idx_not_dropped)
+
+            # Let's break out as soon as one DDL is cancelled
+            if sec_idx_dropped != sec_idx_not_dropped and sec_idx_dropped > 0 and sec_idx_not_dropped > 0:
+                break
 
         self.log.info("Test run summary")
         self.log.info("Times ran %d" % times)
         self.log.info("Secondary index %s was dropped %d times" % (self.cbas_dataset_name, sec_idx_dropped))
         self.log.info("Secondary index %s was not dropped %d times" % (self.cbas_dataset_name, sec_idx_not_dropped))
-        self.assertFalse(times == sec_idx_dropped or times == sec_idx_not_dropped, msg="Please revisit test and update such that few request cancel and few get processed")
+        self.assertFalse(times == sec_idx_dropped or times == sec_idx_not_dropped, msg="Please revisit test and update test such that few request cancel and few get processed")
 
     """
     cbas.cbas_cancel_ddl.CBASCancelDDL.test_cancel_ddl_link_connect,default_bucket=True,cb_bucket_name=default,cbas_dataset_name=ds,items=10000
@@ -478,10 +487,9 @@ class CBASCancelDDL(CBASBaseTest):
                 try:
                     status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util("set `import-private-functions` `true`;ping()")
                     if status == "success":
-                        self.log.info(cbas_result)
                         break
                 except:
-                    pass
+                    self.sleep(2, message="Wait for service to up again")
 
             self.log.info("Request sent will now either succeed or fail, or its connection will be abruptly closed. Verify the state")
             status, content, _ = self.cbas_util.fetch_bucket_state_on_cbas()
@@ -490,13 +498,13 @@ class CBASCancelDDL(CBASBaseTest):
             self.log.info(content)
             if content['buckets'][0]['state'] == "connected":
                 link_connected += 1
-                print("connected")
-                print(link_connected)
                 self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items), msg="Count mismatch on CBAS")
             else:
                 link_not_connected += 1
-                print("link not connected")
-                print(link_not_connected)
+
+            # Let's break out as soon as one DDL is cancelled
+            if link_connected != link_not_connected and link_connected > 0 and link_not_connected > 0:
+                break
 
         self.log.info("Test run summary")
         self.log.info("Times ran %d" % times)
@@ -564,24 +572,22 @@ class CBASCancelDDL(CBASBaseTest):
                 try:
                     status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util("set `import-private-functions` `true`;ping()")
                     if status == "success":
-                        self.log.info(cbas_result)
                         break
                 except:
-                    pass
+                    self.sleep(2, message="Wait for service to up again")
 
             self.log.info("Request sent will now either succeed or fail, or its connection will be abruptly closed. Verify the state")
             status, content, _ = self.cbas_util.fetch_bucket_state_on_cbas()
             self.assertTrue(status, msg="Fetch bucket state failed")
             content = json.loads(content)
-            self.log.info(content)
             if content['buckets'][0]['state'] == "disconnected":
                 link_disconnected += 1
-                print("disconnected")
-                print(link_disconnected)
             else:
                 link_not_disconnected += 1
-                print("not - disconnected")
-                print(link_not_disconnected)
+
+            # Let's break out as soon as one DDL is cancelled
+            if link_disconnected != link_not_disconnected and link_disconnected > 0 and link_not_disconnected > 0:
+                break
 
         self.log.info("Test run summary")
         self.log.info("Times ran %d" % times)
