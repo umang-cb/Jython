@@ -496,6 +496,13 @@ class CBASError:
             "run_in_loop": True
         },
         {
+            "id": "duplicate_field",
+            "msg": 'Duplicate field name \"a\"',
+            "code": 24015,
+            "query": 'select 1 as a, 2 as a',
+            "run_in_loop": True
+        },
+        {
             "id": "dataset_not_found",
             "msg": "Cannot find dataset with name Bucket in dataverse Default",
             "code": 24025,
