@@ -11,7 +11,6 @@ from cbas.cbas_utils import cbas_utils
 from basetestcase import RemoteMachineShellConnection
 from node_utils.node_ready_functions import NodeHelper
 
-
 class CbasLogging(CBASBaseTest):
     # Dictionary containing the default logging configuration that we set and verify if they are set
     DEFAULT_LOGGER_CONFIG_DICT = {}
@@ -269,28 +268,26 @@ class CbasLogging(CBASBaseTest):
             shell_nc.kill_process(process_name, service_name)
 
         if restart_couchbase:
-            self.log.info("Restart couchbase CC node ")
-            shell_cc.restart_couchbase()
-
-            self.log.info("Restart couchbase NC node ")
-            shell_nc.restart_couchbase()
+            self.log.info("Restart couchbase service")
+            status, _, _ = self.cbas_util.restart_analytics_cluster_uri()
+            self.assertTrue(status, msg="Failed to restart cbas")
 
         if reboot:
             self.log.info("Reboot couchbase CC node")
-            NodeHelper.reboot_server(self.cbas_node, self)
+            NodeHelper.reboot_server_new(self.cbas_node, self)
 
             self.log.info("Reboot couchbase NC node")
-            NodeHelper.reboot_server(self.cbas_servers[0], self)
+            NodeHelper.reboot_server_new(self.cbas_servers[0], self)
 
         self.log.info("Wait for request to complete and cluster to be active: Using private ping() function")
         cluster_recover_start_time = time.time()
         while time.time() < cluster_recover_start_time + 180:
             try:
-                status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util("set `import-private-functions` `true`;ping();")
+                status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util("set `import-private-functions` `true`;ping()")
                 if status == "success":
                     break
             except:
-                self.sleep(2, message="Wait for service to up again")
+                self.sleep(3, message="Wait for service to up")
 
         self.log.info("Verify logging configuration post service kill")
         for name, level in CbasLogging.DEFAULT_LOGGER_CONFIG_DICT.items():
