@@ -1573,6 +1573,16 @@ class RestConnection(object):
             node = RestParser().parse_get_nodes_response(json_parsed)
         return node
 
+    # returns node data for this host
+    def get_jre_path(self, timeout=120):
+        api = self.baseUrl + 'nodes/self'
+        status, content, header = self._http_request(api, timeout=timeout)
+        if status:
+            json_parsed = json.loads(content)
+            return json_parsed
+        else:
+            raise Exception("Unable to get jre path from ns-server")
+
     def node_statuses(self, timeout=120):
         nodes = []
         api = self.baseUrl + 'nodeStatuses'
@@ -1937,7 +1947,7 @@ class RestConnection(object):
                 log.error("Unable to set data_path {0} : {1}".format(data, content))
             return status
 
-    def set_jre_path(self,jre_path=None):
+    def set_jre_path(self,jre_path=None,set=True):
         api = self.baseUrl + '/nodes/self/controller/settings'
         from urllib3._collections import HTTPHeaderDict
         data = HTTPHeaderDict()
@@ -1953,7 +1963,11 @@ class RestConnection(object):
             if status:
                 log.info("Setting paths: {0}: status {1}".format(data, status))
             else:
-                log.error("Unable to set data_path {0} : {1}".format(data, content))
+                log.info("Unable to set data_path {0} : status {1}".format(data, status))
+                if not set:
+                    return content
+                else:
+                    exit(1)
             return status
 
     def get_database_disk_size(self, bucket='default'):

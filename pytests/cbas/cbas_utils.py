@@ -1168,3 +1168,7 @@ class cbas_utils():
             raise ValueError("dataset is required field")
         status, content, response = self.cbas_helper.fetch_dcp_state_on_cbas(dataset, method="GET", dataverse=dataverse, username=username, password=password)
         return status, content, response
+
+    def get_analytics_diagnostics(self, cbas_node, timeout=120):
+         response = self.cbas_helper.get_analytics_diagnostics(cbas_node,timeout=timeout)
+         return response

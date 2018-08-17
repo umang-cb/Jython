@@ -294,4 +294,14 @@ class CBASHelper(RestConnection):
         api = self.cbas_base_url + "/analytics/dataset/dcp/{0}/{1}".format(dataverse, dataset)
         status, content, response = self._http_request(api, method=method, headers=headers)
         return status, content, response
-    
+
+    # return analytics diagnostics info
+    def get_analytics_diagnostics(self, cbas_node, timeout=120):
+        analyticsBaseUrl = "http://{0}:{1}/".format(cbas_node.ip, 8095)
+        api = analyticsBaseUrl + 'analytics/node/diagnostics'
+        status, content, header = self._http_request(api, timeout=timeout)
+        if status:
+            json_parsed = json.loads(content)
+            return json_parsed
+        else:
+            raise Exception("Unable to get jre path from analytics")
