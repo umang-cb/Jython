@@ -4,6 +4,7 @@ import json
 
 from cbas.cbas_base import CBASBaseTest
 from remote.remote_util import RemoteMachineShellConnection
+from membase.api.rest_client import RestConnection
 
 
 class CBASCancelDDL(CBASBaseTest):
@@ -552,7 +553,7 @@ class CBASCancelDDL(CBASBaseTest):
         link_not_disconnected = 0
         times = 0
         start_time = time.time()
-        while time.time() < start_time + 600:
+        while time.time() < start_time + 60:
             times += 1
 
             self.log.info("Connect link")
@@ -618,3 +619,92 @@ class CBASCancelDDL(CBASBaseTest):
 
     def tearDown(self):
         super(CBASCancelDDL, self).tearDown()
+
+
+class CBASCancelDDLWhileRebalance(CBASBaseTest):
+
+    ERROR_SEVERITY = "fatal"
+    ERROR_MESSAGE = "Operation cannot be performed during rebalance"
+    ERROR_CODE = 23003
+
+    DDL_S = [
+        {
+            "query": "create dataset ds_1 on default",
+            "disconnect_link_before_ddl_query": True
+        },
+        {
+            "query": "connect link Local",
+            "disconnect_link_before_ddl_query": False
+        },
+        {
+            "query": "disconnect link Local",
+            "disconnect_link_before_ddl_query": False
+        },
+        {
+            "query": "create index idx_age on ds(age:int)",
+            "disconnect_link_before_ddl_query": True
+        },
+        {
+            "query": "drop index ds.idx_age",
+            "disconnect_link_before_ddl_query": True
+        },
+        {
+            "query": "drop dataset ds1",
+            "disconnect_link_before_ddl_query": True
+        }
+    ]
+
+    def setUp(self):
+        super(CBASCancelDDLWhileRebalance, self).setUp()
+
+        self.log.info("Create connection")
+        self.cbas_util.createConn(self.cb_bucket_name)
+
+        self.log.info("Load documents in KV")
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items)
+
+        self.log.info("Create dataset")
+        self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name, self.cbas_dataset_name)
+
+        self.log.info("Connect to Local link")
+        self.cbas_util.connect_link()
+
+        self.log.info("Validate count on CBAS")
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items), msg="Count mismatch on CBAS")
+
+    def assert_cancel_ddl_error_response(self, errors, status):
+        self.assertEqual(status, CBASCancelDDLWhileRebalance.ERROR_SEVERITY, msg="Error message mismatch")
+        self.assertEqual(errors[0]['msg'], CBASCancelDDLWhileRebalance.ERROR_MESSAGE, msg="Error message mismatch")
+        self.assertEqual(errors[0]['code'], CBASCancelDDLWhileRebalance.ERROR_CODE, msg="Error code mismatch")
+
+    """
+    cbas.cbas_cancel_ddl.CBASCancelDDLWhileRebalance.test_ddl_are_cancelled_during_rebalance,default_bucket=True,cb_bucket_name=default,items=10000
+    """
+    def test_ddl_are_cancelled_during_rebalance(self):
+
+        for ddl in CBASCancelDDLWhileRebalance.DDL_S:
+            otp_nodes = []
+            if ddl['disconnect_link_before_ddl_query']:
+                self.log.info("Disconnect local link")
+                self.cbas_util.disconnect_link()
+
+            self.log.info("Rebalance in a CBAS node")
+            otp_nodes.append(self.add_node(self.cbas_servers[0], rebalance=True, wait_for_rebalance_completion=False))
+
+            self.log.info("Execute '%s' DDL statements, and verify DDL fail while rebalance is in progress" % ddl['query'])
+            while True:
+                if self.rest._rebalance_status_and_progress()[1] >= 25:
+                    break
+            status, _, errors, _, _ = self.cbas_util.execute_statement_on_cbas_util(ddl['query'])
+            self.assert_cancel_ddl_error_response(errors, status)
+            
+            while True:
+                if self.rest._rebalance_progress_status() != "running":
+                    self.sleep(10, message="Sleep for 10 seconds after rebalance")
+                    break
+
+            self.log.info("Rebalance out the CBAS node")
+            print(self.remove_node(otpnode=otp_nodes, wait_for_rebalance=True))
+
+            self.log.info("Connect back link")
+            self.cbas_util.connect_link()
