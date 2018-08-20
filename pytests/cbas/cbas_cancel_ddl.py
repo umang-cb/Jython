@@ -598,7 +598,8 @@ class CBASCancelDDL(CBASBaseTest):
             content = json.loads(content)
             if content['buckets'][0]['state'] == "disconnected":
                 link_disconnected += 1
-                self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items), msg="Count mismatch on CBAS")
+                status, _, _, _, _ = self.cbas_util.execute_statement_on_cbas_util("select count(*) from %s" % self.cbas_dataset_name)
+                self.assertTrue(status == "success", "Select query failed")
             else:
                 link_not_disconnected += 1
                 self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items), msg="Count mismatch on CBAS")
