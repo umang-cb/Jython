@@ -572,5 +572,26 @@ class CBASBugAutomation(CBASBaseTest):
         self.assertTrue(partitions==expected_partitions, msg="Number of partitions mismatch. Expected %s Actual %s" %(expected_partitions, partitions))
         self.assertTrue(io_devices==expected_partitions, msg="Number of IO devices mismatch. Expected %s Actual %s" %(expected_partitions, io_devices))
 
+    """
+    cbas.cbas_bug_automation.CBASBugAutomation.test_cbas_allows_underscore_as_identifiers,default_bucket=True,cbas_dataset_name=_ds,items=10,cb_bucket_name=default
+    """
+    def test_cbas_allows_underscore_as_identifiers(self):
+
+        self.log.info("Create connection")
+        self.cbas_util.createConn(self.cb_bucket_name)
+
+        self.log.info("Load documents in KV")
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items)
+
+        self.log.info("Create dataset")
+        self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name, self.cbas_dataset_name)
+
+        self.log.info("Connect to Local link")
+        self.cbas_util.connect_link()
+
+        self.log.info("Validate document count on CBAS")
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items), msg="Count mismatch on CBAS")
+
+
     def tearDown(self):
         super(CBASBugAutomation, self).tearDown()

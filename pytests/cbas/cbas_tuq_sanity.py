@@ -2,6 +2,9 @@
 import json
 import math
 
+from cbas.cbas_base import CBASBaseTest
+from sdk_client import SDKClient
+
 '''
 Created on Mar 16, 2018
 
@@ -1272,3 +1275,101 @@ class DateTimeFunctionClass_cbas(DateTimeFunctionClass):
                                  "Actual result {0} and expected result {1} don't match for {2} milliseconds and \
                                  {3} parts".format(actual_local_result["results"][0], expected_local_result["results"][0]["$1"],
                                                    milliseconds, part))
+
+
+class CBASBacklogQueries(CBASBaseTest):
+    """
+    cbas.cbas_tuq_sanity.CBASBacklogQueries.test_correlated_aggregation_columns,default_bucket=True,cb_bucket_name=default,cbas_dataset_name=ds
+    """
+    def test_correlated_aggregation_columns(self):
+        self.log.info("Create a reference to SDK client")
+        client = SDKClient(hosts=[self.master.ip], bucket=self.cb_bucket_name, password=self.master.rest_password)
+
+        self.log.info("Insert documents in KV bucket")
+        documents = [
+            '{"name":"tony","salary":100,"dept":"engineering"}',
+            '{"name":"alex","salary":50,"dept":"engineering"}',
+            '{"name":"bob","salary":75,"dept":"IT"}',
+            '{"name":"charles","salary":175,"dept":"IT"}'
+        ]
+        client.insert_json_documents("id-", documents)
+
+        self.log.info("Create dataset")
+        self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name, self.cbas_dataset_name)
+
+        self.log.info("Connect to Local link")
+        self.cbas_util.connect_link()
+
+        self.log.info("Validate count on CBAS")
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, len(documents)), msg="Count mismatch on CBAS")
+
+        self.log.info("Assert correlated aggregate columns")
+        correlated_query = """from ds as e 
+                           group by dept group as g
+                           let highest_salary = max(e.salary),
+                           best_paid = (from g
+                           where g.e.salary = highest_salary
+                           select g.e.name)
+                           select dept, highest_salary, best_paid;"""
+        status, result, errors, a, b = self.cbas_util.execute_statement_on_cbas_util(correlated_query)
+        self.assertEquals(status == "success", msg="correlated aggregation query failed.")
+
+    """
+    cbas.cbas_tuq_sanity.CBASBacklogQueries.test_mod_operator,default_bucket=False
+    """
+    def test_mod_operator(self):
+        query = "select 5 mod 2;"
+        status, _, _, result, _ = self.cbas_util.execute_statement_on_cbas_util(query, "immediate")
+        expected_result = {
+            "$1": 1
+        }
+        self.assertTrue(status == "success")
+        self.assertTrue(result[0] == expected_result)
+
+    """
+    cbas.cbas_tuq_sanity.CBASBacklogQueries.test_div_operator,default_bucket=False
+    """
+    def test_div_operator(self):
+        query = "select value 5 div 2;"
+        status, _, _, result, _ = self.cbas_util.execute_statement_on_cbas_util(query, "immediate")
+        expected_result = {
+            "$1": 2
+        }
+        self.assertTrue(status == "success")
+        self.assertTrue(result[0] == expected_result)
+
+    """
+    cbas.cbas_tuq_sanity.CBASBacklogQueries.test_substring_with_negative_position,default_bucket=False
+    """
+    def test_substring_with_negative_position(self):
+        query = 'select SUBSTR("abcdefg",-2);'
+        status, _, _, result, _ = self.cbas_util.execute_statement_on_cbas_util(query, "immediate")
+        expected_result = {
+            "$1": "fg"
+        }
+        self.assertTrue(status == "success")
+        self.assertTrue(result[0] == expected_result)
+
+    """
+    cbas.cbas_tuq_sanity.CBASBacklogQueries.test_substring_with_negative_position_greater_than_length,default_bucket=False
+    """
+    def test_substring_with_negative_position_greater_than_length(self):
+        query = 'select SUBSTR("abcdefg",-8);'
+        status, _, _, result, _ = self.cbas_util.execute_statement_on_cbas_util(query, "immediate")
+        expected_result = {
+            "$1": None
+        }
+        self.assertTrue(status == "success")
+        self.assertTrue(result[0] == expected_result)
+
+    """
+    cbas.cbas_tuq_sanity.CBASBacklogQueries.test_IFINF,default_bucket=False
+    """
+    def test_IFINF(self):
+        query = 'Select IFINF(2,1/0);'
+        status, _, _, result, _ = self.cbas_util.execute_statement_on_cbas_util(query, "immediate")
+        expected_result = {
+            "$1": 2
+        }
+        self.assertTrue(status == "success")
+        self.assertTrue(result[0] == expected_result)

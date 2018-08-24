@@ -418,6 +418,13 @@ class CBASError:
             "query": 'SET `compiler.groupmemory` "10GB";select sleep(count(*),500) from ds GROUP BY name'
         },
         {
+            "id": "overflow",
+            "msg": 'Overflow in numeric-multiply',
+            "code": 23011,
+            "query": 'select 23000000000000000 * 23000000000000000',
+            "run_in_loop": True
+        },
+        {
             "id": "compare_non_primitive",
             "msg": 'Cannot compare non-primitive values',
             "code": 23021,
@@ -472,6 +479,13 @@ class CBASError:
             "msg": "Unsupported statement (UPSERT)",
             "code": 24004,
             "query": "UPSERT INTO ds (SELECT VALUE name FROM ds)",
+            "run_in_loop": True
+        },
+        {
+            "id": "disallow_user_functions",
+            "msg": "Unsupported statement (CREATE_FUNCTION)",
+            "code": 24004,
+            "query": "create function default.fun01(){'Test'}",
             "run_in_loop": True
         },
         {
