@@ -1312,7 +1312,7 @@ class CBASBacklogQueries(CBASBaseTest):
                            select g.e.name)
                            select dept, highest_salary, best_paid;"""
         status, result, errors, a, b = self.cbas_util.execute_statement_on_cbas_util(correlated_query)
-        self.assertEquals(status == "success", msg="correlated aggregation query failed.")
+        self.assertEquals(status, "success", msg="correlated aggregation query failed.")
 
     """
     cbas.cbas_tuq_sanity.CBASBacklogQueries.test_mod_operator,default_bucket=False
@@ -1330,7 +1330,7 @@ class CBASBacklogQueries(CBASBaseTest):
     cbas.cbas_tuq_sanity.CBASBacklogQueries.test_div_operator,default_bucket=False
     """
     def test_div_operator(self):
-        query = "select value 5 div 2;"
+        query = "select 5 div 2;"
         status, _, _, result, _ = self.cbas_util.execute_statement_on_cbas_util(query, "immediate")
         expected_result = {
             "$1": 2

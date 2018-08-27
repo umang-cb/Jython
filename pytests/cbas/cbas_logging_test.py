@@ -35,6 +35,7 @@ class CbasLogging(CBASBaseTest):
                                                   "com.couchbase.analytics": "DEBUG",
                                                   "org.apache.hyracks": "DEBUG",
                                                   "org.apache.asterix": "DEBUG",
+                                                  "org.apache.hyracks.http.server.CLFLogger": "ACCESS",
                                                   "": "ERROR"} # Empty string corresponds to ROOT logger
 
         # Fetch the NC node ID and add trace logger to default logger config dictionary, trace logger has NodeId so this has to be picked at run time
