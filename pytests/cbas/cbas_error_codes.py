@@ -160,11 +160,15 @@ class CBASErrorValidator(CBASBaseTest):
     """
     def test_analytics_service_tmp_unavailable(self):
 
+        self.log.info("Add CBAS nodes")
+        self.add_node(self.servers[1], services=["cbas"], rebalance=False)
+        self.add_node(self.cbas_servers[0], services=["cbas"], rebalance=True)
+
         self.log.info("Create dataset and connect link")
         self.create_dataset_connect_link()
 
         self.log.info("Kill Java process")
-        self.shell.execute_command("pkill java")
+        self.shell.kill_java()
 
         self.log.info("Wait until we get into the state analytics service is unavailable")
         service_unavailable = False

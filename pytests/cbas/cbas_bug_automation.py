@@ -561,7 +561,7 @@ class CBASBugAutomation(CBASBaseTest):
         self.log.info("Assert number of partitions/IO devices")
         fixed_partitions = self.input.param("fixed_partitions", False)
         if fixed_partitions:
-            self.log.info("Fixed partitions : Pick min of length of cbas_path, cbas_memory_quota")
+            self.log.info("Fixed partitions")
             self.log.info(self.cbas_path)
             expected_partitions = len(self.cbas_path.split(","))
         else:

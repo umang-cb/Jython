@@ -1381,10 +1381,12 @@ class RestConnection(object):
             time.sleep(20)
             return True
 
-    def _rebalance_progress_status(self):
+    def _rebalance_progress_status(self, all_node_rebalance_status=False):
         api = self.baseUrl + "pools/default/rebalanceProgress"
         status, content, header = self._http_request(api)
         json_parsed = json.loads(content)
+        if all_node_rebalance_status:
+            return status, json_parsed, header
         if status:
             if "status" in json_parsed:
                 return json_parsed['status']

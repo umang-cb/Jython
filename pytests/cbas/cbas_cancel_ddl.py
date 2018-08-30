@@ -4,7 +4,6 @@ import json
 
 from cbas.cbas_base import CBASBaseTest
 from remote.remote_util import RemoteMachineShellConnection
-from membase.api.rest_client import RestConnection
 
 
 class CBASCancelDDL(CBASBaseTest):
@@ -82,8 +81,12 @@ class CBASCancelDDL(CBASBaseTest):
             self.log.info("Sleep for the window time")
             self.sleep(self.kill_window)
 
-            self.log.info("kill Java process with id %s" % java_process_id[0])
-            shell.execute_command("kill -9 %s" % (java_process_id[0]))
+            self.log.info("kill Java process")
+            if len(java_process_id):
+                shell.execute_command("kill -9 %s" % (java_process_id[0]))
+            else:
+                # In case of windows
+                shell.kill_java()
 
             self.log.info("Fetch task result")
             for task in tasks:
@@ -181,8 +184,12 @@ class CBASCancelDDL(CBASBaseTest):
             self.log.info("Sleep for the window time")
             self.sleep(self.kill_window)
 
-            self.log.info("kill Java process with id %s" % java_process_id[0])
-            shell.execute_command("kill -9 %s" % (java_process_id[0]))
+            self.log.info("kill Java process")
+            if len(java_process_id):
+                shell.execute_command("kill -9 %s" % (java_process_id[0]))
+            else:
+                # In case of windows
+                shell.kill_java()
 
             self.log.info("Fetch task result")
             for task in tasks:
@@ -288,8 +295,12 @@ class CBASCancelDDL(CBASBaseTest):
             self.log.info("Sleep for the window time")
             self.sleep(self.kill_window)
 
-            self.log.info("kill Java process with id %s" % java_process_id[0])
-            shell.execute_command("kill -9 %s" % (java_process_id[0]))
+            self.log.info("kill Java process")
+            if len(java_process_id):
+                shell.execute_command("kill -9 %s" % (java_process_id[0]))
+            else:
+                # In case of windows
+                shell.kill_java()
 
             self.log.info("Fetch task result")
             for task in tasks:
@@ -397,8 +408,12 @@ class CBASCancelDDL(CBASBaseTest):
             self.log.info("Sleep for the window time")
             self.sleep(self.kill_window)
 
-            self.log.info("kill Java process with id %s" % java_process_id[0])
-            shell.execute_command("kill -9 %s" % (java_process_id[0]))
+            self.log.info("kill Java process")
+            if len(java_process_id):
+                shell.execute_command("kill -9 %s" % (java_process_id[0]))
+            else:
+                # In case of windows
+                shell.kill_java()
 
             self.log.info("Fetch task result")
             for task in tasks:
@@ -489,8 +504,12 @@ class CBASCancelDDL(CBASBaseTest):
             self.log.info("Sleep for the window time")
             self.sleep(self.kill_window)
 
-            self.log.info("kill Java process with id %s" % java_process_id[0])
-            shell.execute_command("kill -9 %s" % (java_process_id[0]))
+            self.log.info("kill Java process")
+            if len(java_process_id):
+                shell.execute_command("kill -9 %s" % (java_process_id[0]))
+            else:
+                # In case of windows
+                shell.kill_java()
 
             self.log.info("Fetch task result")
             for task in tasks:
@@ -576,8 +595,12 @@ class CBASCancelDDL(CBASBaseTest):
             self.log.info("Sleep for the window time")
             self.sleep(self.kill_window)
 
-            self.log.info("kill Java process with id %s" % java_process_id[0])
-            shell.execute_command("kill -9 %s" % (java_process_id[0]))
+            self.log.info("kill Java process")
+            if len(java_process_id):
+                shell.execute_command("kill -9 %s" % (java_process_id[0]))
+            else:
+                # In case of windows
+                shell.kill_java()
 
             self.log.info("Fetch task result")
             for task in tasks:
@@ -692,9 +715,13 @@ class CBASCancelDDLWhileRebalance(CBASBaseTest):
             otp_nodes.append(self.add_node(self.cbas_servers[0], rebalance=True, wait_for_rebalance_completion=False))
 
             self.log.info("Execute '%s' DDL statements, and verify DDL fail while rebalance is in progress" % ddl['query'])
-            while True:
-                if self.rest._rebalance_status_and_progress()[1] >= 25:
-                    break
+            start_time = time.time()
+            while time.time() < start_time + 180:
+                status, content, header = self.rest._rebalance_progress_status(all_node_rebalance_status=True)
+                self.assertTrue(status, msg="Failed to fetch rebalance status")
+                if content['status'] != "none":
+                    if content['ns_1@'+self.cbas_node.ip]['progress'] > 0:
+                        break
             status, _, errors, _, _ = self.cbas_util.execute_statement_on_cbas_util(ddl['query'])
             self.assert_cancel_ddl_error_response(errors, status)
             
