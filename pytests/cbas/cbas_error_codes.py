@@ -404,7 +404,7 @@ class CBASError:
         },
         {
             "id": "dataverse_drop_link_connected",
-            "msg": "Dataverse Default cannot be dropped while link Local is connected",
+            "msg": "Dataverse custom cannot be dropped while link Local is connected",
             "code": 23005,
             "query": "drop dataverse custom"
         },
