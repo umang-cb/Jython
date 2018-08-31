@@ -618,6 +618,6 @@ class CouchbaseCLI:
         """
 
         for line in stdout:
-            if line.rstrip("\n") == "SUCCESS: " + message:
+            if line.rstrip() == "SUCCESS: " + message:
                 return True
         return False

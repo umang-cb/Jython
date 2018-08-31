@@ -442,8 +442,10 @@ class CBASClusterManagement(CBASBaseTest):
         
         NodeHelper.stop_couchbase(self.cbas_servers[0])
         NodeHelper.start_couchbase(self.cbas_servers[0])
-        NodeHelper.wait_service_started(self.cbas_servers[0])
-        self.sleep(20)
+        
+        self.log.info("Wait for cluster to be active")
+        self.assertTrue(self.cbas_util.wait_for_cbas_to_recover(), msg="Analytics service unavailable")
+        
         self.setup_cbas_bucket_dataset_connect(self.cb_bucket_name, self.travel_sample_docs_count)
         self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.travel_sample_docs_count),"Data loss in CBAS.")
 
@@ -709,19 +711,9 @@ class CBASServiceOperations(CBASBaseTest):
             shell.kill_process(self.process, self.service, signum=self.signum)
         
         self.sleep(5, "Sleeping for 5 seconds as after killing the service the service takes some time to exit and the service checks get pass by that time.")
-        self.log.info("Wait for request to complete and cluster to be active: Using private ping() function")
-        service_up = False
-        start_time = time.time()
-        while time.time() < start_time + 120:
-            try:
-                status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util("set `import-private-functions` `true`;ping();")
-                if status == "success":
-                    service_up = True
-                    break
-            except:
-                pass
-            self.sleep(1)
-        self.assertTrue(service_up, msg="CBAS service was not up even after 120 seconds of process kill. Failing the test possible a bug")
+        
+        self.log.info("Wait for cluster to be active")
+        self.assertTrue(self.cbas_util.wait_for_cbas_to_recover(), msg="Analytics service unavailable")
         
         self.log.info("Observe no reingestion on node after restart")
         items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.dataset_name)
@@ -769,22 +761,10 @@ class CBASServiceOperations(CBASBaseTest):
             shell.kill_process(self.process, self.service, signum=self.signum)
         
         self.sleep(5, "Sleeping for 5 seconds as after killing the service the service takes some time to exit and the service checks get pass by that time.")
-        self.log.info("Wait for request to complete and cluster to be active: Using private ping() function")
-        service_up = False
-        start_time = time.time()
-        while time.time() < start_time + 120:
-            try:
-                status, metrics, _, cbas_result, _ = self.cbas_util.execute_statement_on_cbas_util("set `import-private-functions` `true`;ping();",
-                                                                                                   timeout=600, analytics_timeout=600)
-                if status == "success":
-                    service_up = True
-                    break
-            except:
-                pass
-            self.sleep(1)
+        
+        self.log.info("Wait for cluster to be active")
+        self.assertTrue(self.cbas_util.wait_for_cbas_to_recover(), msg="Analytics service unavailable")
             
-        self.assertTrue(service_up, msg="CBAS service was not up even after 120 seconds of process kill. Failing the test possible a bug")
-
         self.log.info("Observe no reingestion on node after restart")
         items_in_cbas_bucket, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.dataset_name)
         self.assertTrue(items_in_cbas_bucket > 0, msg="Items in CBAS bucket must greather than 0. If not re-ingestion has happened")

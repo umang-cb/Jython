@@ -1172,3 +1172,21 @@ class cbas_utils():
     def get_analytics_diagnostics(self, cbas_node, timeout=120):
          response = self.cbas_helper.get_analytics_diagnostics(cbas_node,timeout=timeout)
          return response
+    
+    def wait_for_cbas_to_recover(self, timeout=180):
+        """
+        Returns True if analytics service is recovered/available. 
+        False if service is unavailable despite waiting for specified "timeout" period.
+        """
+        analytics_recovered = False
+        cluster_recover_start_time = time.time()
+        while time.time() < cluster_recover_start_time + timeout:
+            try:
+                status, metrics, _, cbas_result, _ = self.execute_statement_on_cbas_util("set `import-private-functions` `true`;ping()")
+                if status == "success":
+                    analytics_recovered = True
+                    break
+            except:
+                self.log.info("Service unavailable sleep for 2 seconds, and retry")
+                time.sleep(2)
+        return analytics_recovered
