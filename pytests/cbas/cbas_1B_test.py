@@ -410,10 +410,10 @@ class analytics_high_doc_ops(CBASBaseTest):
     def upsert_delete_data(self, bucket):
         upsert_thread = Thread(target=self.load_buckets_with_high_ops,
                          name="high_ops_delete",
-                         args=(self.master, bucket, self.num_items/10,10000,4, self.updates_from,8, 0))
+                         args=(self.master, bucket, self.num_items/10,10000,4, self.updates_from,16, 0))
         delete_thread = Thread(target=self.delete_buckets_with_high_ops,
                                  name="high_ops_delete",
-                                 args=(self.master, bucket, self.num_items/10, self.rate_limit, 10000, 2, self.deletes_from,8))
+                                 args=(self.master, bucket, self.num_items/10, self.rate_limit, 10000, 2, self.deletes_from,16))
         delete_thread.start()
         upsert_thread.start()
         delete_thread.join()
@@ -422,7 +422,7 @@ class analytics_high_doc_ops(CBASBaseTest):
     def load_data(self, bucket):
         load_thread = Thread(target=self.load_buckets_with_high_ops,
                                  name="high_ops_load",
-                                 args=(self.master, bucket, self.num_items,50,4, self.items_start_from,16, 0))
+                                 args=(self.master, bucket, self.num_items,50,4, self.items_start_from,32, 0))
         self.log.info('starting the load thread...')
         load_thread.start()
         load_thread.join()
