@@ -1,6 +1,10 @@
 from cbas_base import *
+from couchbase_helper.stats_tools import StatsCommon
 from lib.memcached.helper.data_helper import MemcachedClientHelper
 from lib.remote.remote_util import RemoteMachineShellConnection
+from node_utils.node_ready_functions import NodeHelper
+from BucketLib.BucketOperations import BucketHelper
+from sdk_client import SDKClient
 
 
 class CBASBucketOperations(CBASBaseTest):
@@ -401,7 +405,7 @@ class CBASBucketOperations(CBASBaseTest):
                 "After Rollback : # Items in CBAS bucket does not match that in the CB bucket")
     
     '''
-    cbas.cbas_bucket_operations.CBASBucketOperations.test_bucket_flush_while_index_are_created,cb_bucket_name=default,cbas_bucket_name=default_bucket,cbas_dataset_name=default_ds,items=100000,index_fields=profession:String-first_name:String
+    cbas.cbas_bucket_operations.CBASBucketOperations.test_bucket_flush_while_index_are_created,cb_bucket_name=default,cbas_bucket_name=default_bucket,cbas_dataset_name=default_ds,items=10,index_fields=profession:String-first_name:String
     '''
     def test_bucket_flush_while_index_are_created(self):
 
@@ -429,3 +433,149 @@ class CBASBucketOperations(CBASBaseTest):
         self.log.info('Validate no. of items in CBAS dataset')
         if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, 0):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
+    
+    '''
+    cbas.cbas_bucket_operations.CBASBucketOperations.test_kill_memcached_impact_on_bucket,items=100000,bucket_type=ephemeral
+    '''
+    def test_kill_memcached_impact_on_bucket(self):
+
+        self.log.info('Add documents, create CBAS buckets, dataset and validate count')
+        self.setup_for_test()
+
+        self.log.info('Kill memcached service')
+        self.kill_memcached()
+        
+        self.log.info('Validate document count')
+        count_n1ql = self.rest.query_tool('select count(*) from %s' % (self.cb_bucket_name))['results'][0]['$1']
+        self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, 0)
+    
+    '''
+    cbas.cbas_bucket_operations.CBASBucketOperations.test_restart_kv_server_impact_on_bucket,items=100000,bucket_type=ephemeral
+    '''
+    def test_restart_kv_server_impact_on_bucket(self):
+
+        self.log.info('Add documents, create CBAS buckets, dataset and validate count')
+        self.setup_for_test()
+
+        self.log.info('Restart couchbase')
+        NodeHelper.reboot_server_new(self.master, self)
+        
+        self.log.info('Validate document count')
+        count_n1ql = self.rest.query_tool('select count(*) from %s' % (self.cb_bucket_name))['results'][0]['$1']
+        self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, count_n1ql)
+
+class CBASEphemeralBucketOperations(CBASBaseTest):
+
+    def setUp(self):
+
+        super(CBASEphemeralBucketOperations, self).setUp()
+
+        self.log.info("Create Ephemeral bucket")
+        self.bucket_ram = self.input.param("bucket_ram", 100)
+        self.create_bucket(self.master, name=self.cb_bucket_name, bucket_ram=self.bucket_ram, bucket_type=self.bucket_type, evictionPolicy=self.eviction_policy)
+
+        self.log.info("Create connection")
+        self.cbas_util.createConn(self.cb_bucket_name)
+
+        self.log.info("Fetch RAM document load percentage")
+        self.document_ram_percentage = self.input.param("document_ram_percentage", 0.90)
+
+    def load_document_until_ram_percentage(self):
+        self.start = 0
+        self.num_items = 30000
+        self.end = self.num_items
+        while True:
+            self.log.info("Add documents to bucket")
+            self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", self.start, self.end)
+
+            self.log.info("Calculate available free memory")
+            stats_all_buckets = {}
+            stats_all_buckets[self.cb_bucket_name] = StatsCommon()
+            memory_used = int(stats_all_buckets[self.cb_bucket_name].get_stats([self.master], self.cb_bucket_name, '', 'mem_used')[self.servers[0]])
+
+            if memory_used < (self.document_ram_percentage * self.bucket_ram * 1000000):
+                self.log.info("Continue loading we have more free memory")
+                self.start = self.end
+                self.end = self.end + self.num_items
+            else:
+                break
+
+    """
+    cbas.cbas_bucket_operations.CBASEphemeralBucketOperations.test_no_eviction_impact_on_cbas,default_bucket=False,items=0,bucket_type=ephemeral,eviction_policy=noEviction,
+    cb_bucket_name=default,cbas_dataset_name=ds,bucket_ram=100,document_ram_percentage=0.85
+    """
+    def test_no_eviction_impact_on_cbas(self):
+        
+        self.log.info("Add documents until ram percentage")
+        self.load_document_until_ram_percentage()
+
+        self.log.info("Fetch current document count")
+        bucket_helper = BucketHelper(self.master)
+        item_count = bucket_helper.get_bucket(self.cb_bucket_name).stats.itemCount
+        self.log.info("Completed base load with %s items" % item_count)
+
+        self.log.info("Load more until we are out of memory")
+        client = SDKClient(hosts=[self.master.ip], bucket=self.cb_bucket_name, password=self.master.rest_password)
+        i = item_count
+        insert_success = True
+        while insert_success:
+            insert_success = client.insert_document("key-id" + str(i), '{"name":"dave"}')
+            i += 1
+            
+        self.log.info('Memory is full at {0} items'.format(i))
+        self.log.info("As a result added more %s items" % (i - item_count))
+
+        self.log.info("Fetch item count")
+        stats = bucket_helper.get_bucket(self.cb_bucket_name).stats
+        itemCountWhenOOM = stats.itemCount
+        memoryWhenOOM = stats.memUsed
+        self.log.info('Item count when OOM {0} and memory used {1}'.format(itemCountWhenOOM, memoryWhenOOM))
+
+        self.log.info("Create dataset")
+        self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name, self.cbas_dataset_name)
+
+        self.log.info("Connect to Local link")
+        self.cbas_util.connect_link()
+
+        self.log.info("Validate document count on CBAS")
+        count_n1ql = self.rest.query_tool('select count(*) from %s' % (self.cb_bucket_name))['results'][0]['$1']
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, count_n1ql), msg="Count mismatch on CBAS")
+
+    """
+    cbas.cbas_bucket_operations.CBASEphemeralBucketOperations.test_nru_eviction_impact_on_cbas,default_bucket=False,items=0,bucket_type=ephemeral,eviction_policy=nruEviction,
+    cb_bucket_name=default,cbas_dataset_name=ds,bucket_ram=100,document_ram_percentage=0.80
+    """
+    def test_nru_eviction_impact_on_cbas(self):
+
+        self.log.info("Add documents until ram percentage")
+        self.load_document_until_ram_percentage()
+
+        self.log.info("Fetch current document count")
+        bucket_helper = BucketHelper(self.master)
+        item_count = bucket_helper.get_bucket(self.cb_bucket_name).stats.itemCount
+        self.log.info("Completed base load with %s items" % item_count)
+
+        self.log.info("Fetch initial inserted 100 documents, so they are not removed")
+        client = SDKClient(hosts=[self.master.ip], bucket=self.cb_bucket_name, password=self.master.rest_password)
+        for i in range(100):
+            client.get("test_docs-" + str(i))
+            
+        self.log.info("Add 20% more items to trigger NRU")
+        i = item_count
+
+        for i in range(item_count, int(item_count * 1.2)):
+            client.insert_document("key-id" + str(i), '{"name":"dave"}')
+        
+        self.log.info("Sleeping for some time so documents eviction completes")
+        self.sleep(15)
+
+        self.log.info("Create dataset")
+        self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name, self.cbas_dataset_name)
+
+        self.log.info("Connect to Local link")
+        self.cbas_util.connect_link()
+
+        self.log.info("Validate document count on CBAS")
+        count_n1ql = self.rest.query_tool('select count(*) from %s' % (self.cb_bucket_name))['results'][0]['$1']
+        self.log.info(count_n1ql)
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, count_n1ql), msg="Count mismatch on CBAS")

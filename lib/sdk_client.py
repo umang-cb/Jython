@@ -646,6 +646,16 @@ class SDKClient(object):
     def insert_json_documents(self, key_prefix, documents):
         for index, data in enumerate(documents):
             self.cb.insert(JsonDocument.create(key_prefix+str(index), JsonObject.fromJson(data)))
+    
+    def insert_document(self, key, document):
+        insert_success = False
+        try:
+            self.cb.insert(JsonDocument.create(key, JsonObject.fromJson(document)))
+            insert_success = True
+        except:
+            pass
+        return insert_success
+
 
 class SDKSmartClient(object):
     def __init__(self, rest, bucket, info = None, compression=True):

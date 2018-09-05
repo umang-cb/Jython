@@ -188,7 +188,7 @@ class bucket_utils():
         if self.enable_time_sync:
             self._set_time_sync_on_buckets( ['default'] )
 
-    def create_bucket(self, serverInfo, name='default', replica=1, port=11210, test_case=None, bucket_ram=-1, password=None):
+    def create_bucket(self, serverInfo, name='default', replica=1, port=11210, test_case=None, bucket_ram=-1, password=None, bucket_type="membase", evictionPolicy="valueOnly"):
         log = logger.Logger.get_logger()
         rest = RestConnection(serverInfo)
         bucket_conn = BucketHelper(serverInfo)
@@ -207,7 +207,7 @@ class bucket_utils():
                            proxyPort=port,
                            authType=authType,
                            saslPassword=password,
-                           maxTTL=self.maxttl, compressionMode=self.compression_mode)
+                           maxTTL=self.maxttl, compressionMode=self.compression_mode, bucketType=bucket_type,evictionPolicy=evictionPolicy)
         msg = 'create_bucket succeeded but bucket "{0}" does not exist'
         bucket_created = self.wait_for_bucket_creation(name, bucket_conn)
         if not bucket_created:

@@ -514,6 +514,13 @@ class CBASError:
             "run_in_loop": True
         },
         {
+            "id": "type_incompatibility",
+            "msg": "Type incompatibility: function numeric-add gets incompatible input values: string and string",
+            "code": 24012,
+            "query": 'select "a"+"b"',
+            "run_in_loop": True
+        },
+        {
             "id": "duplicate_field",
             "msg": 'Duplicate field name \"a\"',
             "code": 24015,
