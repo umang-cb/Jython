@@ -389,14 +389,14 @@ class SDKClient(object):
             except CouchbaseException as e:
                 raise
 
-    def get(self, key, ttl=0, quiet=True, replica=False, no_format=False):
+    def get(self, key):
         try:
-            rv = self.cb.get(key, ttl=ttl, quiet=quiet, replica=replica, no_format=no_format)
+            rv = self.cb.get(key)
             return self.__translate_get(rv)
         except CouchbaseException as e:
             try:
                 time.sleep(10)
-                rv = self.cb.get(key, ttl=ttl, quiet=quiet, replica=replica, no_format=no_format)
+                rv = self.cb.get(key)
                 return self.__translate_get(rv)
             except CouchbaseException as e:
                 raise
