@@ -702,4 +702,111 @@ class CBASClusterOperations(CBASBaseTest):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
                 
     def tearDown(self):
-        super(CBASClusterOperations, self).tearDown()       
+        super(CBASClusterOperations, self).tearDown()
+
+
+class MultiNodeFailOver(CBASBaseTest):
+    """
+    Class contains test cases for multiple analytics node failures.[CC+NC, NC+NC]
+    """
+
+    def setUp(self):
+        super(MultiNodeFailOver, self).setUp()
+
+        self.log.info("Read the input params")
+        self.graceful_fail_over = self.input.param("graceful_fail_over", False)
+        self.nc_nc_fail_over = self.input.param("nc_nc", True)
+        self.create_secondary_indexes = self.input.param("create_secondary_indexes", False)
+
+        self.log.info("Add nodes to cluster")
+        self.analytics_NC_servers = []
+
+        self.log.info("Add CBAS nodes")
+        self.add_node(self.servers[1], services=["cbas"], rebalance=False)
+        self.analytics_NC_servers.append(self.servers[1])
+
+        self.add_node(self.cbas_servers[0], services=["cbas"], rebalance=True)
+        self.analytics_NC_servers.append(self.cbas_servers[0])
+
+        self.log.info("Create connection")
+        self.cbas_util.createConn(self.cb_bucket_name)
+
+        self.log.info("Load documents in KV")
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items)
+
+        self.log.info("Create dataset")
+        self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name, self.cbas_dataset_name)
+
+        self.log.info("Create index")
+        if self.create_secondary_indexes:
+            self.index_fields = "profession:string,number:bigint"
+            create_idx_statement = "create index {0} on {1}({2});".format(self.index_name, self.cbas_dataset_name, self.index_fields)
+            status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(create_idx_statement)
+            self.assertTrue(status == "success", "Create Index query failed")
+            self.assertTrue(self.cbas_util.verify_index_created(self.index_name, self.index_fields.split(","), self.cbas_dataset_name)[0])
+
+        self.log.info("Connect to Local link")
+        self.cbas_util.connect_link()
+
+        self.log.info("Validate dataset count")
+        self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items)
+
+        self.log.info("Pick fail over nodes")
+        self.fail_over_nodes = []
+        if self.nc_nc_fail_over:
+            self.fail_over_nodes.append(self.analytics_NC_servers[0])
+            self.fail_over_nodes.append(self.analytics_NC_servers[1])
+            self.neglect_failures = False
+        else:
+            self.fail_over_nodes.append(self.analytics_NC_servers[0])
+            self.fail_over_nodes.append(self.cbas_node)
+
+            self.cbas_util.closeConn()
+            self.cbas_util = cbas_utils(self.master, self.analytics_NC_servers[1])
+            self.cbas_util.createConn(self.cb_bucket_name)
+            self.neglect_failures = True
+
+    def test_cbas_multi_node_fail_over(self):
+
+        self.log.info("fail-over the node")
+        fail_over_task = self._cb_cluster.async_failover(self.input.servers, self.fail_over_nodes, self.graceful_fail_over)
+        self.assertTrue(fail_over_task.get_result(), msg="Fail over of nodes failed")
+
+        self.log.info("Rebalance remaining nodes")
+        self.rebalance()
+
+        self.log.info("Validate dataset count")
+        self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items)
+
+    def test_cbas_multi_node_fail_over_busy_system(self):
+
+        self.log.info("Perform doc operation async")
+        json_generator = JsonGenerator()
+        generators = json_generator.generate_docs_simple(docs_per_day=self.num_items/4, start=0)
+        tasks = self._async_load_all_buckets(self.master, generators, "create", 0, batch_size=5000)
+
+        self.log.info("Run concurrent queries to simulate busy system")
+        statement = "select sleep(count(*),50000) from {0} where mutated=0;".format(self.cbas_dataset_name)
+        try:
+            self.cbas_util._run_concurrent_queries(statement, "async", 10, batch_size=10)
+        except Exception as e:
+            if self.neglect_failures:
+                self.log.info("Neglecting failed queries, to handle node fail over CC")
+            else:
+                raise e
+
+        self.log.info("fail-over the node")
+        fail_over_task = self._cb_cluster.async_failover(self.input.servers, self.fail_over_nodes, self.graceful_fail_over)
+        self.assertTrue(fail_over_task.get_result(), msg="Fail over of nodes failed")
+
+        self.log.info("Rebalance remaining nodes")
+        self.rebalance()
+
+        for task in tasks:
+            self.log.info(task.get_result())
+
+        self.log.info("Validate dataset count")
+        self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items + self.num_items/4)
+
+    def tearDown(self):
+        super(MultiNodeFailOver, self).tearDown()
