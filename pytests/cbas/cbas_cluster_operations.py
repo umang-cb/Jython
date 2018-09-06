@@ -3,9 +3,7 @@ import datetime
 
 from cbas_base import *
 from couchbase_helper.tuq_generators import JsonGenerator
-from lib.memcached.helper.data_helper import MemcachedClientHelper
 from lib.remote.remote_util import RemoteMachineShellConnection
-from bucket_utils.bucket_ready_functions import bucket_utils
 from sdk_client import SDKClient
 
 class CBASClusterOperations(CBASBaseTest):
@@ -714,30 +712,28 @@ class MultiNodeFailOver(CBASBaseTest):
         super(MultiNodeFailOver, self).setUp()
 
         self.log.info("Read the input params")
-        self.graceful_fail_over = self.input.param("graceful_fail_over", False)
-        self.nc_nc_fail_over = self.input.param("nc_nc", True)
+        self.nc_nc_fail_over = self.input.param("nc_nc_fail_over", True)
         self.create_secondary_indexes = self.input.param("create_secondary_indexes", False)
+        # In this fail over we fail first 3 added cbas nodes[CC + first NC + Second NC]
+        self.meta_data_node_failure = self.input.param("meta_data_node_failure", False)
 
-        self.log.info("Add nodes to cluster")
-        self.analytics_NC_servers = []
-
-        self.log.info("Add CBAS nodes")
-        self.add_node(self.servers[1], services=["cbas"], rebalance=False)
-        self.analytics_NC_servers.append(self.servers[1])
-
-        self.add_node(self.cbas_servers[0], services=["cbas"], rebalance=True)
-        self.analytics_NC_servers.append(self.cbas_servers[0])
+        self.log.info("Add CBAS nodes to cluster")
+        self.assertIsNotNone(self.add_node(self.cbas_servers[0], services=["cbas"], rebalance=False), msg="Add node failed")
+        self.assertIsNotNone(self.add_node(self.cbas_servers[1], services=["cbas"], rebalance=True), msg="Add node failed")
+        # This node won't be failed over
+        if self.meta_data_node_failure:
+            self.assertIsNotNone(self.add_node(self.cbas_servers[2], services=["cbas"], rebalance=True), msg="Add node failed")
 
         self.log.info("Create connection")
         self.cbas_util.createConn(self.cb_bucket_name)
 
-        self.log.info("Load documents in KV")
+        self.log.info("Load documents in kv bucket")
         self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items)
 
         self.log.info("Create dataset")
         self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name, self.cbas_dataset_name)
 
-        self.log.info("Create index")
+        self.log.info("Create secondary index")
         if self.create_secondary_indexes:
             self.index_fields = "profession:string,number:bigint"
             create_idx_statement = "create index {0} on {1}({2});".format(self.index_name, self.cbas_dataset_name, self.index_fields)
@@ -745,45 +741,49 @@ class MultiNodeFailOver(CBASBaseTest):
             self.assertTrue(status == "success", "Create Index query failed")
             self.assertTrue(self.cbas_util.verify_index_created(self.index_name, self.index_fields.split(","), self.cbas_dataset_name)[0])
 
-        self.log.info("Connect to Local link")
+        self.log.info("Connect Local link")
         self.cbas_util.connect_link()
 
         self.log.info("Validate dataset count")
         self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items)
 
-        self.log.info("Pick fail over nodes")
+        self.log.info("Pick nodes to fail over")
         self.fail_over_nodes = []
         if self.nc_nc_fail_over:
-            self.fail_over_nodes.append(self.analytics_NC_servers[0])
-            self.fail_over_nodes.append(self.analytics_NC_servers[1])
+            self.log.info("This is NC+NC fail over")
+            self.fail_over_nodes.append(self.cbas_servers[0])
+            self.fail_over_nodes.append(self.cbas_servers[1])
             self.neglect_failures = False
         else:
-            self.fail_over_nodes.append(self.analytics_NC_servers[0])
+            self.log.info("This is NC+CC fail over")
+            self.fail_over_nodes.append(self.cbas_servers[0])
             self.fail_over_nodes.append(self.cbas_node)
-
             self.cbas_util.closeConn()
-            self.cbas_util = cbas_utils(self.master, self.analytics_NC_servers[1])
+            self.cbas_util = cbas_utils(self.master, self.cbas_servers[1])
+            
+            if self.meta_data_node_failure:
+                self.fail_over_nodes.append(self.cbas_servers[1])
+                self.cbas_util = cbas_utils(self.master, self.cbas_servers[2])
+            
             self.cbas_util.createConn(self.cb_bucket_name)
             self.neglect_failures = True
 
     def test_cbas_multi_node_fail_over(self):
-
+        
         self.log.info("fail-over the node")
-        fail_over_task = self._cb_cluster.async_failover(self.input.servers, self.fail_over_nodes, self.graceful_fail_over)
+        fail_over_task = self._cb_cluster.async_failover(self.input.servers, self.fail_over_nodes)
         self.assertTrue(fail_over_task.get_result(), msg="Fail over of nodes failed")
 
         self.log.info("Rebalance remaining nodes")
         self.rebalance()
-
+        
         self.log.info("Validate dataset count")
-        self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items)
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items), msg="Document count mismatch")
 
     def test_cbas_multi_node_fail_over_busy_system(self):
 
         self.log.info("Perform doc operation async")
-        json_generator = JsonGenerator()
-        generators = json_generator.generate_docs_simple(docs_per_day=self.num_items/4, start=0)
-        tasks = self._async_load_all_buckets(self.master, generators, "create", 0, batch_size=5000)
+        tasks = self.perform_doc_ops_in_all_cb_buckets(self.num_items/4, "create", start_key=self.num_items, end_key=self.num_items+(self.num_items/4), _async=True)
 
         self.log.info("Run concurrent queries to simulate busy system")
         statement = "select sleep(count(*),50000) from {0} where mutated=0;".format(self.cbas_dataset_name)
@@ -796,7 +796,7 @@ class MultiNodeFailOver(CBASBaseTest):
                 raise e
 
         self.log.info("fail-over the node")
-        fail_over_task = self._cb_cluster.async_failover(self.input.servers, self.fail_over_nodes, self.graceful_fail_over)
+        fail_over_task = self._cb_cluster.async_failover(self.input.servers, self.fail_over_nodes)
         self.assertTrue(fail_over_task.get_result(), msg="Fail over of nodes failed")
 
         self.log.info("Rebalance remaining nodes")
@@ -804,9 +804,9 @@ class MultiNodeFailOver(CBASBaseTest):
 
         for task in tasks:
             self.log.info(task.get_result())
-
+        
         self.log.info("Validate dataset count")
-        self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items + self.num_items/4)
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items + self.num_items/4), msg="Document count mismatch")      
 
     def tearDown(self):
         super(MultiNodeFailOver, self).tearDown()
