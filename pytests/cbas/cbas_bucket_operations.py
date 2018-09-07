@@ -506,6 +506,12 @@ class CBASEphemeralBucketOperations(CBASBaseTest):
     """
     def test_no_eviction_impact_on_cbas(self):
         
+        self.log.info("Create dataset")
+        self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name, self.cbas_dataset_name)
+
+        self.log.info("Connect to Local link")
+        self.cbas_util.connect_link()
+        
         self.log.info("Add documents until ram percentage")
         self.load_document_until_ram_percentage()
 
@@ -531,12 +537,6 @@ class CBASEphemeralBucketOperations(CBASBaseTest):
         memoryWhenOOM = stats.memUsed
         self.log.info('Item count when OOM {0} and memory used {1}'.format(itemCountWhenOOM, memoryWhenOOM))
 
-        self.log.info("Create dataset")
-        self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name, self.cbas_dataset_name)
-
-        self.log.info("Connect to Local link")
-        self.cbas_util.connect_link()
-
         self.log.info("Validate document count on CBAS")
         count_n1ql = self.rest.query_tool('select count(*) from %s' % (self.cb_bucket_name))['results'][0]['$1']
         self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, count_n1ql), msg="Count mismatch on CBAS")
@@ -546,6 +546,12 @@ class CBASEphemeralBucketOperations(CBASBaseTest):
     cb_bucket_name=default,cbas_dataset_name=ds,bucket_ram=100,document_ram_percentage=0.80
     """
     def test_nru_eviction_impact_on_cbas(self):
+        
+        self.log.info("Create dataset")
+        self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name, self.cbas_dataset_name)
+
+        self.log.info("Connect to Local link")
+        self.cbas_util.connect_link()
 
         self.log.info("Add documents until ram percentage")
         self.load_document_until_ram_percentage()
@@ -561,21 +567,14 @@ class CBASEphemeralBucketOperations(CBASBaseTest):
             client.get("test_docs-" + str(i))
             
         self.log.info("Add 20% more items to trigger NRU")
-        i = item_count
-
         for i in range(item_count, int(item_count * 1.2)):
             client.insert_document("key-id" + str(i), '{"name":"dave"}')
         
-        self.log.info("Sleeping for some time so documents eviction completes")
-        self.sleep(15)
-
-        self.log.info("Create dataset")
-        self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name, self.cbas_dataset_name)
-
-        self.log.info("Connect to Local link")
-        self.cbas_util.connect_link()
-
         self.log.info("Validate document count on CBAS")
         count_n1ql = self.rest.query_tool('select count(*) from %s' % (self.cb_bucket_name))['results'][0]['$1']
-        self.log.info(count_n1ql)
-        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, count_n1ql), msg="Count mismatch on CBAS")
+        if self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, count_n1ql):
+            pass
+        else:
+            self.log.info("Document count mismatch might be due to ejection of documents on KV. Retry again")
+            count_n1ql = self.rest.query_tool('select count(*) from %s' % (self.cb_bucket_name))['results'][0]['$1']
+            self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, count_n1ql), msg="Count mismatch on CBAS")
