@@ -3,6 +3,7 @@ import time
 from Rbac_utils.Rbac_ready_functions import rbac_utils
 from cbas.cbas_base import CBASBaseTest
 from remote.remote_util import RemoteMachineShellConnection
+from sdk_client import SDKClient
 
 
 class CBASErrorValidator(CBASBaseTest):
@@ -294,7 +295,7 @@ class CBASErrorValidator(CBASBaseTest):
         self.validate_error_response(status, errors, self.error_response["msg"], self.error_response["code"])
 
     """
-    test_error_response_no_statement,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=cbas,cbas_dataset_name=ds,error_id=no_statement
+    test_error_response_no_statement,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=cbas,cbas_dataset_name=ds,error_id=type_mismatch_for_object
     """
     def test_error_response_no_statement(self):
 
@@ -306,6 +307,23 @@ class CBASErrorValidator(CBASBaseTest):
 
         self.assertTrue(self.error_response["msg"] in str(output), msg="Error message mismatch")
         self.assertTrue(str(self.error_response["code"]) in str(output), msg="Error code mismatch")
+
+    """
+    test_error_response_type_mismatch_object,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=cbas,cbas_dataset_name=ds,error_id=type_mismatch_for_object
+    """
+    def test_error_response_type_mismatch_object(self):
+        self.log.info("Create a reference to SDK client")
+        client = SDKClient(hosts=[self.master.ip], bucket=self.cb_bucket_name, password=self.master.rest_password)
+
+        self.log.info("Insert documents in KV bucket")
+        documents = ['{"address":{"city":"NY"}}']
+        client.insert_json_documents("id-", documents)
+
+        self.log.info("Create dataset and connect link")
+        self.create_dataset_connect_link()
+
+        status, _, errors, _, _ = self.cbas_util.execute_statement_on_cbas_util(self.error_response["query"])
+        self.validate_error_response(status, errors, self.error_response["msg"], self.error_response["code"])
 
     def tearDown(self):
         super(CBASErrorValidator, self).tearDown()
@@ -441,6 +459,12 @@ class CBASError:
             "code": 23022,
             "query": "drop dataset ds",
             "run_in_loop": True
+        },
+        {
+            "id": "type_mismatch_for_object",
+            "msg": 'Type mismatch: expected value of type object, but got the value of type string',
+            "code": 23023,
+            "query": "select address.city.name from default where address.city=\"NY\""
         },
         {
             "id": "limit_non_integer",
