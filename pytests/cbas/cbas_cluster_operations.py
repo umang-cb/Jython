@@ -327,6 +327,7 @@ class CBASClusterOperations(CBASBaseTest):
                 
         self.log.info("Remove master node")
         self.remove_node(otpnode=otpnodes, wait_for_rebalance=wait_for_rebalance)
+        self.master = self.rebalanceServers[1]
         
         self.log.info("Create instances pointing to new master nodes")
         c_utils = cbas_utils(self.rebalanceServers[1], self.rebalanceServers[3])
