@@ -64,7 +64,7 @@ class CBASConcurrentQueryMgtTests(CBASBaseTest):
             self.cbas_dataset_name)
         default_query_statement = "select sleep(count(*),500) from {0} where mutated=0;".format(
             self.cbas_dataset_name)
-        join_query_statement = "select a.firstname, b.firstname from {0} a, {0} b where a.number=b.number;".format(
+        join_query_statement = "select a.firstname as fname, b.firstname as firstName from {0} a, {0} b where a.number=b.number;".format(
             self.cbas_dataset_name)
 
         if self.compiler_param == "compiler.groupmemory":

@@ -65,7 +65,7 @@ class CBASCompilationParamsTests(CBASBaseTest):
             self.cbas_dataset_name)
         default_query_statement = "select sleep(count(*),500) from {0} where mutated=0;".format(
             self.cbas_dataset_name)
-        join_query_statement = "select a.firstname, b.firstname from {0} a, {0} b where a.number=b.number;".format(
+        join_query_statement = "select a.firstname as fname, b.firstname as firstName from {0} a, {0} b where a.number=b.number;".format(
             self.cbas_dataset_name)
 
         if self.compiler_param == "compiler.groupmemory":
@@ -102,7 +102,7 @@ class CBASCompilationParamsTests(CBASBaseTest):
         group_order_query_statement = "select count(*), first_name Name from {0} GROUP BY first_name ORDER BY first_name;".format(
             self.cbas_dataset_name)
         compiler_param_statement = "SET `compiler.groupmemory` \"50MB\"; SET `compiler.sortmemory` \"64MB\"; SET `compiler.joinmemory` \"64MB\"; SET `compiler.parallelism` \"0\";"
-        join_query_statement = "select a.firstname, b.firstname from {0} a, {0} b where a.number=b.number;".format(
+        join_query_statement = "select a.firstname as fname, b.firstname as firstName from {0} a, {0} b where a.number=b.number;".format(
             self.cbas_dataset_name)
         self.statement = compiler_param_statement + group_order_query_statement
 
