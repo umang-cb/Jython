@@ -236,7 +236,7 @@ class cbas_utils():
     def create_dataset_on_bucket(self, cbas_bucket_name, cbas_dataset_name,
                                  where_field=None, where_value = None,
                                  validate_error_msg=False, username = None,
-                                 password = None, expected_error=None):
+                                 password = None, expected_error=None, dataverse=None):
         """
         Creates a shadow dataset on a CBAS bucket
         """
@@ -246,6 +246,11 @@ class cbas_utils():
         if where_field and where_value:
             cmd_create_dataset = "create dataset {0} on {1} WHERE `{2}`=\"{3}\";".format(
                 cbas_dataset_name, cbas_bucket_name, where_field, where_value)
+
+        if dataverse is not None:
+            dataverse_prefix = 'use ' + dataverse + ';\n'
+            cmd_create_dataset = dataverse_prefix + cmd_create_dataset
+
         status, metrics, errors, results, _ = self.execute_statement_on_cbas_util(
             cmd_create_dataset, username=username, password=password)
         if validate_error_msg:

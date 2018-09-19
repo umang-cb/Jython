@@ -627,6 +627,13 @@ class CBASError:
             "param": [{"args": ["United States"]}],
             "run_in_loop": True
         },
+        {
+            "id": "reuse_variable",
+            "code": 24057,
+            "msg": "Type mismatch: expected value of type multiset or array, but got the value of type object",
+            "query": "SELECT name FROM ds WHERE rating = (SELECT MAX(rating) FROM ds)",
+            "run_in_loop": True
+        },
         # Error codes starting with 25XXX
         {
             "id": "internal_error",

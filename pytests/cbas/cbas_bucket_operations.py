@@ -275,7 +275,7 @@ class CBASBucketOperations(CBASBaseTest):
     """
     def delete_kv_bucket_then_drop_dataset_without_disconnecting_link(self):
         
-        #setup test
+        # setup test
         self.setup_for_test()
 
         # Delete the KV bucket

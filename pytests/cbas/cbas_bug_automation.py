@@ -651,7 +651,132 @@ class CBASBugAutomation(CBASBaseTest):
         url = "http://{0}:{1}/analytics/service".format(self.cbas_node.ip, 8095)
         _, error = shell.execute_command("curl -v -X POST {0} -u {1}:{2} -d 'statement={3}'".format(url, "Administrator", "password", 'select "a"'))
         self.assertTrue("413 Request Entity Too Large" in str(error), msg="Request must be rejected")
+    
+    '''
+    test_query_running_into_overflow,default_bucket=False
+    https://issues.couchbase.com/browse/MB-29640
+    '''
+    def test_query_running_into_overflow(self):
 
+        self.log.info("Load beer-sample bucket")
+        couchbase_bucket_docs_count = 7303
+        couchbase_bucket_name = 'beer-sample'
+        result = self.load_sample_buckets(servers=list([self.master]), bucketName=couchbase_bucket_name, total_items=couchbase_bucket_docs_count)
+        self.assertTrue(result, "Failed to load sample bucket")
+
+        self.log.info("Create connection")
+        self.cbas_util.createConn(couchbase_bucket_name)
+        
+        self.log.info("Create dataset beers")
+        self.cbas_util.create_dataset_on_bucket(couchbase_bucket_name, "beers", where_field="type", where_value="beer")
+        
+        self.log.info("Create dataset breweries")
+        self.cbas_util.create_dataset_on_bucket(couchbase_bucket_name, "breweries", where_field="type", where_value="brewery")
+        
+        self.log.info("Connect link Local")
+        self.cbas_util.connect_link()
+        
+        self.log.info("Verify query doesn't result in stack overflow")
+        query = '''SELECT bw.name AS brewer, (
+                              SELECT br.name, br.abv 
+                              FROM beers br 
+                              WHERE br.brewery_id = meta(bw).id
+                              ) AS beers 
+                              FROM breweries bw 
+                              ORDER BY array_count(beers)
+                              LIMIT 2
+               '''
+        status, _, _, results, _ = self.cbas_util.execute_statement_on_cbas_util(query)
+        self.assertTrue(status, msg="Failed to execute query")
+
+    """
+    test_cluster_state_during_rebalance,default_bucket=True,cbas_dataset_name=ds,items=50000,cb_bucket_name=default
+    """
+    def test_cluster_state_during_rebalance(self):
+        
+        self.log.info("Create connection")
+        self.cbas_util.createConn(self.cb_bucket_name)
+
+        self.log.info("Load documents in KV")
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items)
+
+        self.log.info("Create dataset")
+        self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name, self.cbas_dataset_name)
+
+        self.log.info("Connect to Local link")
+        self.cbas_util.connect_link()
+
+        self.log.info("Validate document count on CBAS")
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items), msg="Count mismatch on CBAS")
+
+        self.log.info("Rebalance in a cbas node")
+        otp_node = self.add_node(self.cbas_servers[0], wait_for_rebalance_completion=False)
+
+        cluster_states, cluster_states_set = self.check_analytics_state_during_rebalance()
+
+        self.assertTrue(len(cluster_states_set) == 1, msg="Cluster state changed during rebalance in")
+        self.assertEqual(cluster_states[0], "ACTIVE", msg="Cluster state incorrect")
+
+        self.log.info("Rebalance out cbas node")
+        self.remove_node([otp_node], wait_for_rebalance=False)
+
+        cluster_states, cluster_states_set = self.check_analytics_state_during_rebalance()
+
+        self.assertTrue(len(cluster_states_set) == 1, msg="Cluster state changed during rebalance in")
+        self.assertEqual(cluster_states[0], "ACTIVE", msg="Cluster state incorrect")
+
+    def check_analytics_state_during_rebalance(self):
+        self.log.info("While rebalance is in progress capture cluster state")
+        cluster_states = list()
+        start_time = time.time()
+        status = None
+        while time.time() < start_time + 120:
+            status, content, _ = self.rest._rebalance_progress_status(all_node_rebalance_status=True)
+            self.assertTrue(status, msg="Failed to fetch rebalance status")
+            cluster_states.append(self.cbas_util.fetch_analytics_cluster_response()['state'])
+            self.log.info(content['status'])
+            if content['status'] == "none":
+                break
+        self.log.info(cluster_states)
+        cluster_states_set = set(cluster_states)
+        return cluster_states, cluster_states_set
+
+    """
+    test_drop_dataverse_deletes_its_associated_dataset,cb_bucket_name=default,cbas_dataset_name=ds,items=10000,dataverse=custom
+    """
+    def test_drop_dataverse_deletes_its_associated_dataset(self):
+
+        self.log.info("Create connection")
+        self.cbas_util.createConn(self.cb_bucket_name)
+
+        self.log.info("Load documents in KV")
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items)
+
+        self.log.info("Create dataverse custom")
+        dataverse = self.input.param("dataverse")
+        self.cbas_util.create_dataverse_on_cbas(dataverse_name=dataverse)
+
+        self.log.info("Create dataset")
+        self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name, self.cbas_dataset_name, dataverse=dataverse)
+        dataset = dataverse + "." + self.cbas_dataset_name
+
+        self.log.info("Connect to Local link on dataverse")
+        self.cbas_util.connect_link(link_name=dataverse + ".Local")
+
+        self.log.info("Validate document count on CBAS")
+        self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(dataset, self.num_items), msg="Count mismatch on CBAS")
+
+        self.log.info("Disconnect to Local link on dataverse")
+        self.cbas_util.disconnect_link(link_name=dataverse + ".Local")
+
+        self.log.info("Drop dataverse")
+        self.cbas_util.drop_dataverse_on_cbas(dataverse_name=dataverse)
+
+        self.log.info("Verify all dataset are deleted on dropping the dataverse")
+        dataset_count_query = 'select count(*) from Metadata.`Bucket`'
+        _, _, _, results, _ = self.cbas_util.execute_statement_on_cbas_util(dataset_count_query)
+        dataset_count = results[0]["$1"]
+        self.assertEqual(dataset_count, 0, msg="Dataset count mismatch. Number of dataset must be 0")   
 
     def tearDown(self):
         super(CBASBugAutomation, self).tearDown()
