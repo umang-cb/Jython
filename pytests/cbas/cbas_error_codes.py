@@ -295,7 +295,7 @@ class CBASErrorValidator(CBASBaseTest):
         self.validate_error_response(status, errors, self.error_response["msg"], self.error_response["code"])
 
     """
-    test_error_response_no_statement,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=cbas,cbas_dataset_name=ds,error_id=type_mismatch_for_object
+    test_error_response_no_statement,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=cbas,cbas_dataset_name=ds,error_id=no_statement
     """
     def test_error_response_no_statement(self):
 
@@ -577,6 +577,13 @@ class CBASError:
             "msg": "A dataset with name ds already exists in dataverse Default",
             "code": 24040,
             "query": "create dataset ds on default",
+            "run_in_loop": True
+        },
+        {
+            "id": "ambiguous_alias",
+            "msg": "Cannot resolve ambiguous alias reference for identifier IDENT",
+            "code": 24042,
+            "query": "select min(IDENT) from ds c, ds o where c.c_id = o.c_id",
             "run_in_loop": True
         },
         {

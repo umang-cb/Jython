@@ -1,3 +1,5 @@
+import time
+
 from cbas_base import *
 from couchbase_helper.stats_tools import StatsCommon
 from lib.memcached.helper.data_helper import MemcachedClientHelper
@@ -267,6 +269,32 @@ class CBASBucketOperations(CBASBaseTest):
                                                       0):
             self.fail(
                 "No. of items in CBAS dataset do not match that in the CB bucket")
+
+    """
+    cbas.cbas_bucket_operations.CBASBucketOperations.delete_kv_bucket_then_drop_dataset_without_disconnecting_link,cb_bucket_name=default,cbas_bucket_name=default_cbas,cbas_dataset_name=ds,items=10000
+    """
+    def delete_kv_bucket_then_drop_dataset_without_disconnecting_link(self):
+        
+        #setup test
+        self.setup_for_test()
+
+        # Delete the KV bucket
+        self.delete_bucket_or_assert(serverInfo=self.master)
+
+        # Check Bucket state
+        start_time = time.time()
+        while start_time + 120 > time.time():
+            status, content, _ = self.cbas_util.fetch_bucket_state_on_cbas()
+            self.assertTrue(status, msg="Fetch bucket state failed")
+            content = json.loads(content)
+            self.log.info(content)
+            if content['buckets'][0]['state'] == "disconnected":
+                break
+            self.sleep(1)
+            
+        # Drop dataset with out disconnecting the Link
+        self.sleep(2, message="Sleeping 2 seconds after bucket disconnect")
+        self.assertTrue(self.cbas_util.drop_dataset(self.cbas_dataset_name), msg="Failed to drop dataset")
 
     def compact_cb_bucket_with_cbas_connected(self):
         self.setup_for_test()

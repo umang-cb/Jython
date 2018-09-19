@@ -1,5 +1,6 @@
 import datetime
 import json
+import time
 
 from bucket_utils.bucket_ready_functions import bucket_utils
 from cbas.cbas_base import CBASBaseTest
@@ -591,6 +592,65 @@ class CBASBugAutomation(CBASBaseTest):
 
         self.log.info("Validate document count on CBAS")
         self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items), msg="Count mismatch on CBAS")
+
+    """
+    test_nc_node_reconnect_time_post_cc_kill,,default_bucket=False
+    """
+    def test_nc_node_reconnect_time_post_cc_kill(self):
+
+        """
+        Test to verify the fix for https://issues.couchbase.com/browse/MB-29277
+        """
+        self.log.info("Add CBAS nodes")
+        self.add_node(self.servers[1], services=["cbas"], rebalance=True)
+
+        self.log.info("Kill CBAS service on CC")
+        service_to_kill = self.input.param("service_to_kill", "cbas")
+        shell = RemoteMachineShellConnection(self.cbas_node)
+        shell.kill_process(service_to_kill, service_to_kill)
+        self.sleep(2, message="Wait for CBAS service to get kill")
+
+        self.log.info("Verify analytics service accepts request in less than 30 seconds after its killed")
+        start_time = time.time()
+        shell = RemoteMachineShellConnection(self.servers[1])
+        cluster_recovered = False
+        url = "http://{0}:{1}/analytics/service".format(self.servers[1].ip, 8095)
+        while time.time() < start_time + 20:
+            output, error = shell.execute_command("curl -X POST {0} -u {1}:{2} -d 'statement={3}'".format(url, "Administrator", "password", 'select "1"'))
+            if "errors" not in str(output):
+                cluster_recovered = True
+                end_time = time.time()
+                self.log.info("Time taken to recover %s" % (end_time - start_time))
+                break
+        self.assertTrue(cluster_recovered, "Cluster failed to recover despite waiting for 20 seconds.")
+
+    """
+    cbas.cbas_bug_automation.CBASBugAutomation.test_analytics_request_exceeding_max_request_size_is_rejected,default_bucket=False
+    """
+    def test_analytics_request_exceeding_max_request_size_is_rejected(self):
+        
+        self.log.info("Fetch maxWebRequestSize value")
+        status, content, _ = self.cbas_util.fetch_service_parameter_configuration_on_cbas()
+        self.assertTrue(status, msg="Failed to fetch configs")
+        max_web_request_size = json.loads((content.decode("utf-8")))['maxWebRequestSize']
+
+        self.log.info("Update storageMaxActiveWritableDatasets")
+        update_config_map = {"maxWebRequestSize": 1}
+        status, _, _ = self.cbas_util.update_service_parameter_configuration_on_cbas(update_config_map)
+        self.assertTrue(status, msg="Failed to update maxWebRequestSize")
+
+        self.log.info("Analytics node restart")
+        status, _, _ = self.cbas_util.restart_analytics_node_uri(self.cbas_node.ip)
+        self.assertTrue(status, msg="Failed to restart analytics node")
+
+        self.log.info("Wait for node to be active")
+        self.sleep(30, message="Wait for service to be up")
+
+        self.log.info("Verify request is rejected")
+        shell = RemoteMachineShellConnection(self.cbas_node)
+        url = "http://{0}:{1}/analytics/service".format(self.cbas_node.ip, 8095)
+        _, error = shell.execute_command("curl -v -X POST {0} -u {1}:{2} -d 'statement={3}'".format(url, "Administrator", "password", 'select "a"'))
+        self.assertTrue("413 Request Entity Too Large" in str(error), msg="Request must be rejected")
 
 
     def tearDown(self):
