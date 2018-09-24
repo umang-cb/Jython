@@ -453,7 +453,13 @@ class CBASRBACTests(CBASBaseTest):
                            "expected_status": 401},
                           {"role": "analytics_reader",
                            "expected_status": 401}],
-                "method": "POST"}
+                "method": "POST"},
+            {
+                "api_url": "http://{0}:9110/analytics/node/agg/stats/remaining".format(self.cbas_node.ip),
+                "roles": [
+                    {"role": "analytics_manager[*]", "expected_status": 200},
+                    {"role": "analytics_reader", "expected_status": 200}],
+            }
 
         ]
 

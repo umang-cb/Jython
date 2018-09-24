@@ -325,6 +325,23 @@ class CBASErrorValidator(CBASBaseTest):
         status, _, errors, _, _ = self.cbas_util.execute_statement_on_cbas_util(self.error_response["query"])
         self.validate_error_response(status, errors, self.error_response["msg"], self.error_response["code"])
 
+    """
+    test_error_response_for_kv_bucket_delete,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=cbas,cbas_dataset_name=ds,error_id=kv_bucket_does_not_exist
+    """
+    def test_error_response_for_kv_bucket_delete(self):
+
+        self.log.info("Create dataset and connect link")
+        self.create_dataset_connect_link()
+
+        self.log.info("Disconnect link")
+        self.cbas_util.disconnect_link()
+
+        self.log.info("Delete KV bucket")
+        self.delete_bucket_or_assert(serverInfo=self.master)
+
+        status, _, errors, _, _ = self.cbas_util.execute_statement_on_cbas_util(self.error_response["query"])
+        self.validate_error_response(status, errors, self.error_response["msg"], self.error_response["code"])
+
     def tearDown(self):
         super(CBASErrorValidator, self).tearDown()
 
@@ -386,6 +403,12 @@ class CBASError:
         {
             "id": "connect_link_failed",
             "msg": "Connect link failed",
+            "code": 22001,
+            "query": "connect link Local"
+        },
+        {
+            "id": "kv_bucket_does_not_exist",
+            "msg": 'Connect link failed {\"Default.Local.default\" : \"Bucket (default) does not exist\"}',
             "code": 22001,
             "query": "connect link Local"
         },
