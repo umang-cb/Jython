@@ -12,12 +12,14 @@ import random
 import struct
 import exceptions
 import zlib
+import logger
 
 from memcacheConstants import REQ_MAGIC_BYTE, RES_MAGIC_BYTE
 from memcacheConstants import REQ_PKT_FMT, RES_PKT_FMT, MIN_RECV_PACKET, REQ_PKT_SD_EXTRAS, SUBDOC_FLAGS_MKDIR_P
 from memcacheConstants import SET_PKT_FMT, DEL_PKT_FMT, INCRDECR_RES_FMT, INCRDECR_RES_WITH_UUID_AND_SEQNO_FMT, META_CMD_FMT
 from memcacheConstants import TOUCH_PKT_FMT, GAT_PKT_FMT, GETL_PKT_FMT
 import memcacheConstants
+log = logger.Logger.get_logger()
 
 class MemcachedError(exceptions.Exception):
     """Error raised when a command fails."""
@@ -48,17 +50,19 @@ class MemcachedClient(object):
         self.vbucket_count = 1024
 
     def _createConn(self):
-        if self.host.find('[') == -1 or self.host.find('.com') == -1:
-            # IPv4
-            self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-            return self.s.connect_ex((self.host, self.port))
-        else:
+        if self.host.startswith('[') or self.host.endswith('.com'):
             # IPv6
+            log.info("IPv6 Machines")
             self.host = self.host.replace('[', '').replace(']', '')
             self.s = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
             self.s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             return self.s.connect_ex((self.host, self.port, 0, 0))
+        else:
+            # IPv4
+            log.info("IPv4 Machines")
+            self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            return self.s.connect_ex((self.host, self.port))
 
     def reconnect(self):
         self.s.close()
