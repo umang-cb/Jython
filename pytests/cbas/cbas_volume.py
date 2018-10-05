@@ -351,10 +351,11 @@ class analytics(CBASBaseTest):
         self.rest.set_service_memoryQuota(service='indexMemoryQuota', memoryQuota=available_memory-1024)
 
         self.log.info("Create CB buckets")
-            
-        self.create_bucket(self.master, "GleambookUsers",bucket_ram=available_memory/3)
-        self.create_bucket(self.master, "GleambookMessages",bucket_ram=available_memory/3)
-        self.create_bucket(self.master, "ChirpMessages",bucket_ram=available_memory/3)
+        self.create_bucket(self.master, "ChirpMessages", bucket_ram=100)
+        available_memory -= 100
+        self.create_bucket(self.master, "GleambookUsers", bucket_ram=int(available_memory*2/3))
+        self.create_bucket(self.master, "GleambookMessages", bucket_ram=int(available_memory*1/3))
+        
 
         result = RestConnection(self.query_node).query_tool("CREATE PRIMARY INDEX idx_GleambookUsers ON GleambookUsers;")
         self.sleep(10, "wait for index creation.")
