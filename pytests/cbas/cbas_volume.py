@@ -1172,7 +1172,7 @@ class analytics(CBASBaseTest):
         ########################################################################################################################
         self.log.info("Step 57: Wait for rebalance to complete.")
         rebalance.get_result()
-        reached = RestHelper(self.rest).rebalance_reached(wait_step=120)
+        reached = RestHelper(self.rest).rebalance_reached(wait_step=240)
         self.assertTrue(reached, "rebalance failed, stuck or did not complete")
         self.sleep(20)
          
