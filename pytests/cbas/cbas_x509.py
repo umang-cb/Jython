@@ -162,7 +162,7 @@ class x509tests(BaseTestCase):
         cbas_node = self.get_nodes_from_services_map(service_type='cbas')
         
         output = x509main()._execute_command_clientcert(cbas_node.ip,url='/analytics/service',port=18095,headers=' --data pretty=true --data-urlencode '+query,client_cert=True,curl=True,verb='POST')
-        self.assertEqual(json.loads(output)['errors']['msg'],"Unauthorized user.","Incorrect user logged in successfully.")
+        self.assertEqual(json.loads(output)['errors'][0]['msg'],"Unauthorized user.","Incorrect user logged in successfully.")
         
     #Common test case for testing services and other parameter
     def test_add_node_with_cert_diff_services(self):

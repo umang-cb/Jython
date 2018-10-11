@@ -353,8 +353,8 @@ class analytics(CBASBaseTest):
         self.log.info("Create CB buckets")
         self.create_bucket(self.master, "ChirpMessages", bucket_ram=100)
         available_memory -= 100
-        self.create_bucket(self.master, "GleambookUsers", bucket_ram=int(available_memory*2/3))
-        self.create_bucket(self.master, "GleambookMessages", bucket_ram=int(available_memory*1/3))
+        self.create_bucket(self.master, "GleambookUsers", bucket_ram=int(available_memory*1/3))
+        self.create_bucket(self.master, "GleambookMessages", bucket_ram=int(available_memory*2/3))
         
 
         result = RestConnection(self.query_node).query_tool("CREATE PRIMARY INDEX idx_GleambookUsers ON GleambookUsers;")

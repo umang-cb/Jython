@@ -671,6 +671,9 @@ class CBASServiceOperations(CBASBaseTest):
         for restart_node in self.restart_servers:
             NodeHelper.reboot_server_new(restart_node, self)
         self.sleep(15, message="Wait for service to be up and accept request")
+        
+        self.log.info("Check if all analytics nodes are up and running")
+        self.assertTrue(self.cbas_util.wait_for_cbas_to_recover(), msg="Analytics service failed to recover")
             
         self.log.info("Add more documents in the default bucket")
         self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", self.num_items, self.num_items * 2, exp=0,
