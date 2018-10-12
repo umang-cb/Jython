@@ -423,4 +423,42 @@ class cluster_utils():
         if wait_for_rebalance:
             removed
 #             self.assertTrue(removed, "Rebalance operation failed while removing %s,"%otpnode)
+    
+    def perform_cb_collect(self, nodes=[], uploadHost=None, customer=None, upload_to_s3=False):
+
+        params = dict()
+        if not nodes:
+            for node in self.get_nodes_in_cluster():
+                nodes.append('ns_1@' + node.ip)
+        params['nodes'] = ",".join(nodes)
         
+        if upload_to_s3 is True:
+            
+            if not uploadHost:
+                params['uploadHost'] = 's3.amazonaws.com/bugdb/jira/' + self._testMethodName
+            else:
+                params['uploadHost'] = uploadHost
+            
+            if not customer:
+                params['customer'] = self._testMethodName
+            else:
+                params['customer'] = customer
+
+        rest = RestConnection(self.master)
+        status, _, _ = rest.perform_cb_collect(params)
+        
+        if status is True and upload_to_s3 is True:
+            cb_collect_response = {}
+            while True:
+                content = rest.active_tasks()
+                for response in content:
+                    if response['type'] == 'clusterLogsCollection':
+                        cb_collect_response =  response
+                        break
+                if cb_collect_response['status'] == 'completed':
+                    break
+
+            self.log.info('CB collect log URL')
+            for node in nodes:
+                self.log.info('%s : %s' %(node, cb_collect_response['perNode'][node]['url']))
+        return status
