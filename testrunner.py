@@ -7,8 +7,11 @@ import os
 import urllib2
 import sys
 import threading
-from os.path import basename, splitext
+import time
+from os.path import basename, splitext, dirname
 from pprint import pprint
+from lib.membase.api.rest_client import RestConnection
+from lib.remote.remote_util import RemoteMachineShellConnection
 sys.path = ["lib", "pytests", "pysystests", "utils", "connections"] + sys.path
 
 if sys.hexversion < 0x02060000:
@@ -275,6 +278,50 @@ def get_core_dumps(_input, path):
     return ret
 
 
+def perform_cb_collect(_input, log_path=None):
+    import logger
+    log = logger.Logger.get_logger()
+    for node in _input.servers:
+        params = dict()
+        if len(_input.servers) != 1:
+            params['nodes'] = 'ns_1@' + node.ip
+        else:
+            # In case of single node we have to pass ip as below
+            params['nodes'] = 'ns_1@' + '127.0.0.1'
+
+        log.info('Collecting log on node ' + node.ip)
+        rest = RestConnection(node)
+        status, _, _ = rest.perform_cb_collect(params)
+        time.sleep(10)  # This is needed as it takes a few seconds before the collection start
+        log.info('CB collect status on %s is %s' % (node.ip, status))
+
+        log.info('Polling active task endpoint to check CB collect status')
+        if status is True:
+            cb_collect_response = {}
+            while True:
+                content = rest.active_tasks()
+                for response in content:
+                    if response['type'] == 'clusterLogsCollection':
+                        cb_collect_response = response
+                        break
+                if cb_collect_response['status'] == 'completed':
+                    log.info(cb_collect_response)
+                    break
+                else:
+                    time.sleep(10)  # CB collect in progress, wait for 10 seconds and check progress again
+
+            log.info('Copy CB collect ZIP file to Client')
+            remote_client = RemoteMachineShellConnection(node)
+            cb_collect_path = cb_collect_response['perNode'][params['nodes']]['path']
+            zip_file_copied = remote_client.get_file(os.path.dirname(cb_collect_path), os.path.basename(cb_collect_path),
+                                                     log_path)
+            log.info('%s node cb collect zip coped on client : %s' % (node.ip, zip_file_copied))
+
+            if zip_file_copied:
+                remote_client.execute_command("rm -f %s" % cb_collect_path)
+                remote_client.disconnect()
+
+
 class StoppableThreadWithResult(Thread):
     """Thread class with a stop() method. The thread itself has to check
     regularly for the stopped() condition."""
@@ -468,7 +515,8 @@ def main():
 
             if "get-cbcollect-info" in TestInputSingleton.input.test_params:
                 if TestInputSingleton.input.param("get-cbcollect-info", True):
-                    get_cbcollect_info(TestInputSingleton.input, logs_folder)
+                    # get_cbcollect_info(TestInputSingleton.input, logs_folder)
+                    perform_cb_collect(TestInputSingleton.input, log_path=logs_folder)
 
             if "get-couch-dbinfo" in TestInputSingleton.input.test_params and \
                 TestInputSingleton.input.param("get-couch-dbinfo", True):
