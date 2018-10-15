@@ -3465,7 +3465,7 @@ class RestConnection(object):
     def perform_cb_collect(self, params):
         log.info ("Starting CB Collect")
         headers = self._create_headers()
-        api = self.baseUrl + "/controller/startLogsCollection"
+        api = self.baseUrl + "controller/startLogsCollection"
         status, content, response = self._http_request(api, 'POST', urllib.urlencode(params), headers)
         return status, content, response
 
