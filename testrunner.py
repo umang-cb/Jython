@@ -6,13 +6,14 @@ from httplib import BadStatusLine
 import os
 import urllib2
 import sys
+sys.path = ["lib", "pytests", "pysystests", "utils", "connections"] + sys.path
 import threading
 import time
 from os.path import basename, splitext, dirname
 from pprint import pprint
 from lib.membase.api.rest_client import RestConnection
 from lib.remote.remote_util import RemoteMachineShellConnection
-sys.path = ["lib", "pytests", "pysystests", "utils", "connections"] + sys.path
+
 
 if sys.hexversion < 0x02060000:
     print "Testrunner requires version 2.6+ of python"
