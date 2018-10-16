@@ -490,8 +490,9 @@ class CBASClusterOperations(CBASBaseTest):
         
         self.log.info("Log concurrent query status")
         self.cbas_util.log_concurrent_query_outcome(self.master, handles)
-    
-        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items, 0):
+        
+        count_n1ql = self.rest.query_tool('select count(*) from %s' % (self.cb_bucket_name))['results'][0]['$1']
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, count_n1ql, 0):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
 
     '''
