@@ -3469,7 +3469,16 @@ class RestConnection(object):
         status, content, response = self._http_request(api, 'POST', urllib.urlencode(params), headers)
         return status, content, response
 
-
+    '''
+    Update IP version on server.
+    afamily: The value must be one of the following: [ipv4,ipv6] 
+    '''
+    def set_ip_version(self, afamily='ipv4'):
+        params = urllib.urlencode({'afamily': afamily})
+        api = "%snode/controller/setupNetConfig" % (self.baseUrl)
+        status, content, header = self._http_request(api, 'POST', params)
+        return status, content
+    
 class MembaseServerVersion:
     def __init__(self, implementationVersion='', componentsVersion=''):
         self.implementationVersion = implementationVersion
