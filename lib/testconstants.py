@@ -182,6 +182,7 @@ LINUX_STATIC_CONFIG = '/opt/couchbase/etc/couchbase/static_config'
 LINUX_LOG_PATH = '/opt'
 LINUX_CAPI_INI = '/opt/couchbase/etc/couchdb/default.d/capi.ini'
 LINUX_CONFIG_FILE = '/opt/couchbase/var/lib/couchbase/config/config.dat'
+LINUX_DIST_CONFIG='/opt/couchbase/var/lib/couchbase/config/dist_cfg'
 LINUX_MOXI_PATH = '/opt/moxi/bin/'
 LINUX_CW_LOG_PATH = "/opt/couchbase/var/lib/couchbase/tmp/"
 LINUX_DISTRIBUTION_NAME = ["ubuntu", "centos", "red hat", "opensuse", "suse", "oracle linux"]
