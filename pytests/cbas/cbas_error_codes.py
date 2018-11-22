@@ -453,8 +453,7 @@ class CBASError:
             "id": "dataset_create_link_connected",
             "msg": "Dataset cannot be created on default while link Local is connected",
             "code": 23006,
-            "query": "create dataset ds1 on default",
-            "run_in_loop": True
+            "query": "create dataset ds1 on default"
         },
         {
             "id": "job_requirement",
@@ -480,8 +479,7 @@ class CBASError:
             "id": "dataset_drop_link_connected",
             "msg": 'Dataset cannot be dropped while link Local is connected',
             "code": 23022,
-            "query": "drop dataset ds",
-            "run_in_loop": True
+            "query": "drop dataset ds"
         },
         {
             "id": "type_mismatch_for_object",

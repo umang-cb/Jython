@@ -628,6 +628,11 @@ class CBASClusterOperations(CBASBaseTest):
         self.log.info("Verify subsequent rebalance is successful")
         nodes_to_add = [] # Node is already added to cluster in previous rebalance, adding it again will throw exception
         self.assertTrue(self.cluster.rebalance(self.servers, nodes_to_add, nodes_to_remove))
+        
+        if reinitialize_cbas_util is True:
+            self.cbas_util = cbas_utils(self.master, self.rebalanceServers[1])
+            self.cbas_util.createConn("default")
+            self.cbas_util.wait_for_cbas_to_recover()
 
         self.log.info("Get KV ops result")
         for task in kv_task:
@@ -636,10 +641,6 @@ class CBASClusterOperations(CBASBaseTest):
         self.log.info("Log concurrent query status")
         self.cbas_util.log_concurrent_query_outcome(self.master, handles)
         
-        if reinitialize_cbas_util is True:
-            self.cbas_util = cbas_utils(self.master, self.rebalanceServers[1])
-            self.cbas_util.createConn("default")
-                
         self.log.info("Validate dataset count on CBAS")
         if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items * 3 / 2, 0):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")

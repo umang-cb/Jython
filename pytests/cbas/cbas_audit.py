@@ -67,7 +67,7 @@ class CBASAuditLogs(CBASBaseTest):
         self.log.info("Create a configuration map that will be passed as JSON body for service configuration")
         update_configuration_map = {}
         for key in CBASAuditLogs.actual_service_parameter_dict:
-            if isinstance(CBASAuditLogs.actual_service_parameter_dict[key], (int, long)):
+            if isinstance(CBASAuditLogs.actual_service_parameter_dict[key], (int, long)) and CBASAuditLogs.actual_service_parameter_dict[key] != 1:
                 update_configuration_map[key] = CBASAuditLogs.actual_service_parameter_dict[key] - 1
 
         self.log.info("Update service configuration")
