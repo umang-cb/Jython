@@ -193,6 +193,7 @@ LINUX_GOPATH = '/root/tuq/gocode'
 WINDOWS_GOPATH = '/cygdrive/c/tuq/gocode'
 LINUX_GOROOT = '/root/tuq/go'
 WINDOWS_GOROOT = '/cygdrive/c/Go'
+
 LINUX_STATIC_CONFIG = '/opt/couchbase/etc/couchbase/static_config'
 LINUX_LOG_PATH = '/opt'
 LINUX_CAPI_INI = '/opt/couchbase/etc/couchdb/default.d/capi.ini'
@@ -263,3 +264,14 @@ THROUGHPUT_CONCURRENCY = 4
 # determine wether or not to use high throughput
 ALLOW_HTP = True
 IS_CONTAINER = False
+
+WIN_JDK_PATH = 'c:\\jdks\\'
+WIN_JAVA_RUNTIME_DEFAULT_PATH = {'java_home': r'c:\Program Files\Couchbase\Server\lib\cbas\runtime', 'java_runtime_name': 'Java(TM) SE Runtime Environment', 'java_runtime_version': '1.8.'}
+LINUX_JDK_PATH = "/usr/jdks/"
+LINUX_JAVA_RUNTIME_DEFAULT_PATH = {'java_home': '/opt/couchbase/lib/cbas/runtime', 'java_runtime_name': 'Java(TM) SE Runtime Environment', 'java_runtime_version': '1.8.'}
+JAVA_RUN_TIMES = {
+    'jre8':      {'java_home': 'jre8', 'java_runtime_name': 'Java(TM) SE Runtime Environment', 'java_runtime_version': '1.8.'},
+    'jdk11':     {'java_home': 'jdk11', 'java_runtime_name': 'Java(TM) SE Runtime Environment', 'java_runtime_version': '11.0.'},
+    'openjdk11': {'java_home': 'openjdk11', 'java_runtime_name': 'OpenJDK Runtime Environment', 'java_runtime_version': '11.0.'},
+    'openjdk8':  {'java_home': 'openjdk8', 'java_runtime_name': 'OpenJDK Runtime Environment', 'java_runtime_version': '1.8.'}
+}

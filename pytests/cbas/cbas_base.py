@@ -6,11 +6,12 @@ from lib.couchbase_helper.analytics_helper import AnalyticsHelper
 from couchbase_helper.documentgenerator import DocumentGenerator
 from lib.membase.api.rest_client import RestConnection, RestHelper, Bucket
 from lib.couchbase_helper.cluster import *
-from testconstants import FTS_QUOTA, CBAS_QUOTA, INDEX_QUOTA, MIN_KV_QUOTA
+from testconstants import FTS_QUOTA, CBAS_QUOTA, INDEX_QUOTA, MIN_KV_QUOTA, JAVA_RUN_TIMES
 
 from cbas_utils import cbas_utils
 import logger
 from cluster_utils.cluster_ready_functions import cluster_utils
+
 
 class CBASBaseTest(BaseTestCase):
     
@@ -110,6 +111,31 @@ class CBASBaseTest(BaseTestCase):
         
         self.log.info("==============  CBAS_BASE setup was finished for test #{0} {1} ==============" \
                           .format(self.case_number, self._testMethodName))
+        
+        
+        self.log.info("************************* Validate Java runtime *************************")
+        analytics_node = []
+        analytics_node.extend(self.cbas_servers)
+        analytics_node.append(self.cbas_node)
+        for server in analytics_node:
+            self.log.info('Validating java runtime info for :' + server.ip)
+            util = cbas_utils(self.master, server)
+            diag_res = util.get_analytics_diagnostics(self.cbas_node)
+            java_home = diag_res['runtime']['systemProperties']['java.home']
+            self.log.info('Java Home : ' + java_home)
+            
+            java_runtime_name = diag_res['runtime']['systemProperties']['java.runtime.name']
+            self.log.info('Java runtime : ' + java_runtime_name)
+            
+            java_runtime_version = diag_res['runtime']['systemProperties']['java.runtime.version']
+            self.log.info('Java runtime version: ' + java_runtime_version)
+            
+            jre_info = JAVA_RUN_TIMES[self.jre_path]
+            self.assertTrue(jre_info['java_home'] in java_home, msg='Incorrect java home value')
+            self.assertEqual(java_runtime_name, jre_info['java_runtime_name'], msg='Incorrect java runtime name')
+            self.assertTrue(java_runtime_version.startswith(jre_info['java_runtime_version']), msg='Incorrect java runtime version')
+            util.closeConn()
+        
         
     def tearDown(self):
         self.cbas_util.closeConn()
