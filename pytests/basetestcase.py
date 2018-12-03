@@ -521,7 +521,7 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
         elif info == 'windows':
             testconstants.JAVA_RUN_TIMES[None] = testconstants.WIN_JAVA_RUNTIME_DEFAULT_PATH
 
-        if self.jre_path and info == 'linux':
+        if self.jre_path:
             path_to_jre = ""
             if info == 'linux':
                 path_to_jre = testconstants.LINUX_JDK_PATH + self.jre_path
