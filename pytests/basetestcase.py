@@ -167,7 +167,11 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
             self.standard_bucket_priority = self.input.param("standard_bucket_priority", None)
 
             #jre-path for cbas
-            self.jre_path=self.input.param("jre_path",None)
+            self.jre_path = self.input.param("jre_path", None)
+            # Below handles cases where jre_path is passed as String None or jre_path has no value specified
+            if self.jre_path == '' or self.jre_path == 'None':
+                self.jre_path = None
+                
             # end of bucket parameters spot (this is ongoing)
 
             if self.skip_setup_cleanup:
