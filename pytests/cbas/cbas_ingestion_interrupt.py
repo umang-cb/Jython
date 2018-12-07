@@ -151,7 +151,8 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         query = "select count(*) from {0};".format(self.cbas_dataset_name)
         self.cbas_util._run_concurrent_queries(query,"immediate",100)
         
-        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,self.num_items*3):
+        count_n1ql = self.rest.query_tool('select count(*) from `%s`' % (self.cb_bucket_name))['results'][0]['$1']
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, count_n1ql):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
 
     def test_kill_analytics_service(self):
@@ -230,7 +231,8 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         query = "select count(*) from {0};".format(self.cbas_dataset_name)
         self.cbas_util._run_concurrent_queries(query,"immediate",100)
         
-        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,self.num_items*3):
+        count_n1ql = self.rest.query_tool('select count(*) from `%s`' % (self.cb_bucket_name))['results'][0]['$1']
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, count_n1ql):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
 
     def test_stop_start_service_ingest_data(self):
@@ -311,7 +313,8 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         query = "select count(*) from {0};".format(self.cbas_dataset_name)
         self.cbas_util._run_concurrent_queries(query,"immediate",100)
         
-        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,self.num_items*3):
+        count_n1ql = self.rest.query_tool('select count(*) from `%s`' % (self.cb_bucket_name))['results'][0]['$1']
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, count_n1ql):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
         
     def test_disk_full_ingest_data(self):
@@ -400,7 +403,8 @@ class IngestionInterrupt_CBAS(CBASBaseTest):
         query = "select count(*) from {0};".format(self.cbas_dataset_name)
         self.cbas_util._run_concurrent_queries(query,"immediate",100)
         
-        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name,self.num_items*3):
+        count_n1ql = self.rest.query_tool('select count(*) from `%s`' % (self.cb_bucket_name))['results'][0]['$1']
+        if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, count_n1ql):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
 
     def test_stop_network_ingest_data(self):
