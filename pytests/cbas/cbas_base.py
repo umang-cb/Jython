@@ -179,5 +179,16 @@ class CBASBaseTest(BaseTestCase):
                     self.log.info("********* Dropped all buckets *********")
             else:
                 self.log.info("********* No buckets to drop *********")
+            
+            self.log.info("Drop Dataverse other than Default and Metadata")
+            cmd_get_dataverse = 'select DataverseName from Metadata.`Dataverse` where DataverseName != "Metadata" and DataverseName != "Default";'
+            status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(cmd_get_dataverse)
+            if (results != None) & (len(results) > 0):
+                for row in results:
+                    self.cbas_util.drop_dataverse_on_cbas(dataverse_name=row['DataverseName'])
+                    self.log.info("********* Dropped all dataverse except Default and Metadata *********")
+            else:
+                self.log.info("********* No dataverse to drop *********")
+                
         except Exception as e:
             self.log.info(e.message)

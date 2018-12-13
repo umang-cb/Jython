@@ -231,6 +231,8 @@ class CBASSecondaryIndexes(CBASBaseTest):
         self.assertTrue(
             self.cbas_util.verify_index_created(self.index_name + "2", index_fields2,
                                       self.cbas_dataset_name)[0])
+        statement = 'SELECT VALUE v FROM '+ self.cbas_dataset_name + ' v WHERE v.geo.lat > 1 AND v.abv > 2'
+        self.verify_index_used(statement, True, self.index_name)
 
     def test_create_index_non_empty_dataset(self):
         '''
@@ -797,3 +799,13 @@ class CBASSecondaryIndexes(CBASBaseTest):
         self.assertEquals(status, "success")
         self.assertEquals(errors, None)
         self.assertEquals(results, [{'$1': 107303}])
+    
+    def test_index_on_nested_fields_same_object(self):
+        index_fields = ["geo.lon:double", "geo.lat:double"]
+        create_idx_statement = "create index {0} IF NOT EXISTS on {1}({2});".format(self.index_name, self.cbas_dataset_name, ",".join(index_fields))
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(create_idx_statement)
+        self.assertTrue(status == "success", "Create Index query failed")
+
+        self.assertTrue(self.cbas_util.verify_index_created(self.index_name, index_fields, self.cbas_dataset_name)[0])
+        statement = 'SELECT VALUE v FROM '+ self.cbas_dataset_name + ' v WHERE v.geo.lon > 1 AND v.geo.lat > 2'
+        self.verify_index_used(statement, True, self.index_name)
