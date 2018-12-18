@@ -167,7 +167,11 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
             self.standard_bucket_priority = self.input.param("standard_bucket_priority", None)
 
             #jre-path for cbas
-            self.jre_path=self.input.param("jre_path",None)
+            self.jre_path = self.input.param("jre_path", None)
+            # Below handles cases where jre_path is passed as String None or jre_path has no value specified
+            if self.jre_path == '' or self.jre_path == 'None':
+                self.jre_path = None
+                
             # end of bucket parameters spot (this is ongoing)
 
             if self.skip_setup_cleanup:
@@ -512,10 +516,27 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
                 log.info("{0}: {1} MB".format(server.ip, ram))
                 remote_client.disconnect()
 
+        # Setting default JRE path if explicitly not provided
+        shell = RemoteMachineShellConnection(self.servers[0])
+        info = shell.extract_remote_info().type.lower()
+        shell.disconnect()
+        if info == 'linux':
+            testconstants.JAVA_RUN_TIMES[None] = testconstants.LINUX_JAVA_RUNTIME_DEFAULT_PATH
+        elif info == 'windows':
+            testconstants.JAVA_RUN_TIMES[None] = testconstants.WIN_JAVA_RUNTIME_DEFAULT_PATH
+
         if self.jre_path:
+            path_to_jre = ""
+            if info == 'linux':
+                path_to_jre = testconstants.LINUX_JDK_PATH + self.jre_path
+            elif info == 'windows':
+                path_to_jre = testconstants.WIN_JDK_PATH + self.jre_path
+            else:
+                raise Exception("OS not supported.")
             for server in servers:
                 rest = RestConnection(server)
-                rest.set_jre_path(self.jre_path)
+                rest.set_jre_path(path_to_jre)
+
         return quota
 
     def verify_cluster_stats(self, servers=None, master=None, max_verify=None,
