@@ -36,7 +36,10 @@ class CBASRBACTests(CBASBaseTest):
                   "roles": "data_reader[travel-sample]:analytics_reader"},
                  {"username": "ro_admin", "roles": "ro_admin"},
                  {"username": "cluster_admin", "roles": "cluster_admin"},
-                 {"username": "admin", "roles": "admin"}, ]
+                 {"username": "admin", "roles": "admin"},
+                 {"username": "analytics_reader", "roles": "analytics_reader"},
+                 {"username": "analytics_manager", "roles": "analytics_manager[*]"}  
+                ]
 
         operation_map = [
 #             {"operation": "create_bucket",
@@ -164,7 +167,32 @@ class CBASRBACTests(CBASBaseTest):
 #                                        "ro_admin",
                                        "cluster_admin", 
                                        "admin"
-                                       ]}]
+                                       ]},
+            {
+                "operation": "create_dataverse",
+                "should_work_for_users": [
+                                          "cluster_admin",
+                                          "admin"
+                                          ],
+                "should_not_work_for_users": [
+                                              "analytics_reader",
+                                              "analytics_manager",
+                                              "ro_admin"
+                                              ]
+            },
+            {
+                "operation": "drop_dataverse",
+                "should_work_for_users": [
+                                          "cluster_admin",
+                                          "admin"
+                                          ],
+                "should_not_work_for_users": [
+                                              "analytics_reader",
+                                              "analytics_manager",
+                                              "ro_admin"
+                                              ]
+            }
+            ]
 
         for user in users:
             self.log.info("Creating user %s", user["username"])
@@ -333,6 +361,17 @@ class CBASRBACTests(CBASBaseTest):
                     self.cbas_dataset_name)
                 status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(
                     query_statement, username=username)
+                self.cleanup_cbas()
+            
+            elif operation == "create_dataverse":
+                status = self.cbas_util.create_dataverse_on_cbas(dataverse_name="Custom", username=username)
+                self.cleanup_cbas()
+            
+            elif operation == "drop_dataverse":
+                self.cbas_util.create_dataverse_on_cbas(dataverse_name="Custom")
+                status = self.cbas_util.drop_dataverse_on_cbas(dataverse_name="Custom", username=username)
+                self.cleanup_cbas()
+                
         self.cbas_util.closeConn()
         return status
 
