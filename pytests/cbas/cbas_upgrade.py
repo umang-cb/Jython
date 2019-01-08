@@ -339,9 +339,19 @@ class CbasUpgrade(NewUpgradeBaseTest):
         self.cbas_util.wait_for_cbas_to_recover()
         self.cbas_util.disconnect_link()
         # TODO Replace the dataset name with query to fetch dataset from UI logs
-        self.cbas_util.drop_dataset(self.cbas_dataset_name + "0")
+        cbas_dataset_name = self.cbas_dataset_name + "0"
+        self.cbas_util.drop_dataset(cbas_dataset_name)
         self.remove_node(remove_nodes, wait_for_rebalance=True)
-        self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name, self.cbas_dataset_name + "0")
+
+        self.log.info("Re-create dataset")
+        self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name, cbas_dataset_name)
+
+        self.log.info("Re-create secondary index on default bucket")
+        self.index_field = self.input.param('index_field', 'profession:string')
+        create_idx_statement = "create index {0} if not exists on {1}({2})".format(self.index_name, cbas_dataset_name, self.index_field)
+        status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(create_idx_statement)
+        self.assertTrue(status == "success", "Create Index query failed")
+
         self.cbas_util.connect_link()
         self.cbas_util.wait_for_cbas_to_recover()
 
@@ -423,7 +433,7 @@ class CbasUpgrade(NewUpgradeBaseTest):
 
                 self.log.info("Post upgrade analytics validation")
                 self.dataset_count = len(cbas_nodes) - idx
-                self.post_upgrade_analytics_validation(dataset_count=self.dataset_count)
+                self.post_upgrade_analytics_validation()
 
         self.log.info("Upgrade KV node")
         for upgrade_version in self.upgrade_versions:
@@ -813,7 +823,7 @@ class CbasUpgrade(NewUpgradeBaseTest):
     def test_remove_and_rebalance_multiple_nodes_non_upgrade(self):
 
         self.log.info("Install pre-upgrade version of couchbase on all server nodes")
-        self._install(self.servers, version=self.upgrade_versions[len(self.upgrade_versions - 1)])
+        self._install(self.servers, version=self.upgrade_versions[len(self.upgrade_versions) - 1])
 
         self.log.info("Add all cbas nodes to cluster and then remove specified nodes 'rebalance_out_node_count' upgrade and add back")
         rebalance_out_node_count = self.input.param('rebalance_out_node_count', 2)
