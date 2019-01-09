@@ -241,13 +241,6 @@ class CbasUpgrade(NewUpgradeBaseTest):
         for replica in replicas:
             self.assertEqual(replica['status'], "IN_SYNC", "Replica state is incorrect: %s" % replica['status'])
 
-        self.log.info("Fetch number of partitions before upgrade")
-        response = self.cbas_util.fetch_analytics_cluster_response(RemoteMachineShellConnection(self.master))
-        self.partitions_before_upgrade = 0
-        if 'partitions' in response:
-            self.partitions_before_upgrade = len(response['partitions'])
-        self.log.info("Number of data partitions on cluster %d" % self.partitions_before_upgrade)
-
     def post_upgrade_analytics_validation(self):
 
         self.log.info("Verify count before adding more documents")
@@ -288,26 +281,17 @@ class CbasUpgrade(NewUpgradeBaseTest):
             self.log.info("Verify secondary index is used in queries")
             statement = 'select value v from ' + self.cbas_dataset_name + str(x) + ' v where v.profession = "doctor"'
             self.verify_index_used(statement, True, self.index_name)
-        
+
         self.log.info("Fetch and validate replica information post upgrade")
         replicas = self.cbas_util.get_replicas_info(RemoteMachineShellConnection(self.master))
         self.replicas_after_rebalance = len(replicas)
-        
+
         self.log.info("Validate replica count after upgrade")
         self.assertEqual(self.replicas_before_rebalance, self.replicas_after_rebalance, msg="Replica's before {0} Replica's after {1}. Replica's mismatch".format(
                              self.replicas_before_rebalance, self.replicas_after_rebalance))
 
         for replica in replicas:
             self.assertEqual(replica['status'], "IN_SYNC", "Replica state is incorrect: %s" % replica['status'])
-
-        self.log.info("Fetch number of partitions after upgrade and compare")
-        response = self.cbas_util.fetch_analytics_cluster_response(RemoteMachineShellConnection(self.master))
-        self.partitions_after_upgrade = 0
-        if 'partitions' in response:
-            self.partitions_after_upgrade = len(response['partitions'])
-        self.log.info("Number of data partitions on cluster %d" % self.partitions_after_upgrade)
-        self.assertEqual(self.partitions_before_upgrade, self.partitions_after_upgrade, msg="partitions before {0}, after {1}. Partition's mismatch".format(
-                             self.partitions_before_upgrade, self.partitions_after_upgrade))
 
     def update_jre_on_node(self, node):
 
@@ -385,7 +369,7 @@ class CbasUpgrade(NewUpgradeBaseTest):
         self.log.info("Wait for analytics service to be ready")
         analytics_recovered = self.cbas_util.wait_for_cbas_to_recover()
         self.assertTrue(analytics_recovered, msg="Analytics failed to recover")
-        
+
         self.log.info("Post upgrade analytics validation")
         self.post_upgrade_analytics_validation()
 
@@ -423,7 +407,7 @@ class CbasUpgrade(NewUpgradeBaseTest):
                 self.cbas_util.closeConn()
                 self.cbas_util = cbas_utils(self.master, extra_node)
                 self.cbas_util.createConn(self.cb_bucket_name)
-                
+
                 self.log.info("Wait for analytics service to be ready")
                 analytics_recovered = self.cbas_util.wait_for_cbas_to_recover()
                 self.assertTrue(analytics_recovered, msg="Analytics failed to recover")
@@ -440,7 +424,7 @@ class CbasUpgrade(NewUpgradeBaseTest):
             self.log.info("Install {0} version of Couchbase on node {1}".format(upgrade_version, extra_node.ip))
             self._install(servers=[extra_node], version=upgrade_version)
             self.sleep(self.sleep_time, "Installation of new version {0} is done".format(upgrade_version))
-            
+
             self.log.info("Swap rebalance master KV node and wait for rebalance to complete")
             self.cluster.async_rebalance(self.servers, [extra_node], [self.master], services=["kv,index,n1ql,fts"], check_vbucket_shuffling=False)
             self.sleep(message="Wait for rebalance to start")
@@ -487,7 +471,7 @@ class CbasUpgrade(NewUpgradeBaseTest):
 
             self.log.info("Swap rebalance multiple nodes")
             self.remove_node(otp_nodes, wait_for_rebalance=True)
-    
+
             self.log.info("Re-initialise cbas utils")
             self.cbas_util.closeConn()
             self.cbas_util = cbas_utils(self.master, cbas_upgrade_nodes[0])
@@ -504,7 +488,7 @@ class CbasUpgrade(NewUpgradeBaseTest):
 
         self.log.info("Declare variable to control KV document load")
         self._STOP_INGESTION = False
-        
+
         self.log.info("Install pre-upgrade version of couchbase on all server nodes")
         self._install(self.servers)
 
@@ -546,7 +530,6 @@ class CbasUpgrade(NewUpgradeBaseTest):
 
         self.log.info("Stop ingestion on KV")
         self._STOP_INGESTION = True
-        async_load_data.join()
 
         self.log.info("Re-initialise cbas utils")
         self.cbas_util.closeConn()
@@ -819,7 +802,99 @@ class CbasUpgrade(NewUpgradeBaseTest):
 
         self.log.info("Post upgrade analytics validation")
         self.post_upgrade_analytics_validation()
-    
+
+    def test_graceful_failover_upgrade_single_node_idle_system(self):
+
+        self.log.info("Install pre-upgrade version of couchbase on all server nodes")
+        self._install(self.servers)
+
+        self.log.info("Add all cbas nodes to cluster")
+        cbas_nodes = []
+        node_services = self.input.param('node_services', "kv-cbas-n1ql").split("-")
+        for server in self.servers[1:len(self.servers)]:
+            self.add_node(server, services=node_services, rebalance=True)
+            cbas_nodes.append(server)
+
+        self.log.info("Load documents, create datasets and verify count before upgrade")
+        self.pre_upgrade_analytics_setup()
+
+        self.log.info("Start online graceful failover upgrade and then full recovery add back")
+        for upgrade_version in self.upgrade_versions:
+            for idx, node in enumerate(reversed(cbas_nodes)):
+
+                self.log.info("graceful failover node {0}".format(node.ip))
+                self.rest.fail_over('ns_1@' + node.ip, graceful=True)
+                self.sleep(timeout=120)
+                self.rest.set_recovery_type('ns_1@' + node.ip, "full")
+
+                self.log.info("Upgrade {0} version of Couchbase on node {1}".format(upgrade_version, node.ip))
+                self._upgrade(upgrade_version=upgrade_version, server=node)
+                self.sleep(self.sleep_time, "Installation of new version is done".format(upgrade_version))
+                self.update_jre_on_node(node)
+
+                self.log.info("Rebalance node {0}".format(node.ip))
+                self.cluster.rebalance(self.servers, [], [])
+
+                self.log.info("Wait for analytics service to be ready")
+                analytics_recovered = self.cbas_util.wait_for_cbas_to_recover()
+                self.assertTrue(analytics_recovered, msg="Analytics failed to recover")
+
+                self.log.info("Post upgrade analytics validation")
+                self.post_upgrade_analytics_validation()
+
+    def test_graceful_failover_upgrade_single_node_busy_system(self):
+
+        self.log.info("Declare variable to control KV document load")
+        self._STOP_INGESTION = False
+
+        self.log.info("Install pre-upgrade version of couchbase on all server nodes")
+        self._install(self.servers)
+
+        self.log.info("Add all cbas nodes to cluster")
+        cbas_nodes = []
+        node_services = self.input.param('node_services', "kv-cbas-n1ql").split("-")
+        for server in self.servers[1:len(self.servers)]:
+            self.add_node(server, services=node_services, rebalance=True)
+            cbas_nodes.append(server)
+
+        self.log.info("Load documents, create datasets and verify count before upgrade")
+        self.pre_upgrade_analytics_setup()
+
+        self.log.info("Async load data in KV until upgrade is complete")
+        async_load_data = Thread(target=self.async_load_data_till_upgrade_completes, args=())
+        async_load_data.start()
+
+        self.log.info("Run concurrent queries to simulate busy system")
+        statement = "select sleep(count(*), 5000) from {0} where mutated=0;".format(self.cbas_dataset_name + "0")
+        self.cbas_util._run_concurrent_queries(statement, "async", 20, batch_size=10)
+
+        self.log.info("Start online graceful failover upgrade and then full recovery add back")
+        for upgrade_version in self.upgrade_versions:
+            for idx, node in enumerate(reversed(cbas_nodes)):
+
+                self.log.info("graceful failover node {0}".format(node.ip))
+                self.rest.fail_over('ns_1@' + node.ip, graceful=True)
+                self.sleep(timeout=120)
+                self.rest.set_recovery_type('ns_1@' + node.ip, "full")
+
+                self.log.info("Upgrade {0} version of Couchbase on node {1}".format(upgrade_version, node.ip))
+                self._upgrade(upgrade_version=upgrade_version, server=node)
+                self.sleep(self.sleep_time, "Installation of new version is done".format(upgrade_version))
+                self.update_jre_on_node(node)
+
+                self.log.info("Rebalance node {0}".format(node.ip))
+                self.cluster.rebalance(self.servers, [], [])
+        
+        self.log.info("Stop ingestion on KV")
+        self._STOP_INGESTION = True
+
+        self.log.info("Wait for analytics service to be ready")
+        analytics_recovered = self.cbas_util.wait_for_cbas_to_recover()
+        self.assertTrue(analytics_recovered, msg="Analytics failed to recover")
+
+        self.log.info("Post upgrade analytics validation")
+        self.post_upgrade_analytics_validation()
+
     def test_remove_and_rebalance_multiple_nodes_non_upgrade(self):
 
         self.log.info("Install pre-upgrade version of couchbase on all server nodes")
@@ -859,3 +934,6 @@ class CbasUpgrade(NewUpgradeBaseTest):
 
             self.log.info("Post upgrade analytics validation")
             self.post_upgrade_analytics_validation()
+    
+    def tearDown(self):
+        self._STOP_INGESTION = True
