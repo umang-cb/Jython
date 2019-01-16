@@ -844,7 +844,7 @@ class CBASBugAutomation(CBASBaseTest):
             self.assertTrue(self.cbas_util.create_dataverse_on_cbas(dataverse_name=dataverse), msg="Fail to create dataverse")
             
             self.log.info("Create dataset")
-            for x in range(9):
+            for x in range(8):
                 cbas_dataset_name = self.cbas_dataset_name + str(x)
                 self.assertTrue(self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name, cbas_dataset_name, dataverse=dataverse), msg="Fail to create dataset")
                 dataset = dataverse + "." + cbas_dataset_name
