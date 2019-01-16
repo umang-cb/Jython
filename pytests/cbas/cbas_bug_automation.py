@@ -821,6 +821,49 @@ class CBASBugAutomation(CBASBaseTest):
 
         self.log.info("Validate document count on CBAS")
         self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(dataset + "_sec", self.num_items), msg="Count mismatch on CBAS")  
+    
+    """
+    cbas.cbas_bug_automation.CBASBugAutomation.test_drop_dataset_memory_deallocation,cb_bucket_name=default,cbas_dataset_name=ds_,items=10000,dataverse=custom
+    """
+    def test_drop_dataset_memory_deallocation(self):
+        
+        self.log.info("Add CBAS nodes")
+        self.add_node(self.servers[1], services=["cbas"], rebalance=True)
+        
+        self.log.info("Create connection")
+        self.cbas_util.createConn(self.cb_bucket_name)
+
+        self.log.info("Load documents in KV")
+        self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items)
+        
+        for i in range(10):
+            self.log.info("----------- Test run : {0} -----------".format(i))
+            
+            self.log.info("Create dataverse custom")
+            dataverse = self.input.param("dataverse", "universe")
+            self.assertTrue(self.cbas_util.create_dataverse_on_cbas(dataverse_name=dataverse), msg="Fail to create dataverse")
+            
+            self.log.info("Create dataset")
+            for x in range(8):
+                cbas_dataset_name = self.cbas_dataset_name + str(x)
+                self.assertTrue(self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name, cbas_dataset_name, dataverse=dataverse), msg="Fail to create dataset")
+                dataset = dataverse + "." + cbas_dataset_name
+            
+            self.log.info("Connect to Local link on dataverse")
+            self.assertTrue(self.cbas_util.connect_link(link_name=dataverse + ".Local"), msg="Fail to connect link")
+            
+            self.log.info("Validate dataset count")
+            for x in range(8):
+                cbas_dataset_name = self.cbas_dataset_name + str(x)
+                self.log.info("Validate document count on CBAS")
+                self.assertTrue(self.cbas_util.validate_cbas_dataset_items_count(dataverse + "." + cbas_dataset_name, self.num_items), msg="Count mismatch on CBAS")
+            
+            self.log.info("Disconnect to Local link on dataverse custom")
+            self.assertTrue(self.cbas_util.disconnect_link(link_name=dataverse + ".Local"), msg="Fail to disconnect link")
+    
+            self.log.info("Drop dataverse")
+            self.assertTrue(self.cbas_util.drop_dataverse_on_cbas(dataverse_name=dataverse), msg="Fail to drop dataverse")
+        
 
     def tearDown(self):
         super(CBASBugAutomation, self).tearDown()

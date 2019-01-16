@@ -91,6 +91,26 @@ class CBASErrorValidator(CBASBaseTest):
         self.validate_error_response(status, errors, self.error_response["msg"], self.error_response["code"])
     
     """
+    test_error_response_index_on_meta_fields,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=cbas,cbas_dataset_name=ds,error_id=index_on_meta_id
+    test_error_response_index_on_meta_fields,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=cbas,cbas_dataset_name=ds,error_id=index_on_meta_cas
+    test_error_response_index_on_meta_fields,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=cbas,cbas_dataset_name=ds,error_id=composite_index_on_meta_and_document_field
+    """
+    def test_error_response_index_on_meta_fields(self):
+
+        self.log.info("Create dataset and connect link")
+        self.create_dataset_connect_link()
+        
+        self.log.info("Disconnect Local link")
+        self.assertTrue(self.cbas_util.disconnect_from_bucket(), msg="Failed to disconnect connected bucket")
+        
+        self.log.info("Create a secondary index")
+        self.assertTrue(self.cbas_util.execute_statement_on_cbas_util(self.error_response["query"]), msg="Failed to create secondary index")
+
+        self.log.info("Execute query and validate error response")
+        status, _, errors, _, _ = self.cbas_util.execute_statement_on_cbas_util(self.error_response["query"])
+        self.validate_error_response(status, errors, self.error_response["msg"], self.error_response["code"])
+    
+    """
     test_error_response_user_permission,default_bucket=True,cb_bucket_name=default,cbas_bucket_name=cbas,cbas_dataset_name=ds,error_id=user_permission
     """
     def test_error_response_user_permission(self):
@@ -453,7 +473,8 @@ class CBASError:
             "id": "dataset_create_link_connected",
             "msg": "Dataset cannot be created on default while link Local is connected",
             "code": 23006,
-            "query": "create dataset ds1 on default"
+            "query": "create dataset ds1 on default",
+            "run_in_loop": True
         },
         {
             "id": "job_requirement",
@@ -479,7 +500,8 @@ class CBASError:
             "id": "dataset_drop_link_connected",
             "msg": 'Dataset cannot be dropped while link Local is connected',
             "code": 23022,
-            "query": "drop dataset ds"
+            "query": "drop dataset ds",
+            "run_in_loop": True
         },
         {
             "id": "type_mismatch_for_object",
@@ -508,6 +530,24 @@ class CBASError:
             "code": 24001,
             "query": "select count(*) ds",
             "run_in_loop": True
+        },
+        {
+            "id": "index_on_meta_id",
+            "msg": "Compilation error: Cannot create index on meta fields",
+            "code": 24001,
+            "query": "create index meta_idx on ds(meta().id)"
+        },
+        {
+            "id": "index_on_meta_cas",
+            "msg": "Compilation error: Cannot create index on meta fields",
+            "code": 24001,
+            "query": "create index meta_idx on ds(meta().cas)"
+        },
+        {
+            "id": "composite_index_on_meta_and_document_field",
+            "msg": "Compilation error: Cannot create index on meta fields",
+            "code": 24001,
+            "query": "create index comp_meta_idx on ds(city:string, meta().id)"
         },
         {
             "id": "index_on_type",

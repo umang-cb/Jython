@@ -15,23 +15,20 @@ from membase.helper.cluster_helper import ClusterOperationHelper
 from remote.remote_util import RemoteMachineShellConnection, RemoteUtilHelper
 from couchbase_helper.document import DesignDocument, View
 from couchbase_helper.documentgenerator import BlobGenerator
-from query_tests_helper import QueryHelperTests
 from scripts.install import InstallerJob
 from builds.build_query import BuildQuery
 from pprint import pprint
 from testconstants import CB_REPO
 from testconstants import MV_LATESTBUILD_REPO
-from testconstants import SHERLOCK_BUILD_REPO
 from testconstants import COUCHBASE_VERSION_2
 from testconstants import COUCHBASE_VERSION_3
 from testconstants import COUCHBASE_VERSIONS
 from testconstants import SHERLOCK_VERSION
 from testconstants import CB_VERSION_NAME
 from testconstants import COUCHBASE_MP_VERSION
-from testconstants import CE_EE_ON_SAME_FOLDER
 from testconstants import STANDARD_BUCKET_PORT
 
-class NewUpgradeBaseTest(QueryHelperTests):
+class NewUpgradeBaseTest(BaseTestCase):
     def setUp(self):
         super(NewUpgradeBaseTest, self).setUp()
         self.released_versions = ["2.0.0-1976-rel", "2.0.1", "2.5.0", "2.5.1",
@@ -42,9 +39,9 @@ class NewUpgradeBaseTest(QueryHelperTests):
                                   "4.0.0", "4.0.0-4051", "4.1.0", "4.1.0-5005"]
         self.use_hostnames = self.input.param("use_hostnames", False)
         self.product = self.input.param('product', 'couchbase-server')
-        self.initial_version = self.input.param('initial_version', '2.5.1-1083')
+        self.initial_version = self.input.param('initial_version', '5.5.0-2958')
         self.initial_vbuckets = self.input.param('initial_vbuckets', 1024)
-        self.upgrade_versions = self.input.param('upgrade_version', '4.1.0-4963')
+        self.upgrade_versions = self.input.param('upgrade_version', '6.0.1-2001')
         self.upgrade_versions = self.upgrade_versions.split(";")
         self.skip_cleanup = self.input.param("skip_cleanup", False)
         self.init_nodes = self.input.param('init_nodes', True)
@@ -162,8 +159,19 @@ class NewUpgradeBaseTest(QueryHelperTests):
         if self.product in ["couchbase", "couchbase-server", "cb"]:
             success = True
             for server in servers:
-                success &= RemoteMachineShellConnection(server).is_couchbase_installed()
+                shell = RemoteMachineShellConnection(server)
+                info = shell.extract_remote_info()
+                success &= shell.is_couchbase_installed()
                 self.sleep(5, "sleep 5 seconds to let cb up completely")
+                ready = RestHelper(RestConnection(server)).is_ns_server_running(60)
+                if not ready:
+                    if "centos 7" in info.distribution_version.lower():
+                        self.log.info("run systemctl daemon-reload")
+                        shell.execute_command("systemctl daemon-reload", debug=False)
+                        shell.start_server()
+                    else:
+                        log.error("Couchbase-server did not start...")
+                shell.disconnect()
                 if not success:
                     sys.exit("some nodes were not install successfully!")
         if self.rest is None:
@@ -174,9 +182,12 @@ class NewUpgradeBaseTest(QueryHelperTests):
                 server.hostname = hostname
 
     def operations(self, servers, services=None):
-        self.quota = self._initialize_nodes(self.cluster, servers, self.disabled_consistent_view,
-                                            self.rebalanceIndexWaitingDisabled, self.rebalanceIndexPausingDisabled,
-                                            self.maxParallelIndexers, self.maxParallelReplicaIndexers, self.port)
+        self.quota = self._initialize_nodes(self.cluster, servers,
+                                            self.disabled_consistent_view,
+                                            self.rebalanceIndexWaitingDisabled,
+                                            self.rebalanceIndexPausingDisabled,
+                                            self.maxParallelIndexers,
+                                            self.maxParallelReplicaIndexers, self.port)
         if self.port and self.port != '8091':
             self.rest = RestConnection(self.master)
             self.rest_helper = RestHelper(self.rest)
@@ -188,7 +199,9 @@ class NewUpgradeBaseTest(QueryHelperTests):
             else:
                 set_services = services.split(",")
                 for i in range(1, len(set_services)):
-                    self.cluster.rebalance([servers[0]], [servers[i]], [], use_hostnames=self.use_hostnames, services=[set_services[i]])
+                    self.cluster.rebalance([servers[0]], [servers[i]], [],
+                                           use_hostnames=self.use_hostnames,
+                                           services=[set_services[i]])
                     self.sleep(60)
 
         self.buckets = []
@@ -205,7 +218,8 @@ class NewUpgradeBaseTest(QueryHelperTests):
                     client.stop_persistence()
             self.sleep(10)
         gen_load = BlobGenerator('upgrade', 'upgrade-', self.value_size, end=self.num_items)
-        self._load_all_buckets(self.master, gen_load, "create", self.expire_time, flag=self.item_flag)
+        self._load_all_buckets(self.master, gen_load, "create", self.expire_time,
+                                                             flag=self.item_flag)
         if not self.stop_persistence:
             self._wait_for_stats_all_buckets(servers)
         else:
@@ -216,7 +230,7 @@ class NewUpgradeBaseTest(QueryHelperTests):
                     drain_rate += int(client.stats()["ep_queue_size"])
                 self.sleep(3, "Pause to load all items")
                 self.assertEqual(self.num_items * (self.num_replicas + 1), drain_rate,
-                                 "Persistence is stopped, drain rate is incorrect %s. Expected %s" % (
+                    "Persistence is stopped, drain rate is incorrect %s. Expected %s" % (
                                     drain_rate, self.num_items * (self.num_replicas + 1)))
         self.change_settings()
 
@@ -275,8 +289,6 @@ class NewUpgradeBaseTest(QueryHelperTests):
             if self.is_ubuntu:
                 remote.start_server()
             """ remove end here """
-            #remote.disconnect()
-            #self.sleep(10)
             self.rest = RestConnection(server)
             if self.is_linux:
                 self.wait_node_restarted(server, wait_time=testconstants.NS_SERVER_TIMEOUT * 4, wait_if_warmup=True)

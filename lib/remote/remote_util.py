@@ -384,6 +384,24 @@ class RemoteMachineShellConnection:
             self.log_command_output(o, r)
             return o;
 
+    def set_jre_path_cli(self, path, user_name="Administrator", password="password"):
+        """
+        Set JRE path on node.
+        """
+        self.extract_remote_info()
+        if self.info.type.lower() == 'windows':
+            path = testconstants.WIN_JDK_PATH + path
+            o, r = self.execute_command("%scouchbase-cli node-init -c localhost -u %s -p %s --node-init-java-home %s" % (WIN_COUCHBASE_BIN_PATH, user_name, password, path))
+            self.log_command_output(o, r)
+            return o
+        elif self.info.distribution_type.lower() == 'mac':
+            log.error('Not implemented')
+        elif self.info.type.lower() == "linux":
+            path = testconstants.LINUX_JDK_PATH + path
+            o, r = self.execute_command("%scouchbase-cli node-init -c localhost -u %s -p %s --node-init-java-home %s" % (LINUX_COUCHBASE_BIN_PATH, user_name, password, path))
+            self.log_command_output(o, r)
+            return o
+
     def start_server(self, os="unix"):
         self.extract_remote_info()
         os = self.info.type.lower()
