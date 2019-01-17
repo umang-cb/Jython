@@ -426,7 +426,7 @@ class CbasUpgrade(NewUpgradeBaseTest):
             self.sleep(self.sleep_time, "Installation of new version {0} is done".format(upgrade_version))
 
             self.log.info("Swap rebalance master KV node and wait for rebalance to complete")
-            self.cluster.async_rebalance(self.servers, [extra_node], [self.master], services=["kv,index,n1ql"], check_vbucket_shuffling=False)
+            self.cluster.async_rebalance(self.servers, [extra_node], [self.master], services=["kv,n1ql"], check_vbucket_shuffling=False)
             self.sleep(message="Wait for rebalance to start")
             rest = RestConnection(self.servers[len(self.servers) - 1])
             reached = RestHelper(rest).rebalance_reached(wait_step=120)
