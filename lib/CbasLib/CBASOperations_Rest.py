@@ -8,6 +8,7 @@ import logger
 import base64
 import json
 import urllib
+import requests
 from membase.api import httplib2
 
 log = logger.Logger.get_logger()
@@ -305,3 +306,23 @@ class CBASHelper(RestConnection):
             return json_parsed
         else:
             raise Exception("Unable to get jre path from analytics")
+
+    # Backup Analytics metadata
+    def backup_cbas_metadata(self, bucket_name, username=None, password=None):
+        if not username:
+            username = self.username
+        if not password:
+            password = self.password
+        url = self.cbas_base_url + "/analytics/backup?bucket={0}".format(bucket_name)
+        response = requests.get(url=url, auth=(username, password))
+        return response
+
+    # Restore Analytics metadata
+    def restore_cbas_metadata(self, metadata, bucket_name, username=None, password=None):
+        if not username:
+            username = self.username
+        if not password:
+            password = self.password
+        url = self.cbas_base_url + "/analytics/backup?bucket={0}".format(bucket_name)
+        response = requests.post(url, data=json.dumps(metadata), auth=(username, password))
+        return response

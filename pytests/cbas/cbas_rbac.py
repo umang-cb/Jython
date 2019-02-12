@@ -399,6 +399,14 @@ class CBASRBACTests(CBASBaseTest):
 
     def test_rest_api_authorization_cbas_cluster_info_api(self):
         validation_failed = False
+        
+        self.load_sample_buckets(servers=[self.master],
+                                 bucketName='travel-sample',
+                                 total_items=self.travel_sample_docs_count)
+         
+        self.load_sample_buckets(servers=[self.master],
+                                 bucketName='beer-sample',
+                                 total_items=self.beer_sample_docs_count)
 
         api_authentication = [{
             "api_url": "http://{0}:8095/analytics/cluster".format(
@@ -464,7 +472,8 @@ class CBASRBACTests(CBASBaseTest):
                           {"role": "analytics_manager[*]",
                            "expected_status": 401},
                           {"role": "analytics_reader",
-                           "expected_status": 401}]},
+                           "expected_status": 401}]
+            },
             {
                 "api_url": "http://{0}:8095/analytics/node/config".format(
                     self.cbas_node.ip),
@@ -477,13 +486,33 @@ class CBASRBACTests(CBASBaseTest):
                           {"role": "analytics_manager[*]",
                            "expected_status": 401},
                           {"role": "analytics_reader",
-                           "expected_status": 401}]},
+                           "expected_status": 401}]
+            },
             {
-                "api_url": "http://{0}:8095/analytics/cluster/restart".format(
-                    self.cbas_node.ip),
+                "api_url": "http://{0}:9110/analytics/node/agg/stats/remaining".format(self.cbas_node.ip),
                 "roles": [
-#                     {"role": "ro_admin",
-#                            "expected_status": 401},
+                    {"role": "analytics_manager[*]", "expected_status": 200},
+                    {"role": "analytics_reader", "expected_status": 200}],
+            },
+            {
+                "api_url": "http://{0}:8095/analytics/backup?bucket=travel-sample".format(self.cbas_node.ip),
+                "roles": [
+                    {"role": "admin", "expected_status": 200},
+                    {"role": "data_backup[*],analytics_reader", "expected_status": 200},
+                    {"role": "data_backup[*], analytics_manager[*]", "expected_status": 200},
+                    {"role": "data_backup[travel-sample], analytics_reader", "expected_status": 200},
+                    {"role": "data_backup[travel-sample], analytics_manager[travel-sample]", "expected_status": 200},
+                    {"role": "ro_admin", "expected_status": 401},
+                    {"role": "analytics_reader", "expected_status": 401},
+                    {"role": "analytics_manager[*]", "expected_status": 401},
+                    {"role": "data_backup[beer-sample], analytics_reader", "expected_status": 401},
+                    {"role": "data_backup[beer-sample], analytics_manager[*]", "expected_status": 401},
+                    {"role": "data_backup[beer-sample], analytics_manager[beer-sample]", "expected_status": 401},
+                ],
+            },
+            {
+                "api_url": "http://{0}:8095/analytics/cluster/restart".format(self.cbas_node.ip),
+                "roles": [
                           {"role": "cluster_admin",
                            "expected_status": 202},
                           {"role": "admin",
@@ -492,14 +521,8 @@ class CBASRBACTests(CBASBaseTest):
                            "expected_status": 401},
                           {"role": "analytics_reader",
                            "expected_status": 401}],
-                "method": "POST"},
-            {
-                "api_url": "http://{0}:9110/analytics/node/agg/stats/remaining".format(self.cbas_node.ip),
-                "roles": [
-                    {"role": "analytics_manager[*]", "expected_status": 200},
-                    {"role": "analytics_reader", "expected_status": 200}],
-            }
-
+                "method": "POST"
+            },
         ]
 
         shell = RemoteMachineShellConnection(self.master)

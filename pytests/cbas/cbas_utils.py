@@ -1195,3 +1195,15 @@ class cbas_utils():
                 self.log.info("Service unavailable sleep for 2 seconds, and retry")
                 time.sleep(2)
         return analytics_recovered
+
+    # Backup Analytics metadata
+    def backup_cbas_metadata(self, bucket_name='default', username=None, password=None):
+        response = self.cbas_helper.backup_cbas_metadata(bucket_name, username=username, password=password)
+        return response.json()
+
+    # Restore Analytics metadata
+    def restore_cbas_metadata(self, metadata, bucket_name='default', username=None, password=None):
+        if metadata is None:
+            raise ValueError("Missing metadata")
+        response = self.cbas_helper.restore_cbas_metadata(metadata, bucket_name, username=username, password=password)
+        return response.json()

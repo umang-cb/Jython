@@ -401,6 +401,68 @@ class RemoteMachineShellConnection:
             o, r = self.execute_command("%scouchbase-cli node-init -c localhost -u %s -p %s --node-init-java-home %s" % (LINUX_COUCHBASE_BIN_PATH, user_name, password, path))
             self.log_command_output(o, r)
             return o
+    
+    
+    def _configure_backup(self, archive, repo, disable_analytics, exclude_bucket, include_buckets):
+
+        log.info('Delete previous backups')
+        command = 'rm -rf %s' % archive
+        o, r = self.execute_command(command)
+        self.log_command_output(o, r)
+
+        log.info('Configure backup')
+        configure_bkup_cmd = '{0}cbbackupmgr config -a {1} -r {2}'.format(self.return_bin_path_based_on_os(self.return_os_type()), archive, repo)
+        configure_bkup_cmd = self._build_backup_cmd_with_optional_parameters(disable_analytics, exclude_bucket, include_buckets, configure_bkup_cmd)
+        o, r = self.execute_command(configure_bkup_cmd)
+        self.log_command_output(o, r)
+        
+    def create_backup(self, server, archive='/tmp/backups', repo='example', disable_analytics=False, exclude_bucket=None, include_buckets=None, username="Administrator",
+                      password="password", skip_configure_bkup=False):
+
+        if not skip_configure_bkup:
+            self._configure_backup(archive, repo, disable_analytics, exclude_bucket, include_buckets)
+
+        bkup_cmd = '{0}cbbackupmgr backup -a {1} -r {2} --cluster couchbase://{3} --username {4} --password {5}'.format(self.return_bin_path_based_on_os(self.return_os_type()),
+                                                                                                                        archive, repo, server.ip, username, password)
+        o, r = self.execute_command(bkup_cmd)
+        self.log_command_output(o, r)
+        return o
+
+    def restore_backup(self, server, archive='/tmp/backups', repo='example', disable_analytics=False, exclude_bucket=None, include_buckets=None, username="Administrator", password="password"):
+        
+        log.info('Restore backup using cbbackupmgr')
+        restore_cmd = '{0}cbbackupmgr restore -a {1} -r {2} --cluster couchbase://{3} --username {4} --password {5}'.format(self.return_bin_path_based_on_os(self.return_os_type()),
+                                                                                                                            archive, repo, server.ip, username, password)
+        restore_cmd = self._build_backup_cmd_with_optional_parameters(disable_analytics, exclude_bucket, include_buckets, restore_cmd)
+        o, r = self.execute_command(restore_cmd)
+        self.log_command_output(o, r)
+        return o
+
+    def _build_backup_cmd_with_optional_parameters(self, disable_analytics, exclude_bucket, include_buckets, command):
+        if exclude_bucket and include_buckets:
+            raise ValueError("Specify either exclude_bucket or include_buckets but not both")
+        if disable_analytics:
+            command = command + ' --disable-analytics'
+        if exclude_bucket is not None:
+            command = command + ' --exclude-buckets ' + ",".join(exclude_bucket)
+        if include_buckets is not None:
+            command = command + ' --include-buckets ' + ",".join(include_buckets)
+        return command
+
+    def return_os_type(self):
+        self.extract_remote_info()
+        return self.info.type.lower()
+
+    def return_bin_path_based_on_os(self, os):
+        if os == "linux":
+            path = LINUX_COUCHBASE_BIN_PATH
+        elif os == 'windows':
+            path = WIN_COUCHBASE_BIN_PATH
+        elif os == 'mac':
+            path = MAC_COUCHBASE_BIN_PATH
+        else:
+            raise ValueError('Unknown bin path for os type {0}'.format(os))
+        return path
 
     def start_server(self, os="unix"):
         self.extract_remote_info()

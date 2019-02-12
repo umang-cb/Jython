@@ -112,7 +112,7 @@ class CBASBaseTest(BaseTestCase):
         self.log.info("==============  CBAS_BASE setup was finished for test #{0} {1} ==============" \
                           .format(self.case_number, self._testMethodName))
         
-        if add_defualt_cbas_node:
+        if add_defualt_cbas_node and False:
             self.log.info("************************* Validate Java runtime *************************")
             analytics_node = []
             analytics_node.extend(self.cbas_servers)
@@ -165,7 +165,7 @@ class CBASBaseTest(BaseTestCase):
                 cmd_get_datasets)
             if (results != None) & (len(results) > 0):
                 for row in results:
-                    self.cbas_util.drop_dataset(row['DatasetName'])
+                    self.cbas_util.drop_dataset("`" +row['DatasetName'] + "`")
                     self.log.info("********* Dropped all datasets *********")
             else:
                 self.log.info("********* No datasets to drop *********")
@@ -175,7 +175,7 @@ class CBASBaseTest(BaseTestCase):
                 cmd_get_buckets)
             if (results != None) & (len(results) > 0):
                 for row in results:
-                    self.cbas_util.drop_cbas_bucket(row['Name'])
+                    self.cbas_util.drop_cbas_bucket("`" + row['Name'] + "`")
                     self.log.info("********* Dropped all buckets *********")
             else:
                 self.log.info("********* No buckets to drop *********")
@@ -185,8 +185,9 @@ class CBASBaseTest(BaseTestCase):
             status, metrics, errors, results, _ = self.cbas_util.execute_statement_on_cbas_util(cmd_get_dataverse)
             if (results != None) & (len(results) > 0):
                 for row in results:
-                    self.cbas_util.drop_dataverse_on_cbas(dataverse_name=row['DataverseName'])
-                    self.log.info("********* Dropped all dataverse except Default and Metadata *********")
+                    self.cbas_util.disconnect_link("`" + row['DataverseName'] + "`" + ".Local")
+                    self.cbas_util.drop_dataverse_on_cbas(dataverse_name="`" + row['DataverseName'] + "`")
+                self.log.info("********* Dropped all dataverse except Default and Metadata *********")
             else:
                 self.log.info("********* No dataverse to drop *********")
                 
