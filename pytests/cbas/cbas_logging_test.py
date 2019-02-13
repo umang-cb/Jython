@@ -40,7 +40,7 @@ class CbasLogging(CBASBaseTest):
 
         # Fetch the NC node ID and add trace logger to default logger config dictionary, trace logger has NodeId so this has to be picked at run time
         _, node_id, _ = self.cbas_util.retrieve_nodes_config()
-        CbasLogging.DEFAULT_LOGGER_CONFIG_DICT["org.apache.hyracks.util.trace.Tracer@" + node_id] = "INFO"
+        CbasLogging.DEFAULT_LOGGER_CONFIG_DICT["org.apache.hyracks.util.trace.Tracer.Traces@" + node_id] = "INFO"
 
     '''
     -i b/resources/4-nodes-template.ini -t cbas.cbas_logging_test.CbasLogging.test_get_cbas_default_logger_levels,default_bucket=False

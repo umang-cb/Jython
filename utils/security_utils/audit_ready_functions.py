@@ -491,6 +491,7 @@ class audit:
     '''
     def validateTimeStamp(self, actualTime=None):
         try:
+            log.info(actualTime)
             date = actualTime[:10]
             hourMin = actualTime[11:16]
             tempTimeZone = actualTime[-6:]
@@ -504,14 +505,16 @@ class audit:
             log.info (" Matching expected date - currDate {0}; actual Date - {1}".format(currDate[0][0], date))
             log.info (" Matching expected time - currTime {0} ; actual Time - {1}".format(currHourMin[0][0], hourMin))
             if date != currDate[0][0].rstrip():
+                log.info('Compare date')
                 log.info ("Mis-match in values for timestamp - date")
                 return False
-                #Compare time and minutes, will fail if time is 56 mins or above
             else:
+                log.info('Compare hours and minutes')
                 if ((int((hourMin.split(":"))[0])) != (int((currHourMin[0][0].split(":"))[0]))) or ((int((hourMin.split(":"))[1]) + 10) < (int((currHourMin[0][0].split(":"))[1]))):
                     log.info ("Mis-match in values for timestamp - time")
                     return False
                 else:
+                    log.info('Compare timezone')
                     tempTimeZone = tempTimeZone.replace(":", "")
                     if (tempTimeZone != currTimeZone[0][0].rstrip()):
                         log.info("Mis-match in value of timezone. Actual: %s Expected: %s" %(tempTimeZone, currTimeZone[0][0].rstrip()))

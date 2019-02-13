@@ -470,13 +470,6 @@ class CBASError:
             "query": "drop dataverse custom"
         },
         {
-            "id": "dataset_create_link_connected",
-            "msg": "Dataset cannot be created on default while link Local is connected",
-            "code": 23006,
-            "query": "create dataset ds1 on default",
-            "run_in_loop": True
-        },
-        {
             "id": "job_requirement",
             "msg": 'exceeds capacity (memory: ',
             "code": 23008,
@@ -494,13 +487,6 @@ class CBASError:
             "msg": 'Cannot compare non-primitive values',
             "code": 23021,
             "query": "select ARRAY_INTERSECT([2011,2012], [[2011]])",
-            "run_in_loop": True
-        },
-        {
-            "id": "dataset_drop_link_connected",
-            "msg": 'Dataset cannot be dropped while link Local is connected',
-            "code": 23022,
-            "query": "drop dataset ds",
             "run_in_loop": True
         },
         {

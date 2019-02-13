@@ -272,7 +272,7 @@ class CBASPendingMutations(CBASBaseTest):
         self.log.info("Perform async doc operations on KV")
         json_generator = JsonGenerator()
         generators = json_generator.generate_docs_simple(docs_per_day=self.num_items * 4, start=self.num_items)
-        kv_task = self._async_load_all_buckets(self.master, generators, "create", 0, batch_size=3000)
+        kv_task = self._async_load_all_buckets(self.master, generators, "create", 0, batch_size=5000)
         
         self.log.info("Fetch cluster remaining mutations")
         aggregate_remaining_mutations_list = []

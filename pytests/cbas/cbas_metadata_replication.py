@@ -324,7 +324,7 @@ class MetadataReplication(CBASBaseTest):
             if replicas:
                 for replica in replicas:
                     self.log.info("replica state during rebalance: %s"%replica['status'])
-        self.sleep(20)
+        self.sleep(30)
         
         replicas = self.cbas_util.get_replicas_info(self.shell)
         replicas_after_rebalance=len(replicas)
