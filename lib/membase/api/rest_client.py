@@ -2980,6 +2980,18 @@ class RestConnection(object):
         api = self.baseUrl + "controller/cancelLogsCollection"
         status, content, header = self._http_request(api, "POST")
         return status, content
+    
+    def set_log_redaction_level(self, redaction_level="none"):
+        api = self.baseUrl + "settings/logRedaction"
+        params = urllib.urlencode({"logRedactionLevel":redaction_level})
+        status, content, header = self._http_request(api, "POST", params)
+        if status:
+            result = json.loads(content)
+            if result["logRedactionLevel"] == redaction_level:
+                return True
+            else:
+                return False
+        return False
 
     def get_bucket_CCCP(self, bucket):
         log.info("Getting CCCP config ")

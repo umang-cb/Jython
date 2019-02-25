@@ -616,7 +616,7 @@ class MetadataBackup(CBASBaseTest):
 
         self.log.info('Restore Analytics metadata using cbbackupmgr')
         shell = RemoteMachineShellConnection(self.master)
-        o = shell.restore_backup(self.cbas_node, exclude_bucket=[this.beer_sample_bucket])
+        o = shell.restore_backup(self.cbas_node, exclude_bucket=[self.beer_sample_bucket])
         self.assertTrue('Restore completed successfully' in ''.join(o), msg='Restore was unsuccessful')
 
         self.log.info('Validate metadata for %s dataverse' % self.dataverse)
