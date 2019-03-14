@@ -3360,7 +3360,31 @@ class RemoteMachineShellConnection:
                     "$(ps aux | grep '{0}' |  awk '{{print $2}}') "\
                                  .format(process_name), debug=False)
                 self.log_command_output(o, r)
-
+    
+    def set_tracing_for_ups(self, bucket_name):
+        self.extract_remote_info()
+        path = LINUX_COUCHBASE_BIN_PATH
+        if self.info.type.lower() == 'windows':
+            path = WIN_COUCHBASE_BIN_PATH
+        output, error = self.execute_command_raw('%smcctl -h localhost:11210 -u Administrator -P password set trace.config "buffer-mode:ring;buffer-size:67108864;enabled-categories:couchstore_write"' % (path))
+        self.log_command_output(output, error)
+        
+        log.info('couchstore_tracing')
+        output, error = self.execute_command_raw('%smcctl -h localhost:11210 -u Administrator -P password get trace.config' % (path))
+        self.log_command_output(output, error)
+        
+        log.info('Setting couchstore_tracing')
+        output, error = self.execute_command_raw('%scbepctl localhost:11210 -u Administrator -p password -b %s set flush_param couchstore_tracing true' % (path, bucket_name))
+        self.log_command_output(output, error)
+        
+        log.info('Setting couchstore_write_validation')
+        output, error = self.execute_command_raw('%scbepctl localhost:11210 -u Administrator -p password -b %s set flush_param couchstore_write_validation true' % (path, bucket_name))
+        self.log_command_output(output, error)
+        
+        log.info('Setting couchstore_mprotect')
+        output, error = self.execute_command_raw('%scbepctl localhost:11210 -u Administrator -p password -b %s set flush_param couchstore_mprotect true' % (path, bucket_name))
+        self.log_command_output(output, error)
+        
     def disconnect(self):
         if self._ssh_client:
             self._ssh_client.disconnect()
