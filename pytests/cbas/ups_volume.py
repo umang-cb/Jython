@@ -271,10 +271,10 @@ def shutdown_and_await_termination(pool, timeout):
         Thread.currentThread().interrupt()
  
 class ups(BaseTestCase):
-    def setUp(self, add_defualt_cbas_node=True):
+    def setUp(self, add_defualt_cbas_node=False):
         self.input = TestInputSingleton.input
         self.input.test_params.update({"default_bucket":False})
-        BaseTestCase.setUp(self, add_defualt_cbas_node=add_defualt_cbas_node)
+        BaseTestCase.setUp(self)
     
     def validate_items_count(self):
         items_GleambookUsers = RestConnection(self.query_node).query_tool('select count(*) from GleambookUsers')['results'][0]['$1']
