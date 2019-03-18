@@ -826,11 +826,21 @@ class CbasUpgrade(NewUpgradeBaseTest):
                 self.rest.fail_over('ns_1@' + node.ip, graceful=True)
                 self.sleep(timeout=120)
                 self.rest.set_recovery_type('ns_1@' + node.ip, "full")
+                
+                self.log.info('Stop couchbase server before upgrade')
+                shell = RemoteMachineShellConnection(node)
+                shell.stop_couchbase()
+                shell.disconnect()
 
                 self.log.info("Upgrade {0} version of Couchbase on node {1}".format(upgrade_version, node.ip))
                 self._upgrade(upgrade_version=upgrade_version, server=node)
                 self.sleep(self.sleep_time, "Installation of new version is done".format(upgrade_version))
                 self.update_jre_on_node(node)
+                
+                self.log.info('Start couchbase server after upgrade')
+                shell = RemoteMachineShellConnection(node)
+                shell.start_couchbase()
+                shell.disconnect()
 
                 self.log.info("Rebalance node {0}".format(node.ip))
                 self.cluster.rebalance(self.servers, [], [])
@@ -876,11 +886,21 @@ class CbasUpgrade(NewUpgradeBaseTest):
                 self.rest.fail_over('ns_1@' + node.ip, graceful=True)
                 self.sleep(timeout=120)
                 self.rest.set_recovery_type('ns_1@' + node.ip, "full")
+                
+                self.log.info('Stop couchbase server before upgrade')
+                shell = RemoteMachineShellConnection(node)
+                shell.stop_couchbase()
+                shell.disconnect()
 
                 self.log.info("Upgrade {0} version of Couchbase on node {1}".format(upgrade_version, node.ip))
                 self._upgrade(upgrade_version=upgrade_version, server=node)
                 self.sleep(self.sleep_time, "Installation of new version is done".format(upgrade_version))
                 self.update_jre_on_node(node)
+                
+                self.log.info('Start couchbase server after upgrade')
+                shell = RemoteMachineShellConnection(node)
+                shell.start_couchbase()
+                shell.disconnect()
 
                 self.log.info("Rebalance node {0}".format(node.ip))
                 self.cluster.rebalance(self.servers, [], [])
