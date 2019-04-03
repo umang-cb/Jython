@@ -796,7 +796,6 @@ class CBASBugAutomation(CBASBaseTest):
         self.log.info("Create dataset")
         self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name, self.cbas_dataset_name, dataverse=dataverse)
         dataset = dataverse + "." + self.cbas_dataset_name
-
         self.log.info("Connect to Local link on dataverse")
         self.cbas_util.connect_link(link_name=dataverse + ".Local")
 
@@ -863,7 +862,27 @@ class CBASBugAutomation(CBASBaseTest):
     
             self.log.info("Drop dataverse")
             self.assertTrue(self.cbas_util.drop_dataverse_on_cbas(dataverse_name=dataverse), msg="Fail to drop dataverse")
+    
+    """
+    cbas.cbas_bug_automation.CBASBugAutomation.test_array_intersect_on_large_dataset,default_bucket=False
+    """
+    def test_array_intersect_on_large_dataset(self):
         
+        self.log.info('Verify result for array intersect with count')
+        statement = """from array_range(1, 1000000) t
+                       let p = array_count(array_intersect([t, t+1], [t+1, t+2]))
+                       select value sum(p)"""
+        response, _, _, results, _ = self.cbas_util.execute_statement_on_cbas_util(statement, analytics_timeout=200)
+        self.assertTrue(response == "success", "Query %s failed." % statement)
+        self.assertEqual(results[0], 999999, msg="Query result mismatch for array_count")
+        
+        self.log.info('Verify result for array intersect with maxh')
+        statement = """from array_range(1, 1000000) t
+                       let p = array_max(array_intersect([t, t+1], [t+1, t+2]))
+                       select value sum(p)"""
+        response, _, _, results, _ = self.cbas_util.execute_statement_on_cbas_util(statement, analytics_timeout=200)
+        self.assertTrue(response == "success", "Query %s failed." % statement)
+        self.assertEqual(results[0], 500000499999, msg="Query result mismatch for array_max")
 
     def tearDown(self):
         super(CBASBugAutomation, self).tearDown()

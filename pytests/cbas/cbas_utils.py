@@ -33,7 +33,8 @@ class cbas_utils():
 #         self.bucket_util.create_default_bucket()
 #         self.createConn("default")
     
-    def execute_statement_on_cbas_util(self, statement, mode=None, rest=None, timeout=120, client_context_id=None, username=None, password=None, analytics_timeout=120, time_out_unit="s"):
+    def execute_statement_on_cbas_util(self, statement, mode=None, rest=None, timeout=120, client_context_id=None, username=None, password=None,
+                                       analytics_timeout=120, time_out_unit="s", scan_consistency=None, scan_wait=None):
         """
         Executes a statement on CBAS using the REST API using REST Client
         """
@@ -41,7 +42,8 @@ class cbas_utils():
         try:
             log.info("Running query on cbas: %s"%statement)
             response = self.cbas_helper.execute_statement_on_cbas(statement, mode, pretty,
-                                                      timeout, client_context_id, username, password, analytics_timeout=analytics_timeout, time_out_unit=time_out_unit)
+                                                      timeout, client_context_id, username, password, analytics_timeout=analytics_timeout, time_out_unit=time_out_unit,
+                                                      scan_consistency=scan_consistency, scan_wait=scan_wait)
             if type(response) == str: 
                 response = json.loads(response)
             if "errors" in response:
@@ -675,7 +677,8 @@ class cbas_utils():
         #    self.log.info("SUCCESS: %s out of %s queries passed"
         #                  % (num_queries - fail_count, num_queries))
 
-    def _run_concurrent_queries(self, query, mode, num_queries, rest=None, batch_size = 100, timeout=300, analytics_timeout=300):
+    def _run_concurrent_queries(self, query, mode, num_queries, rest=None, batch_size = 100, timeout=300, analytics_timeout=300,
+                                scan_consistency=None, scan_wait=None):
         self.failed_count = 0
         self.success_count = 0
         self.rejected_count = 0
@@ -691,7 +694,7 @@ class cbas_utils():
             self.cbas_util = rest
         for i in range(0, num_queries):
             threads.append(Thread(target=self._run_query,
-                                  name="query_thread_{0}".format(i), args=(query,mode,rest,False,0,timeout,analytics_timeout)))
+                                  name="query_thread_{0}".format(i), args=(query,mode,rest,False,0,timeout,analytics_timeout,scan_consistency,scan_wait)))
         i = 0
         for thread in threads:
             # Send requests in batches, and sleep for 5 seconds before sending another batch of queries.
@@ -710,7 +713,7 @@ class cbas_utils():
             raise Exception("Queries Failed:%s , Queries Error Out:%s"%(self.failed_count,self.error_count))
         return self.handles
     
-    def _run_query(self, query, mode, rest=None, validate_item_count=False, expected_count=0, timeout=300, analytics_timeout=300):
+    def _run_query(self, query, mode, rest=None, validate_item_count=False, expected_count=0, timeout=300, analytics_timeout=300,scan_consistency=None, scan_wait=None):
         # Execute query (with sleep induced)
         name = threading.currentThread().getName();
         client_context_id = name
@@ -719,7 +722,7 @@ class cbas_utils():
         try:
             status, metrics, errors, results, handle = self.execute_statement_on_cbas_util(
                 query, mode=mode, rest=rest, timeout=timeout,
-                client_context_id=client_context_id, analytics_timeout=analytics_timeout)
+                client_context_id=client_context_id, analytics_timeout=analytics_timeout,scan_consistency=scan_consistency, scan_wait=scan_wait)
             # Validate if the status of the request is success, and if the count matches num_items
             if mode == "immediate":
                 if status == "success":
@@ -1121,6 +1124,7 @@ class cbas_utils():
         self.log.info("%s queued jobs are Failed." % fail_count)
         self.log.info("%s queued jobs are Successful." % success_count)
         self.log.info("%s queued jobs are Aborted." % aborted_count)
+        return run_count, fail_count, success_count, aborted_count
 
     def update_service_parameter_configuration_on_cbas(self, config_map=None, username=None, password=None):
         if config_map:
