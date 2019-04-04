@@ -1390,7 +1390,7 @@ class bucket_utils():
         client.close()
         return inserted_keys
 
-    def perform_doc_ops_in_all_cb_buckets(self, num_items, operation, start_key=0, end_key=1000, batch_size=5000, exp=0, _async=False):
+    def perform_doc_ops_in_all_cb_buckets(self, num_items, operation, start_key=0, end_key=1000, batch_size=5000, exp=0, _async=False, gen_load=None):
         """
         Create/Update/Delete docs in all cb buckets
         :param num_items: No. of items to be created/deleted/updated
@@ -1399,23 +1399,23 @@ class bucket_utils():
         :param end_key: Doc Key to end the operation with
         :return:
         """
-        age = range(70)
-        first = ['james', 'sharon', 'dave', 'bill', 'mike', 'steve']
-        profession = ['doctor','lawyer']
-        template = '{{ "number": {0}, "first_name": "{1}" , "profession":"{2}", "mutated":0}}'
-        gen_load = DocumentGenerator('test_docs', template, age, first,profession,
-                                     start=start_key, end=end_key)
-        self.log.info("%s %s documents..." % (operation, num_items))
+        if gen_load is None:
+            age = range(70)
+            first = ['james', 'sharon', 'dave', 'bill', 'mike', 'steve']
+            profession = ['doctor','lawyer']
+            template = '{{ "number": {0}, "first_name": "{1}" , "profession":"{2}", "mutated":0}}'
+            gen_load = DocumentGenerator('test_docs', template, age, first,profession, start=start_key, end=end_key)
+        log.info("%s %s documents..." % (operation, num_items))
         try:
             if not _async:
-                self.log.info("BATCH SIZE for documents load: %s" % batch_size)
+                log.info("BATCH SIZE for documents load: %s" % batch_size)
                 self._load_all_buckets(self.master, gen_load, operation, exp, batch_size=batch_size)
                 self._verify_stats_all_buckets(self.input.servers)
             else:
                 tasks = self._async_load_all_buckets(self.master, gen_load, operation, exp, batch_size=batch_size)
                 return tasks
         except Exception as e:
-            self.log.info(e.message)
+            log.info(e.message)
 
     def fetch_available_memory_for_kv_on_a_node(self):
         """
