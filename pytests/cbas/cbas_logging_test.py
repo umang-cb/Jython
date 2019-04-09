@@ -176,15 +176,10 @@ class CbasLogging(CBASBaseTest):
         self.assertTrue(status, msg="Response status incorrect for SET request")
 
         self.log.info("Set log level of root to ERROR")
-        logger_level = "FATAL"
+        logger_level = "ERROR"
         logger_name = ""
         status, content, response = self.cbas_util.set_specific_log_level_on_cbas(logger_name, logger_level)
-        self.assertTrue(status, msg="Status mismatch for SET")
-
-        self.log.info("Get log level of root")
-        status, content, response = self.cbas_util.get_specific_cbas_log_level(logger_name)
-        self.assertTrue(status, msg="Status mismatch for GET")
-        self.assertEquals(content, logger_level, msg="Logger configuration mismatch for logger " + logger_name)
+        self.assertFalse(status, msg="Root logger can not be modified")
 
         self.log.info("Delete specific logger")
         logger_name = "com.couchbase.analytics"
