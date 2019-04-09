@@ -473,7 +473,7 @@ class CBASError:
             "id": "job_requirement",
             "msg": 'exceeds capacity (memory: ',
             "code": 23008,
-            "query": 'SET `compiler.groupmemory` "10GB";select sleep(count(*),500) from ds GROUP BY name'
+            "query": 'SET%20%60compiler.groupmemory%60%20%2210GB%22%3Bselect%20sleep(count(*)%2C500)%20from%20ds%20GROUP%20BY%20name'
         },
         {
             "id": "overflow",

@@ -29,8 +29,7 @@ class LogRedactionTests(CBASBaseTest, LogRedactionBase):
                                       'com.couchbase.client.core.node': 'ALL',
                                       'com.couchbase.analytics': 'ALL',
                                       'org.apache.hyracks': 'ALL',
-                                      'org.apache.hyracks.http.server.CLFLogger': 'ALL',
-                                      '': 'ALL'}
+                                      'org.apache.hyracks.http.server.CLFLogger': 'ALL'}
         _, node_id, _ = self.cbas_util.retrieve_nodes_config()
         default_logger_config_dict['org.apache.hyracks.util.trace.Tracer.Traces@' + node_id] = 'ALL'
 
