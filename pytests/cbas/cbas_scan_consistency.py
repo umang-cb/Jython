@@ -15,6 +15,7 @@ class CBASScanConsistency(CBASBaseTest):
     @staticmethod
     def fetch_log_path(shell, log_file_name='analytics_info.log'):
         os = shell.return_os_type()
+        shell.disconnect()
         path = None
         if os == 'linux':
             path = LINUX_COUCHBASE_LOGS_PATH + "/" + log_file_name
@@ -145,6 +146,7 @@ class CBASScanConsistency(CBASBaseTest):
         self.log.info('Kill Memcached process')
         shell = RemoteMachineShellConnection(self.master)
         shell.kill_memcached()
+        shell.disconnect()
         
         self.log.info('Validate count')
         query = 'select count(*) from %s' % self.cbas_dataset_name
@@ -527,6 +529,7 @@ class CBASScanConsistency(CBASBaseTest):
                 service_timeout = True
                 break
         self.assertTrue(service_timeout, msg='Query failed to timeout')
+        shell.disconnect()
     
     def test_scan_consistency_with_large_document_volume(self):
         

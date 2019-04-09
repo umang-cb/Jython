@@ -31,7 +31,7 @@ class LogRedactionTests(CBASBaseTest, LogRedactionBase):
                                       'org.apache.hyracks': 'ALL',
                                       'org.apache.hyracks.http.server.CLFLogger': 'ALL'}
         _, node_id, _ = self.cbas_util.retrieve_nodes_config()
-        default_logger_config_dict['org.apache.hyracks.util.trace.Tracer.Traces@' + node_id] = 'ALL'
+        default_logger_config_dict['org.apache.hyracks.util.trace.Tracer.Traces.' + node_id] = 'ALL'
 
         self.log.info('Set logging level to ALL')
         status, content, response = self.cbas_util.set_log_level_on_cbas(default_logger_config_dict)

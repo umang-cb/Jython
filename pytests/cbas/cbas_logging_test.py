@@ -35,12 +35,11 @@ class CbasLogging(CBASBaseTest):
                                                   "com.couchbase.analytics": "DEBUG",
                                                   "org.apache.hyracks": "DEBUG",
                                                   "org.apache.asterix": "DEBUG",
-                                                  "org.apache.hyracks.http.server.CLFLogger": "ACCESS",
-                                                  "": "ERROR"} # Empty string corresponds to ROOT logger
+                                                  "org.apache.hyracks.http.server.CLFLogger": "ACCESS"} # Empty string corresponds to ROOT logger
 
         # Fetch the NC node ID and add trace logger to default logger config dictionary, trace logger has NodeId so this has to be picked at run time
         _, node_id, _ = self.cbas_util.retrieve_nodes_config()
-        CbasLogging.DEFAULT_LOGGER_CONFIG_DICT["org.apache.hyracks.util.trace.Tracer.Traces@" + node_id] = "INFO"
+        CbasLogging.DEFAULT_LOGGER_CONFIG_DICT["org.apache.hyracks.util.trace.Tracer.Traces." + node_id] = "INFO"
 
     '''
     -i b/resources/4-nodes-template.ini -t cbas.cbas_logging_test.CbasLogging.test_get_cbas_default_logger_levels,default_bucket=False
@@ -55,7 +54,7 @@ class CbasLogging(CBASBaseTest):
 
         self.log.info("Convert response to a dictionary")
         log_dict = CbasLogging.convert_logger_get_result_to_a_dict(content)
-        self.assertEqual(len(log_dict), len(CbasLogging.DEFAULT_LOGGER_CONFIG_DICT), "Logger count incorrect")
+        self.assertEqual(len(log_dict), len(CbasLogging.DEFAULT_LOGGER_CONFIG_DICT) + 1, "Logger count incorrect") # Adding +1 to accomodate Root logger that can not be updated 
 
         self.log.info("Verify logger configuration and count")
         for key in CbasLogging.DEFAULT_LOGGER_CONFIG_DICT.keys():
