@@ -7,7 +7,7 @@ class CBASInferBase(CBASBaseTest):
     def setUp(self):
         super(CBASInferBase, self).setUp()
 
-    def remove_samples_from_result(self, infer_dict_list):
+    def remove_samples_from_response(self, infer_dict_list):
         for index, tem_result in enumerate(infer_dict_list):
             if "properties" in tem_result:
                 for prop_key, _ in tem_result["properties"].items():
@@ -35,7 +35,11 @@ class CBASInferCompareJson:
     results = [
         {
             "id": "infer_schema_on_array",
-            "json": "Unauthorized user"
+            "json": "{}"
+        },
+        {
+            "id": "analytics_supports_infer_schema",
+            "json": "{}"
         }
     ]
 

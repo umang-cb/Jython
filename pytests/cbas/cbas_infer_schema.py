@@ -9,7 +9,7 @@ class CBASInferSchema(CBASInferBase):
         super(CBASInferSchema, self).setUp()
     
     """
-    cbas.cbas_infer_schema.CBASInferSchema.verify_analytics_supports_infer_schema,default_bucket=True,cbas_dataset_name=ds,cb_bucket_name=default,items=10
+    cbas.cbas_infer_schema.CBASInferSchema.verify_analytics_supports_infer_schema,default_bucket=True,cbas_dataset_name=ds,cb_bucket_name=default,items=10,validate_response=True
     """
     def verify_analytics_supports_infer_schema(self):
         
@@ -33,9 +33,9 @@ class CBASInferSchema(CBASInferBase):
         self.log.info('Execute INFER schema on dataset with link disconnected')
         status, _, error, _, _ = self.cbas_util.execute_statement_on_cbas_util('set `import-private-functions` `True`;SELECT Value array_infer_schema(%s)' % self.cbas_dataset_name)
         self.assertTrue(status == "fatal", msg='Infer schema must fail as link is disconnected')
-        # Uncomment after this is resolved - MB-33680
-        #self.assertEqual(error[0]['msg'], 'Bucket default on link Local in dataverse Default is not connected', msg='Error message mismatch')
-        #self.assertEqual(error[0]['code'], 23027, msg='Error code mismatch')
+        # Below might fail if this is resolved - MB-33680
+        self.assertTrue('Invalid item type: function agg-infer_schema cannot process item type system_null in an input array (or multiset)' in error[0]['msg'], msg='Error message mismatch')
+        self.assertEqual(error[0]['code'], 24014, msg='Error code mismatch')
         
         self.log.info('Connect link')
         self.cbas_util.connect_link()
@@ -55,9 +55,9 @@ class CBASInferSchema(CBASInferBase):
         self.log.info('Execute INFER schema on single value input')
         status, _, error, _, _ = self.cbas_util.execute_statement_on_cbas_util('set `import-private-functions` `True`;SELECT Value array_infer_schema({"a":1})')
         self.assertTrue(status == "fatal", msg='Infer schema works only on array')
-        # Uncomment after this is resolved - MB-33681 
-        #self.assertEqual(error[0]['msg'], 'Internal error', msg='Error message mismatch')
-        #self.assertEqual(error[0]['code'], 25000, msg='Error code mismatch')
+        # Below might fail if this is resolved - MB-33681 
+        self.assertEqual(error[0]['msg'], 'Internal error', msg='Error message mismatch')
+        self.assertEqual(error[0]['code'], 25000, msg='Error code mismatch')
         
         self.log.info('Load documents in default bucket')
         self.perform_doc_ops_in_all_cb_buckets(self.num_items, "create", 0, self.num_items, batch_size=200)
@@ -84,10 +84,9 @@ class CBASInferSchema(CBASInferBase):
         self.assertEqual(document_properties_n1ql, document_properties, msg='Properties mismatch')
         
         self.log.info('Compare result with golden JSON')
-        self.remove_samples_from_result(infer_dictionary)
-        compare_responses = CBASInferCompareJson.get_json('analytics_supports_infer_schema')
-        # compare logic here...
-    
+        self.remove_samples_from_response([infer_dictionary])
+        self.assertEqual(infer_dictionary, CBASInferCompareJson.get_json('analytics_supports_infer_schema'), msg='response mismatch')
+        
     def verify_infer_schema_on_array(self):
         single_array_query = 'set `import-private-functions` `true`;SELECT Value array_infer_schema([{"a":1},{"a":"aval"},{"a":[1,2]},{"a":{"b":1,"c":"aval","d":"[1,2]","e":{"f":1}}}])'
         status, _, _, result, _ = self.cbas_util.execute_statement_on_cbas_util(single_array_query)
@@ -95,10 +94,10 @@ class CBASInferSchema(CBASInferBase):
 
         self.log.info('Compare JSON results')
         response = result[0]
-        self.remove_samples_from_result(response)
+        self.remove_samples_from_response(response)
         compare_responses = CBASInferCompareJson.get_json('infer_schema_on_array')
         for index, value in enumerate(compare_responses):
-            self.assertEqual(compare_responses[index], response[index])
+            self.assertEqual(compare_responses[index], response[index], msg='response mismatch')
     
     def verify_infer_schema_on_beer_sample_dataset(self):
         self.log.info('Load beer-sample bucket')
@@ -111,11 +110,11 @@ class CBASInferSchema(CBASInferBase):
         self.log.info('Connect link')
         self.cbas_util.connect_link()
         
-        self.log.info('Create primary index on %s' % self.cb_bucket_name) 
-        self.rest.query_tool('CREATE PRIMARY INDEX idx on %s' % self.cb_bucket_name)
+        self.log.info('Verify dataset count')
+        self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.beer_sample_docs_count)
         
         self.log.info('Fetch INFER response from N1QL')
-        result_n1ql = self.rest.query_tool('INFER %s' % self.cb_bucket_name)['results']
+        result_n1ql = self.rest.query_tool('INFER `%s`' % self.cb_bucket_name)['results']
         infer_dictionary_n1ql = result_n1ql[0][0]
         property_dictionary_n1ql = infer_dictionary_n1ql['properties']
         document_properties_n1ql = sorted(property_dictionary_n1ql.keys())
@@ -135,11 +134,11 @@ class CBASInferSchema(CBASInferBase):
         self.log.info('Connect link')
         self.cbas_util.connect_link()
         
-        self.log.info('Create primary index on %s' % self.cb_bucket_name) 
-        self.rest.query_tool('CREATE PRIMARY INDEX idx on %s' % self.cb_bucket_name)
+        self.log.info('Verify dataset count')
+        self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.travel_sample_docs_count)
         
         self.log.info('Fetch INFER response from N1QL')
-        result_n1ql = self.rest.query_tool('INFER %s' % self.cb_bucket_name)['results']
+        result_n1ql = self.rest.query_tool('INFER `%s`' % self.cb_bucket_name)['results']
         infer_dictionary_n1ql = result_n1ql[0][0]
         property_dictionary_n1ql = infer_dictionary_n1ql['properties']
         document_properties_n1ql = sorted(property_dictionary_n1ql.keys())
@@ -194,15 +193,68 @@ class CBASInferSchema(CBASInferBase):
             count_n1ql = self.rest.query_tool(document_field_query)['results'][0]['$1']
             self.assertEqual(property_dictionary[document_field]['#docs'], count_n1ql, msg='Count mismatch for %s' % document_field)
     
-    def verify_infer_schema_on_unique_documents(self):
+    def verify_infer_schema_on_unique_nested_documents(self):
+        
+        self.log.info('Create unique documents')
         client = SDKClient(hosts=[self.master.ip], bucket=self.cb_bucket_name, password=self.master.rest_password)
-        for index in range(self.num_items):
-            key = "key-id" + str(index)
-            key1 = "key1_" + str(index)
-            value1 = "value1_" + str(index)
-            key2 = "key2_" + str(index)
-            value2 = "value2_" + str(index)
-            client.insert_document(key, '{%s:%s, %s:%s}' % (key1, value1, key2, value2))
+        documents = ['{"from": "user_512", "to": "user_768", "text": "Hey, that Beer you recommended is pretty fab, thx!", "sent_timestamp":476560}',
+                     '{"user_id": 512, "name": "Bob Likington", "email": "bob.like@gmail.com", "sign_up_timestamp": 1224612317, "last_login_timestamp": 1245613101}',
+                     '{"user_id": 768, "name": "Simon Neal", "email": "sneal@gmail.com", "sign_up_timestamp": 1225554317, "last_login_timestamp": 1234166701, "country": "Scotland", "pro_account": true, "friends": [512, 666, 742, 1111]}',
+                     '{"photo_id": "ccbcdeadbeefacee", "size": { "w": 500, "h": 320, "unit": "px" }, "exposure": "1/1082", "aperture": "f/2.4", "flash": false, "camera": { "name": "iPhone 4S", "manufacturer": {"Company":"Apple", "Location": {"City":"California", "Country":"USA"} } }, "user_id": 512, "timestamp": [2011, 12, 13, 16, 31, 7]}'
+                    ]
+        for index, document in enumerate(documents):
+            client.insert_document(str(index), document)
+        
+        self.create_index_dataset_validate_response(len(documents))
+
+    def verify_infer_schema_on_same_type_missing_fields(self):
+        
+        self.log.info('Create unique documents')
+        client = SDKClient(hosts=[self.master.ip], bucket=self.cb_bucket_name, password=self.master.rest_password)
+        documents = ['{ "array": [1,2,3,4,5,6], "integer": 10, "float":10.12, "boolean":true, "null":null, "object":{"array": [1,2,3,4,5,6], "integer": 10, "float":10.12, "boolean":true, "null":null}}',
+                     '{ "array": null, "integer": 10, "float":10.12, "boolean":true, "null":null, "object":{"array": [1,2,3,4,5,6], "integer": 10, "float":10.12, "boolean":true, "null":"null value"}}',
+                     '{ "array": [1,2,3,4,5,6], "integer": 10, "float":10.12, "boolean":true, "null":null, "object":{"array": null, "integer": null, "float":null, "boolean":null, "null":null}}'
+                    ]
+        for index, document in enumerate(documents):
+            client.insert_document(str(index), document)
+        
+        self.create_index_dataset_validate_response(len(documents))
+    
+    def verify_infer_schema_on_documents_with_overlapping_types_same_keys(self):
+        
+        self.log.info('Create unique documents')
+        client = SDKClient(hosts=[self.master.ip], bucket=self.cb_bucket_name, password=self.master.rest_password)
+        documents = [
+            '{ "array": 20, "integer": 300.34345, "float":false, "boolean":["a", "b", "c"], "null":null, "string":"300"}'
+            '{ "array": 300, "integer": ["a", "b", "c"], "float":1012.56756, "boolean":300, "null":null, "string":10345665}'
+            '{ "array": [1, 2, 3], "integer": 10345665, "float":"Steve", "boolean":[[1, 2], [3, 4], []], "null":null, "string":20.343}'
+            '{ "array": 20.343, "integer": [[1, 2], [3, 4], []], "float":0.00011, "boolean":[1, 1.1, 1.0, 0], "null":null, "string":[1, 1.1, 1.0, 0]}'
+            '{ "array": 10345665, "integer": 1012.56756, "float":1012.56756, "boolean":false, "null":null, "string":[1, "hello", ["a", 1], 2.22]}'
+            '{ "array": "Steve", "integer": 1, "float":[1, 2, 3], "boolean":false, "null":null, "string":1}'
+            '{ "array": true, "integer": 1.1, "float":20.343, "boolean":["a", "b", "c"], "null":null, "string":300}'
+            '{ "array": true, "integer": "Alex", "float":10345665, "boolean":1.1, "null":null, "string":0.00011}'
+            '{ "array": 20.343, "integer": 20.343, "float":300, "boolean":true, "null":null, "string":true}'
+            '{ "array": 1, "integer": 10345665, "float":300.34345, "boolean":1, "null":null, "string":true}'
+        ]
+        for index, document in enumerate(documents):
+            client.insert_document(str(index), document)
+        
+        self.create_index_dataset_validate_response(len(documents))
+    
+    def create_index_dataset_validate_response(self, num_items):
+        
+        self.log.info('Create primary index on %s' % self.cb_bucket_name)
+        self.rest.query_tool('CREATE PRIMARY INDEX idx on %s' % self.cb_bucket_name)
+        
+        self.log.info('Create dataset')
+        self.cbas_util.createConn(self.cb_bucket_name)
+        self.cbas_util.create_dataset_on_bucket(self.cb_bucket_name, self.cbas_dataset_name)
+        
+        self.log.info('Connect link')
+        self.cbas_util.connect_link()
+        
+        self.log.info('Verify dataset count')
+        self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, num_items)
         
         self.log.info('Fetch INFER response from N1QL')
         result_n1ql = self.rest.query_tool('INFER default')['results']
@@ -220,11 +272,10 @@ class CBASInferSchema(CBASInferBase):
         document_properties = sorted(property_dictionary.keys())
         
         self.log.info('Verify total document count in INFER response')
-        self.assertEqual(infer_dictionary['#docs'], self.num_items * 2, msg='Document count incorrect')
+        self.assertEqual(infer_dictionary['#docs'], num_items, msg='Document count incorrect')
         
         self.log.info('Verify document properties in INFER response')
         self.assertEqual(document_properties_n1ql, document_properties, msg='Properties mismatch')
-        
         for document_field in document_properties:
             self.log.info('Verify `%s` field count in INFER response' % document_field)
             document_field_query = 'select count(*) from `%s` where `%s` is not null' % (self.cb_bucket_name, document_field)
