@@ -1839,16 +1839,14 @@ class RemoteMachineShellConnection:
         os.remove(des_file)
 
     def create_directory(self, remote_path):
-        from com.jcraft.jsch import ChannelSftp
-        from com.jcraft.jsch import JSchException,SftpException
-        jsch=JSch()
-        session=jsch.getSession(self.username, self.ip, 22);
-        session.setPassword(self.password);
-        session.setConfig("StrictHostKeyChecking", "no");
-        session.connect();
-        channel=session.openChannel("sftp");
-#         errstream=channel.getErrStream()
-        channel.connect();
+        jsch = JSch()
+        session = jsch.getSession(self.username, self.ip, 22)
+        session.setPassword(self.password)
+        session.setConfig("StrictHostKeyChecking", "no")
+        session.connect()
+        channel = session.openChannel("sftp")
+        # errstream=channel.getErrStream()
+        channel.connect()
         channelSftp = channel
         try:
             channelSftp.ls(remote_path)
@@ -1858,13 +1856,28 @@ class RemoteMachineShellConnection:
             channel.disconnect()
             session.disconnect()
             return False
-        except SftpException as e:
-            channelSftp.mkdir(remote_path)
+        except:
+            try:
+                channelSftp.mkdir(remote_path)
+                self.give_directory_permissions_to_couchbase(remote_path)
+            except:
+                print("Creating Directory...")
+                complPath = remote_path.split("/")
+                channelSftp.cd("/")
+                for dir in complPath:
+                    if dir:
+                        try:
+                            print("Current Dir : " + channelSftp.pwd())
+                            channelSftp.cd(dir)
+                        except:
+                            channelSftp.mkdir(dir)
+                            self.give_directory_permissions_to_couchbase(dir)
+                            channelSftp.cd(dir)
             channel.disconnect()
             session.disconnect()
         else:
             return True
-    # this function will remove the automation directory in windows
+   # this function will remove the automation directory in windows
     def create_multiple_dir(self, dir_paths):
         sftp = self._ssh_client.open_sftp()
         try:
@@ -4824,6 +4837,18 @@ class RemoteMachineShellConnection:
         self.sleep(5, "==== delay kill pid %d in 5 seconds to printout message ==="\
                                                                       % os.getpid())
         os.system('kill %d' % os.getpid())
+
+    def give_directory_permissions_to_couchbase(self, location):
+        """
+        Change the directory permission of the location mentioned
+        to include couchbase as the user
+        :param location: Directory location whoes permissions has to be changed
+        :return: Nothing
+        """
+        command = "chown -R 'couchbase:couchbase' {0}".format(location)
+        output, error = self.execute_command(command)
+        command = "chmod 777 {0}".format(location)
+        output, error = self.execute_command(command)
 
 class RemoteUtilHelper(object):
 
