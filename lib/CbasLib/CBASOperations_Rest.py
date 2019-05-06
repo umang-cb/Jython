@@ -218,6 +218,18 @@ class CBASHelper(RestConnection):
         api = cbas_base_url + "/analytics/node/stats"
         status, content, response = self._http_request(api, method="GET", headers=headers)
         return status, content, response
+
+    def fetch_cbas_storage_stats(self, username=None, password=None):
+        if not username:
+            username = self.username
+        if not password:
+            password = self.password
+        headers = self._create_capi_headers(username, password)
+        cbas_base_url = "http://{0}:{1}".format(self.ip, 9110)
+        api = cbas_base_url + "/analytics/node/storage/stats"
+        status, content, response = self._http_request(api, method="GET", headers=headers)
+        content = json.loads(content)
+        return status, content, response
     
     def operation_service_parameters_configuration_cbas(self, method="GET", params=None, username=None, password=None):
         if not username:
@@ -334,3 +346,17 @@ class CBASHelper(RestConnection):
         url = self.cbas_base_url + "/analytics/backup?bucket={0}".format(bucket_name)
         response = requests.post(url, data=json.dumps(metadata), auth=(username, password))
         return response
+
+    # Set Analytics config parameter
+    def set_global_compression_type(self, compression_type="snappy", username=None, password=None):
+        if not username:
+            username = self.username
+        if not password:
+            password = self.password
+        headers = self._create_capi_headers(username, password)
+        url = self.cbas_base_url + "/analytics/config/service"
+        setting = {'storageCompressionBlock': compression_type}
+        setting = json.dumps(setting)
+
+        status, content, header = self._http_request(url, 'PUT', setting, headers=headers)
+        return status

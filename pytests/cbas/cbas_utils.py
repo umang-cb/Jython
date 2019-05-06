@@ -1098,6 +1098,10 @@ class cbas_utils():
     def fetch_cbas_stats(self, username=None, password=None):
         status, content, response = self.cbas_helper.fetch_cbas_stats(username=username, password=password)
         return status, content, response
+
+    def fetch_cbas_storage_stats(self, username=None, password=None):
+        status, content, response = self.cbas_helper.fetch_cbas_storage_stats(username=username, password=password)
+        return status, content, response
     
     def log_concurrent_query_outcome(self, node_in_test, handles):
         run_count = 0
@@ -1181,6 +1185,9 @@ class cbas_utils():
     def get_analytics_diagnostics(self, cbas_node, timeout=120):
          response = self.cbas_helper.get_analytics_diagnostics(cbas_node,timeout=timeout)
          return response
+
+    def set_global_compression_type(self, compression_type="snappy", username=None, password=None):
+        return self.cbas_helper.set_global_compression_type(compression_type, username, password)
     
     def wait_for_cbas_to_recover(self, timeout=180):
         """
@@ -1211,3 +1218,14 @@ class cbas_utils():
             raise ValueError("Missing metadata")
         response = self.cbas_helper.restore_cbas_metadata(metadata, bucket_name, username=username, password=password)
         return response.json()
+
+    def get_ds_compression_type(self, ds):
+        query = "select raw BlockLevelStorageCompression.DatasetCompressionScheme from Metadata.`Dataset` where DatasetName='{0}';".format(ds)
+        _, _, _, ds_compression_type, _ = self.execute_statement_on_cbas_util(query)
+        ds_compression_type = ds_compression_type[0]
+        if ds_compression_type is not None:
+            ds_compression_type = ds_compression_type.encode('ascii', 'ignore')
+        self.log.info("Compression Type for Dataset {0} is {1}".format(ds, ds_compression_type))
+
+        return ds_compression_type
+
