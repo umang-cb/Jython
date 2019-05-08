@@ -47,7 +47,7 @@ class CBASClusterOperations(CBASBaseTest):
 
         # Create dataset on the CBAS bucket
         self.cbas_util.create_dataset_on_bucket(cbas_bucket_name=self.cb_bucket_name,
-                                      cbas_dataset_name=self.cbas_dataset_name)
+                                      cbas_dataset_name=self.cbas_dataset_name, compress_dataset=self.compress_dataset)
 
         # Create indexes on the CBAS bucket
         self.create_secondary_indexes = self.input.param("create_secondary_indexes",False)

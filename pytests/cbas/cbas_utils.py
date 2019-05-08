@@ -238,16 +238,28 @@ class cbas_utils():
     def create_dataset_on_bucket(self, cbas_bucket_name, cbas_dataset_name,
                                  where_field=None, where_value = None,
                                  validate_error_msg=False, username = None,
-                                 password = None, expected_error=None, dataverse=None):
+                                 password = None, expected_error=None, dataverse=None, compress_dataset=False):
         """
         Creates a shadow dataset on a CBAS bucket
         """
         cbas_bucket_name = "`"+cbas_bucket_name+"`"
-        cmd_create_dataset = "create dataset {0} on {1};".format(
-            cbas_dataset_name, cbas_bucket_name)
+
+        cmd_create_dataset = "create dataset {0} ".format(cbas_dataset_name)
+        if compress_dataset:
+            cmd_create_dataset = cmd_create_dataset + "{'storage-block-compression': {'scheme': 'snappy'}} "
+
+        cmd_create_dataset = cmd_create_dataset + "on {0} ".format(cbas_bucket_name)
+
         if where_field and where_value:
-            cmd_create_dataset = "create dataset {0} on {1} WHERE `{2}`=\"{3}\";".format(
-                cbas_dataset_name, cbas_bucket_name, where_field, where_value)
+            cmd_create_dataset = cmd_create_dataset + "WHERE `{0}`=\"{1}\";".format(where_field, where_value)
+        else:
+            cmd_create_dataset = cmd_create_dataset + ";"
+
+            #cmd_create_dataset = "create dataset {0} on {1};".format(
+        #    cbas_dataset_name, cbas_bucket_name)
+        #if where_field and where_value:
+        #    cmd_create_dataset = "create dataset {0} on {1} WHERE `{2}`=\"{3}\";".format(
+        #        cbas_dataset_name, cbas_bucket_name, where_field, where_value)
 
         if dataverse is not None:
             dataverse_prefix = 'use ' + dataverse + ';\n'

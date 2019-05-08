@@ -44,7 +44,7 @@ class MetadataBackup(CBASBaseTest):
 
         if not self.skip_ds_index_creation_default:
             self.log.info('Create dataset on %s bucket' % (self.beer_sample_bucket))
-            self.cbas_util.create_dataset_on_bucket(self.beer_sample_bucket, self.dataset)
+            self.cbas_util.create_dataset_on_bucket(self.beer_sample_bucket, self.dataset, compress_dataset=self.compress_dataset)
             
             self.log.info('Create secondary index on %s dataset and %s bucket' % (self.dataset, self.beer_sample_bucket))
             create_idx_statement = 'create index {0} if not exists on {1}({2})'.format(self.index_name, self.dataset, self.index_field_composite)
@@ -56,7 +56,7 @@ class MetadataBackup(CBASBaseTest):
         
         if not self.skip_ds_index_creation_dv1:
             self.log.info('Create dataset on %s dataverse and %s bucket' % (self.dataverse_1, self.beer_sample_bucket))
-            self.cbas_util.create_dataset_on_bucket(self.beer_sample_bucket, self.dataset_1, dataverse=self.dataverse_1)
+            self.cbas_util.create_dataset_on_bucket(self.beer_sample_bucket, self.dataset_1, dataverse=self.dataverse_1, compress_dataset=self.compress_dataset)
     
             self.log.info('Create secondary index on %s dataverse, %s dataset and %s bucket' % (self.dataverse_1, self.dataset_1, self.beer_sample_bucket))
             create_idx_statement = 'create index {0} if not exists on {1}({2})'.format(self.index_name_1, self.dataverse_1 + "." + self.dataset_1, self.index_field)
@@ -68,7 +68,7 @@ class MetadataBackup(CBASBaseTest):
         
         if not self.skip_ds_index_creation_dv2:
             self.log.info('Create dataset on %s dataverse and %s bucket' % (self.dataverse_2, self.travel_sample_bucket))
-            self.cbas_util.create_dataset_on_bucket(self.travel_sample_bucket, self.dataset_2, dataverse=self.dataverse_2)
+            self.cbas_util.create_dataset_on_bucket(self.travel_sample_bucket, self.dataset_2, dataverse=self.dataverse_2, compress_dataset=self.compress_dataset)
     
             self.log.info('Create secondary index on %s dataverse, %s dataset and %s bucket' % (self.dataverse_2, self.dataset_2, self.travel_sample_bucket))
             create_idx_statement = 'create index {0} if not exists on {1}({2})'.format(self.index_name_2, self.dataverse_2 + "." + self.dataset_2, self.index_field)
@@ -336,6 +336,14 @@ class MetadataBackup(CBASBaseTest):
             self.validate_metadata(self.dataverse_2, self.dataset_2, self.index_name_2, dataverse_count=1, dataset_count=1, index_count=1)
         else:
             self.validate_metadata(self.dataverse_2, self.dataset_2, self.index_name_2, dataverse_count=0, dataset_count=0, index_count=0)
+
+        if self.compress_dataset:
+            self.assertEqual(self.cbas_util.get_ds_compression_type(self.dataset), "snappy",
+                             "ds1 dataset not compressed with type snappy")
+            self.assertEqual(self.cbas_util.get_ds_compression_type(self.dataset_1), "snappy",
+                             "ds1 dataset not compressed with type snappy")
+            self.assertEqual(self.cbas_util.get_ds_compression_type(self.dataset_2), "snappy",
+                             "ds1 dataset not compressed with type snappy")
 
     def test_analytics_single_bucket_backup_and_restore_using_cbbackupmgr(self):
 

@@ -64,6 +64,7 @@ class CBASBaseTest(BaseTestCase):
         self.compiler_param_val = self.input.param('compiler_param_val', None)
         self.expect_reject = self.input.param('expect_reject', False)
         self.expect_failure = self.input.param('expect_failure', False)
+        self.compress_dataset = self.input.param('compress_dataset', False)
         self.index_name = self.input.param('index_name', "NoName")
         self.index_fields = self.input.param('index_fields', None)
         if self.index_fields:
