@@ -677,8 +677,7 @@ class volume(BaseTestCase):
         #######################################################################
         self.sleep(20)
         
-        self.log.info("Step 36: Adding 4 nodes")
-        otp0 = self.add_node(self.servers[4], rebalance=False)
+        self.log.info("Step 36: Adding 3 nodes")
         otp1 = self.add_node(self.servers[5], rebalance=False)
         otp2 = self.add_node(self.servers[6], rebalance=False)
         otp3 = self.add_node(self.servers[7], rebalance=False)
