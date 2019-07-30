@@ -72,6 +72,9 @@ class CBASBaseTest(BaseTestCase):
         self.otpNodes = []
         self.cbas_path = server.cbas_path
 
+        self.retry_time = self.input.param("retry_time", 300)
+        self.num_retries = self.input.param("num_retries", 1)
+
         self.rest = RestConnection(self.master)
         self.log.info("Setting the min possible memory quota so that adding more nodes to the cluster wouldn't be a problem.")
         self.rest.set_service_memoryQuota(service='memoryQuota', memoryQuota=MIN_KV_QUOTA)

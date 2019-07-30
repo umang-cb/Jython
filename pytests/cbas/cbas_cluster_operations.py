@@ -644,6 +644,85 @@ class CBASClusterOperations(CBASBaseTest):
         self.log.info("Validate dataset count on CBAS")
         if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items * 3 / 2, 0):
             self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
+
+    def test_auto_retry_failed_rebalance(self):
+
+        # Auto-retry rebalance settings
+        body = {"enabled": "true", "afterTimePeriod": self.retry_time, "maxAttempts": self.num_retries}
+        rest = RestConnection(self.master)
+        rest.set_retry_rebalance_settings(body)
+        result = rest.get_retry_rebalance_settings()
+
+        self.log.info("Pick the incoming and outgoing nodes during rebalance")
+        self.rebalance_type = self.input.param("rebalance_type", "in")
+        nodes_to_add = [self.rebalanceServers[1]]
+        nodes_to_remove = []
+        reinitialize_cbas_util = False
+        if self.rebalance_type == 'out':
+            nodes_to_remove.append(self.rebalanceServers[1])
+            self.add_node(self.rebalanceServers[1])
+            nodes_to_add = []
+        elif self.rebalance_type == 'swap':
+            self.add_node(nodes_to_add[0], rebalance=False)
+            nodes_to_remove.append(self.cbas_node)
+            reinitialize_cbas_util = True
+        self.log.info("Incoming nodes - %s, outgoing nodes - %s. For rebalance type %s " % (
+        nodes_to_add, nodes_to_remove, self.rebalance_type))
+
+        self.log.info("Creates cbas buckets and dataset")
+        dataset_count_query = "select count(*) from {0};".format(self.cbas_dataset_name)
+        self.setup_for_test()
+
+        self.log.info("Perform async doc operations on KV")
+        json_generator = JsonGenerator()
+        generators = json_generator.generate_docs_simple(docs_per_day=self.num_items * 3 / 2, start=self.num_items)
+        kv_task = self._async_load_all_buckets(self.master, generators, "create", 0, batch_size=5000)
+
+        self.log.info("Run concurrent queries on CBAS")
+        handles = self.cbas_util._run_concurrent_queries(dataset_count_query, "async", self.num_concurrent_queries)
+
+        self.log.info("Fetch the server to restart couchbase on")
+        restart_couchbase_on_incoming_or_outgoing_node = self.input.param(
+            "restart_couchbase_on_incoming_or_outgoing_node", True)
+        if not restart_couchbase_on_incoming_or_outgoing_node:
+            node = self.cbas_node
+        else:
+            node = self.rebalanceServers[1]
+        shell = RemoteMachineShellConnection(node)
+
+        try:
+            self.log.info("Rebalance nodes")
+            self.cluster.async_rebalance(self.servers, nodes_to_add, nodes_to_remove)
+
+            self.sleep(10, message="Restarting couchbase after 10s on node %s" % node.ip)
+
+            shell.restart_couchbase()
+            self.sleep(30, message="Waiting for service to be back again...")
+
+            self._check_retry_rebalance_succeeded()
+
+            if reinitialize_cbas_util is True:
+                self.cbas_util = cbas_utils(self.master, self.rebalanceServers[1])
+                self.cbas_util.createConn("default")
+                self.cbas_util.wait_for_cbas_to_recover()
+
+            self.log.info("Get KV ops result")
+            for task in kv_task:
+                task.get_result()
+
+            self.log.info("Log concurrent query status")
+            self.cbas_util.log_concurrent_query_outcome(self.master, handles)
+
+            self.log.info("Validate dataset count on CBAS")
+            if not self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.num_items * 3 / 2, 0):
+                self.fail("No. of items in CBAS dataset do not match that in the CB bucket")
+        except Exception as e:
+            self.fail("Some exception occurred : {0}".format(e.message))
+
+
+        finally:
+            body = {"enabled": "false"}
+            rest.set_retry_rebalance_settings(body)
     
     '''
     test_rebalance_on_nodes_running_multiple_services,cb_bucket_name=default,cbas_bucket_name=default_bucket,cbas_dataset_name=default_ds,items=10,nodeType=KV,num_queries=10,rebalance_type=in
@@ -704,6 +783,36 @@ class CBASClusterOperations(CBASBaseTest):
                 
     def tearDown(self):
         super(CBASClusterOperations, self).tearDown()
+
+    def _check_retry_rebalance_succeeded(self):
+        rest = RestConnection(self.master)
+        result = json.loads(rest.get_pending_rebalance_info())
+        self.log.info(result)
+        retry_after_secs = result["retry_after_secs"]
+        attempts_remaining = result["attempts_remaining"]
+        retry_rebalance = result["retry_rebalance"]
+        self.log.info("Attempts remaining : {0}, Retry rebalance : {1}".format(attempts_remaining, retry_rebalance))
+        while attempts_remaining:
+            # wait for the afterTimePeriod for the failed rebalance to restart
+            self.sleep(retry_after_secs, message="Waiting for the afterTimePeriod to complete")
+            try:
+                result = self.rest.monitorRebalance()
+                msg = "monitoring rebalance {0}"
+                self.log.info(msg.format(result))
+            except Exception:
+                result = json.loads(self.rest.get_pending_rebalance_info())
+                self.log.info(result)
+                try:
+                    attempts_remaining = result["attempts_remaining"]
+                    retry_rebalance = result["retry_rebalance"]
+                    retry_after_secs = result["retry_after_secs"]
+                except KeyError:
+                    self.fail("Retrying of rebalance still did not help. All the retries exhausted...")
+                self.log.info("Attempts remaining : {0}, Retry rebalance : {1}".format(attempts_remaining,
+                                                                                       retry_rebalance))
+            else:
+                self.log.info("Retry rebalanced fixed the rebalance failure")
+                break
 
 
 class MultiNodeFailOver(CBASBaseTest):
