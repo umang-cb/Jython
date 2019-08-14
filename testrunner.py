@@ -32,7 +32,7 @@ from scripts.measure_sched_delays import SchedDelays
 from scripts.getcoredumps import Getcoredumps, Clearcoredumps
 import signal
 import shutil
-
+from java.lang import System
 
 def usage(err=None):
     print """\
@@ -565,69 +565,12 @@ def main():
             else:
                 print result["name"], " pass"
         if fail_count > 0:
-            sys.exit(1)
+            System.exit(1)
 
     if TestInputSingleton.input.param("get-delays", False):
         sd.stop_measure_sched_delay()
         sd.fetch_logs()
-
-    # terminate any non main thread - these were causing hangs
-    # for t in threading.enumerate():
-    #     if t.name != 'MainThread':
-    #         print 'Thread', t.name, 'was not properly terminated, will be terminated now.'
-    #         if hasattr(t, 'shutdown'):
-    #             t.shutdown(True)
-    #         else:
-    #             t._Thread__stop()
-
-
-def watcher():
-    """This little code snippet is from
-    http://greenteapress.com/semaphores/threading_cleanup.py (2012-07-31)
-    It's now possible to interrupt the testrunner via ctrl-c at any time
-    in a platform neutral way."""
-    if sys.platform == 'win32':
-        p = Process(target=main, name="MainProcess")
-        p.start()
-        try:
-            p.join()
-            rc = p.exitcode
-            if rc > 0:
-                sys.exit(rc)
-        except KeyboardInterrupt:
-            print 'KeyBoardInterrupt'
-            p.terminate()
-    else:
-        child = os.fork()
-        if child == 0:
-            main() # child runs test
-        try:
-            rc = os.waitpid(child, 0)[1] /256 # exit status is the high order byte of second member of the tuple
-            if rc > 0:
-                sys.exit( rc )
-        except KeyboardInterrupt:
-            print 'KeyBoardInterrupt'
-            try:
-                os.kill(child, signal.SIGKILL)
-            except OSError:
-                pass
-        except OSError:
-            pass
-
-    sys.exit()
-    
-def testfunc():
-    from pexpect import pxssh
-    s = pxssh.pxssh()
-    if not s.login ('10.142.160.101', 'root', 'couchbase'):
-        print "SSH session failed on login."
-        print str(s)
-    else:
-        print "SSH session login successful"
-        s.sendline ("ps -eo comm,pid | awk '$1 == \"memcached\" { print $2 }'")
-        s.prompt()         # match the prompt
-        print s.before     # print everything before the prompt.
-        s.logout()
+    System.exit(0)
 
 if __name__ == "__main__":
     main()
