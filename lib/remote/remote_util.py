@@ -431,7 +431,7 @@ class RemoteMachineShellConnection:
     def restore_backup(self, server, archive='/tmp/backups', repo='example', disable_analytics=False, exclude_bucket=None, include_buckets=None, username="Administrator", password="password"):
         
         log.info('Restore backup using cbbackupmgr')
-        restore_cmd = '{0}cbbackupmgr restore -a {1} -r {2} --cluster couchbase://{3} --username {4} --password {5}'.format(self.return_bin_path_based_on_os(self.return_os_type()),
+        restore_cmd = '{0}cbbackupmgr restore -a {1} -r {2} --cluster couchbase://{3} --username {4} --password {5} --force-updates'.format(self.return_bin_path_based_on_os(self.return_os_type()),
                                                                                                                             archive, repo, server.ip, username, password)
         restore_cmd = self._build_backup_cmd_with_optional_parameters(disable_analytics, exclude_bucket, include_buckets, restore_cmd)
         o, r = self.execute_command(restore_cmd)
