@@ -17,7 +17,7 @@ class CBASInferSchema(CBASInferBase):
     def verify_analytics_supports_infer_schema(self):
         self.log.info('Execute INFER schema on dataset that does not exist')
         status, _, error, _, _ = self.cbas_util.execute_statement_on_cbas_util(
-            'array_infer_schema((%s),0.6)' % self.cb_bucket_name)
+            'array_infer_schema((%s),{"similarity_metric":0.6})' % self.cb_bucket_name)
         self.assertTrue(status == "fatal", msg='Infer schema must fail as dataset does not exist')
         expected_error = "Cannot find dataset {0} in dataverse Default nor an alias with name {1}".format(
             self.cb_bucket_name, self.cb_bucket_name)
@@ -30,7 +30,7 @@ class CBASInferSchema(CBASInferBase):
 
         self.log.info('Execute INFER schema on dataset with link disconnected')
         status, _, error, _, _ = self.cbas_util.execute_statement_on_cbas_util(
-            'array_infer_schema((%s),0.6)' % self.cbas_dataset_name)
+            'array_infer_schema((%s),{"similarity_metric":0.6})' % self.cbas_dataset_name)
         self.assertTrue(status == "success", msg='Infer schema failed')
 
         self.log.info('Connect link')
@@ -38,12 +38,12 @@ class CBASInferSchema(CBASInferBase):
 
         self.log.info('Execute INFER schema on an empty dataset')
         status, _, error, _, _ = self.cbas_util.execute_statement_on_cbas_util(
-            'array_infer_schema((%s),0.6)' % self.cbas_dataset_name)
+            'array_infer_schema((%s),{"similarity_metric":0.6})' % self.cbas_dataset_name)
         self.assertTrue(status == "success", msg='Infer schema fails on an empty dataset')
 
         self.log.info('Execute INFER schema on single value input')
         status, _, error, _, _ = self.cbas_util.execute_statement_on_cbas_util(
-            'SELECT Value array_infer_schema(({"a":1}),0.6)')
+            'SELECT Value array_infer_schema(({"a":1}),{"similarity_metric":0.6})')
         self.assertTrue(status == "fatal", msg='Infer schema works only on array')
         # Below might fail if this is resolved - MB-33681 
         self.assertTrue("Type mismatch" in error[0]['msg'], msg='Error message mismatch')
@@ -54,7 +54,7 @@ class CBASInferSchema(CBASInferBase):
 
         self.log.info('Execute INFER schema on dataset with documents')
         status, _, _, result, _ = self.cbas_util.execute_statement_on_cbas_util(
-            'array_infer_schema((%s),0.6)' % self.cbas_dataset_name)
+            'array_infer_schema((%s),{"similarity_metric":0.6})' % self.cbas_dataset_name)
         self.assertTrue(status == "success", msg='Failed to run infer schema')
 
         self.log.info('Fetch INFER response from N1QL')
@@ -86,7 +86,7 @@ class CBASInferSchema(CBASInferBase):
         self.assertEqual(sorted(response_json), sorted(expected_json), msg='response mismatch')
 
     def verify_infer_schema_on_array(self):
-        single_array_query = 'SELECT Value array_infer_schema(([{"a":1},{"a":"aval"},{"a":[1,2]},{"a":{"b":1,"c":"aval","d":"[1,2]","e":{"f":1}}}]),0.6)'
+        single_array_query = 'SELECT Value array_infer_schema(([{"a":1},{"a":"aval"},{"a":[1,2]},{"a":{"b":1,"c":"aval","d":"[1,2]","e":{"f":1}}}]),{"similarity_metric":0.6})'
         status, _, _, result, _ = self.cbas_util.execute_statement_on_cbas_util(single_array_query)
         self.assertTrue(status == "success", msg='Failed to run infer schema')
 
@@ -260,7 +260,7 @@ class CBASInferSchema(CBASInferBase):
         # Fetch response from Analytics
         self.log.info('Execute INFER schema on dataset with documents')
         status, _, _, result, _ = self.cbas_util.execute_statement_on_cbas_util(
-            'array_infer_schema((%s),0.6)' % self.cbas_dataset_name)
+            'array_infer_schema((%s),{"similarity_metric":0.6})' % self.cbas_dataset_name)
         self.log.info('Verify INFER response')
         self.assertTrue(status == "success", msg='Failed to run infer schema')
         infer_dictionary = result[0]
