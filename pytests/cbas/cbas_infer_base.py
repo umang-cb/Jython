@@ -44,7 +44,7 @@ class CBASInferCompareJson:
             "id": "infer_schema_on_array",
             "json": [{u'#docs': 1, u'type': u'object', u'Flavor': u'', u'%docs': 25.0, u'properties': {
                 u'a': {u'maxItems': 2, u'#docs': 1, u'type': u'array', u'minItems': 2, u'%docs': 100.0,
-                       u'items': u'number'}}}, {u'#docs': 1, u'type': u'object', u'Flavor': u'', u'%docs': 25.0,
+                u'samples': [[1, 2]], u'items': u'number'}}}, {u'#docs': 1, u'type': u'object', u'Flavor': u'', u'%docs': 25.0,
                                                 u'properties': {u'a': {u'#docs': 1, u'type': u'object', u'%docs': 100.0,
                                                                        u'properties': {
                                                                            u'b': {u'#docs': 1, u'type': u'number',
@@ -59,14 +59,14 @@ class CBASInferCompareJson:
                                                                                           u'type': u'number',
                                                                                           u'%docs': 100.0}}}}}}},
                      {u'#docs': 1, u'type': u'object', u'Flavor': u'\'a\' = "aval"', u'%docs': 25.0,
-                      u'properties': {u'a': {u'#docs': 1, u'type': u'string', u'%docs': 100.0}}},
+                      u'properties': {u'a': {u'#docs': 1, u'type': u'string', u'samples': [u'aval'], u'%docs': 100.0}}},
                      {u'#docs': 1, u'type': u'object', u'Flavor': u"'a' = 1", u'%docs': 25.0,
-                      u'properties': {u'a': {u'#docs': 1, u'type': u'number', u'%docs': 100.0}}}]
+                      u'properties': {u'a': {u'#docs': 1, u'type': u'number', u'samples': [1], u'%docs': 100.0}}}]
         },
         {
             "id": "analytics_supports_infer_schema",
             "json": {u'#docs': 10, u'type': u'object',
-                     u'Flavor': u'\'first_name\' = "james",\'mutated\' = 0,\'profession\' = "doctor"', u'%docs': 100.0,
+                     u'Flavor': u'\'first_name\' = "james", \'mutated\' = 0, \'profession\' = "doctor"', u'%docs': 100.0,
                      u'properties': {u'mutated': {u'#docs': 10, u'type': u'number', u'%docs': 100.0},
                                      u'profession': {u'#docs': 10, u'type': u'string', u'%docs': 100.0},
                                      u'number': {u'#docs': 10, u'type': u'number', u'%docs': 100.0},

@@ -80,10 +80,7 @@ class CBASInferSchema(CBASInferBase):
         expected_json = json.dumps(CBASInferCompareJson.get_json('analytics_supports_infer_schema'), sort_keys=True,
                                    indent=2)
 
-        self.log.info(response_json)
-        self.log.info(expected_json)
-
-        self.assertEqual(sorted(response_json), sorted(expected_json), msg='response mismatch')
+        self.assertEqual(response_json, expected_json, msg='response mismatch')
 
     def verify_infer_schema_on_array(self):
         single_array_query = 'SELECT Value array_infer_schema(([{"a":1},{"a":"aval"},{"a":[1,2]},{"a":{"b":1,"c":"aval","d":"[1,2]","e":{"f":1}}}]),{"similarity_metric":0.6})'
@@ -98,6 +95,11 @@ class CBASInferSchema(CBASInferBase):
         for index, value in enumerate(compare_responses):
             response_json = json.dumps(response[index], sort_keys=True, indent=2)
             expected_json = json.dumps(compare_responses[index], sort_keys=True, indent=2)
+
+            self.log.info("====")
+            self.log.info(response_json)
+            self.log.info(expected_json)
+
             self.assertEqual(response_json, expected_json, msg='response mismatch')
 
     def verify_infer_schema_on_beer_sample_dataset(self):
@@ -115,7 +117,7 @@ class CBASInferSchema(CBASInferBase):
         self.log.info('Verify dataset count')
         self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.beer_sample_docs_count)
 
-        self.validate_infer_schema_response(self.beer_sample_docs_count)
+        self.validate_infer_schema_response(self.beer_sample_docs_count, compare_with_n1ql=False)
 
     def verify_infer_schema_on_travel_sample_dataset(self):
         self.log.info('Load travel-sample bucket')
@@ -132,7 +134,7 @@ class CBASInferSchema(CBASInferBase):
         self.log.info('Verify dataset count')
         self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, self.travel_sample_docs_count)
 
-        self.validate_infer_schema_response(self.travel_sample_docs_count)
+        self.validate_infer_schema_response(self.travel_sample_docs_count, compare_with_n1ql=False)
 
     def verify_infer_schema_on_large_dataset_compare_n1ql(self):
         self.log.info('Create dataset')
@@ -179,7 +181,7 @@ class CBASInferSchema(CBASInferBase):
         self.log.info('Verify dataset count')
         self.cbas_util.validate_cbas_dataset_items_count(self.cbas_dataset_name, len(documents))
 
-        self.validate_infer_schema_response(len(documents))
+        self.validate_infer_schema_response(len(documents), compare_with_n1ql=False)
 
     def verify_infer_schema_on_same_type_missing_fields(self):
         self.log.info('Create unique documents')
@@ -243,7 +245,7 @@ class CBASInferSchema(CBASInferBase):
     '''
     Common method to validate the response from Infer Schema
     '''
-    def validate_infer_schema_response(self, num_items):
+    def validate_infer_schema_response(self, num_items, compare_with_n1ql=True):
         # Fetch response from N1QL
         self.log.info('Fetch INFER response from N1QL')
         result_n1ql = self.rest.query_tool('INFER `%s`' % self.cb_bucket_name)['results']
@@ -281,17 +283,18 @@ class CBASInferSchema(CBASInferBase):
         self.log.info('Verify total document count in INFER response')
         self.assertEqual(totaldocs, num_items, msg='Document count incorrect')
 
-        # Print the N1QL & Analytics Doc Properties per flavor for debugging purposes
-        self.log.info("N1QL Doc Properties per flavor")
-        self.log.info(document_flavor_properties_n1ql)
+        if compare_with_n1ql:
+            # Print the N1QL & Analytics Doc Properties per flavor for debugging purposes
+            self.log.info("N1QL Doc Properties per flavor")
+            self.log.info(document_flavor_properties_n1ql)
 
-        self.log.info("Analytics Doc Properties per flavor")
-        self.log.info(document_flavor_properties)
+            self.log.info("Analytics Doc Properties per flavor")
+            self.log.info(document_flavor_properties)
 
-        # Compare N1QL and Analytics Doc Properties.
-        self.log.info('Verify document properties in INFER response')
-        self.assertEqual(sorted(document_flavor_properties_n1ql), sorted(document_flavor_properties),
-                         msg='Properties mismatch')
+            # Compare N1QL and Analytics Doc Properties.
+            self.log.info('Verify document properties in INFER response')
+            self.assertEqual(sorted(document_flavor_properties_n1ql), sorted(document_flavor_properties),
+                             msg='Properties mismatch')
 
     def tearDown(self):
         super(CBASInferSchema, self).tearDown()
