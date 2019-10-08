@@ -394,7 +394,7 @@ class MetadataBackup(CBASBaseTest):
         self.log.info('Restore Analytics metadata using cbbackupmgr')
         shell = RemoteMachineShellConnection(self.master)
         o = shell.restore_backup(self.cbas_node)
-        self.assertEqual(o[1].strip(), 'Restore completed successfully', msg='Restore was unsuccessful')
+        self.assertTrue('Restore completed successfully' in ''.join(o), msg='Restore was unsuccessful')
 
         self.log.info('Connect to Local link')
         self.cbas_util.connect_link()
@@ -495,6 +495,7 @@ class MetadataBackup(CBASBaseTest):
         self.log.info('Restore Analytics metadata using cbbackupmgr')
         shell = RemoteMachineShellConnection(self.master)
         o = shell.restore_backup(self.cbas_node, username=user)
+
         self.assertTrue('Restore completed successfully' in ''.join(o), msg='Restore was unsuccessful')
 
         self.log.info('Verify bucket state')
@@ -687,8 +688,8 @@ class MetadataBackup(CBASBaseTest):
         
         self.log.info('Verify bucket state')
         self.build_bucket_status_map()
-        self.assertEqual(self.dataverse_bucket_map[self.dataverse][self.beer_sample_bucket], 'disconnected')
-        self.assertEqual(self.dataverse_bucket_map[dataverse_name_escape_characters][self.beer_sample_bucket], 'disconnected')
+
+        self.assertEqual(self.dataverse_bucket_map[self.dataverse][self.beer_sample_bucket], 'connected')
         self.assertEqual(self.dataverse_bucket_map[self.dataverse_1][self.beer_sample_bucket], 'connected')
         self.assertEqual(self.dataverse_bucket_map[self.dataverse_2][self.travel_sample_bucket], 'connected')
         

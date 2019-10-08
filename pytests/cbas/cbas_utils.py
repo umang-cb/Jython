@@ -618,7 +618,7 @@ class cbas_utils():
             response = json.loads(response)
         shell.disconnect()
 
-        return response
+        return response['results']
     
     def convert_execution_time_into_ms(self, time):
         """
