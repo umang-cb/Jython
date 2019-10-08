@@ -122,7 +122,7 @@ class CBASClusterManagement(CBASBaseTest):
             service = random.choice(service_list.keys())
             self.log.info("Adding %s to the cluster with services %s to cluster %s"%(cbas_server,service,self.master))
             
-            stdout, stderr, result = CouchbaseCLI(self.master, self.master.rest_username, self.master.rest_password).server_add(cbas_server.ip+":"+cbas_server.port, cbas_server.rest_username, cbas_server.rest_password, None, service, None)
+            stdout, stderr, result = CouchbaseCLI(self.master, self.master.rest_username, self.master.rest_password).server_add("http://"+cbas_server.ip+":"+cbas_server.port, cbas_server.rest_username, cbas_server.rest_password, None, service, None)
             self.assertTrue(result, "Server %s is not added to the cluster %s . Error: %s"%(cbas_server,self.master,stdout+stderr))
             self.rebalance()
             

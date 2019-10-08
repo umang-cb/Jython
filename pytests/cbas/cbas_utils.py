@@ -246,7 +246,7 @@ class cbas_utils():
 
         cmd_create_dataset = "create dataset {0} ".format(cbas_dataset_name)
         if compress_dataset:
-            cmd_create_dataset = cmd_create_dataset + "{'storage-block-compression': {'scheme': 'snappy'}} "
+            cmd_create_dataset = cmd_create_dataset + "with {'storage-block-compression': {'scheme': 'snappy'}} "
 
         cmd_create_dataset = cmd_create_dataset + "on {0} ".format(cbas_bucket_name)
 

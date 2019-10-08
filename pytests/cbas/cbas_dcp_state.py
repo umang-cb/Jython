@@ -184,7 +184,7 @@ class CBASDCPState(CBASBaseTest):
         if rebalance_success == False:
             self.log.info("Grep Analytics logs for user action as rebalance in Failed")
             result, _ = self.shell.execute_command("grep 'Datasets in different partitions have different DCP states.' /opt/couchbase/var/lib/couchbase/logs/analytics*.log")
-            self.assertTrue("User action: Connect the bucket:" in result[0] and "or drop the dataset: Default.ds" in result[0], msg="User action not found.")
+            self.assertTrue("User action: Connect the link:" in result[0] and "or drop the dataset: Default.ds" in result[0], msg="User action not found.")
 
             user_action = self.input.param("user_action", "drop_dataset")
             if user_action == "connect_cbas_bucket":
