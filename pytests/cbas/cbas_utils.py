@@ -881,7 +881,7 @@ class cbas_utils():
             nodes = response['nodes']
             for node in nodes:
                 if node["nodeId"] == ccNodeId:
-                    ccNodeConfigURL = node['configUri']
+                    ccNodeConfigURL = node['apiBase'] + response['nodeConfigUri']
                     ccNodeIP = node['nodeName'][:-5]
                     break
                 
@@ -1017,7 +1017,7 @@ class cbas_utils():
         partitons={}
         nodes,ccNodeId,ccConfigURL = self.retrieve_nodes_config(shell=shell)
         for node in nodes:
-            address, port = self.retrieve_analyticsHttpAdminListen_address_port(node['configUri'], shell)
+            address, port = self.retrieve_analyticsHttpAdminListen_address_port(node['apiBase']+"/analytics/node/config", shell)
             partitons[node['nodeName']]=self.retrieve_number_of_partitions(address, port, shell)
         
         return partitons
