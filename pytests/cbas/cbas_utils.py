@@ -912,13 +912,14 @@ class cbas_utils():
         ccNodeId = ""
         nodes = None
         ccNodeConfigURL=None
+
         if 'ccNodeId' in response:
             ccNodeId = response['ccNodeId']
         if 'nodes' in response:
             nodes = response['nodes']
             for node in nodes:
                 if only_cc_node_url and node["nodeId"] == ccNodeId:
-                    ccNodeConfigURL = node['configUri']
+                    ccNodeConfigURL = node['apiBase'] + response['nodeConfigUri']
                     break
                 
         self.log.info("cc_config_urls=%s, ccNodeId=%s"%(ccNodeConfigURL,ccNodeId))
