@@ -36,8 +36,11 @@ class CBASHelper(RestConnection):
         api = self.cbas_base_url + "/analytics/service"
         headers = self._create_capi_headers(username, password)
 
-        params = {'statement': statement, 'mode': mode, 'pretty': pretty,
+        params = {'statement': statement, 'pretty': pretty,
                   'client_context_id': client_context_id, 'timeout': str(analytics_timeout) + time_out_unit}
+
+        if mode is not None:
+            params['mode'] = mode
         
         if scan_consistency is not None:
            params['scan_consistency'] = scan_consistency
