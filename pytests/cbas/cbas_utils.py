@@ -881,7 +881,11 @@ class cbas_utils():
             nodes = response['nodes']
             for node in nodes:
                 if node["nodeId"] == ccNodeId:
-                    ccNodeConfigURL = node['apiBase'] + response['nodeConfigUri']
+                    # node['apiBase'] will not be present in pre-6.5.0 clusters, hence the check
+                    if 'apiBase' in node:
+                        ccNodeConfigURL = node['apiBase'] + response['nodeConfigUri']
+                    else:
+                        ccNodeConfigURL = node['configUri']
                     ccNodeIP = node['nodeName'][:-5]
                     break
                 
@@ -919,7 +923,11 @@ class cbas_utils():
             nodes = response['nodes']
             for node in nodes:
                 if only_cc_node_url and node["nodeId"] == ccNodeId:
-                    ccNodeConfigURL = node['apiBase'] + response['nodeConfigUri']
+                    # node['apiBase'] will not be present in pre-6.5.0 clusters, hence the check
+                    if 'apiBase' in node:
+                        ccNodeConfigURL = node['apiBase'] + response['nodeConfigUri']
+                    else:
+                        ccNodeConfigURL = node['configUri']
                     break
                 
         self.log.info("cc_config_urls=%s, ccNodeId=%s"%(ccNodeConfigURL,ccNodeId))
