@@ -366,6 +366,9 @@ class CbasUpgrade(NewUpgradeBaseTest):
                 self.sleep(self.sleep_time, "Installation of new version is done".format(upgrade_version))
                 self.update_jre_on_node(node)
 
+        self.log.info("Rebalance cluster after offline upgrade (See MB-33756)")
+        self.rebalance(wait_for_completion=True)
+
         self.log.info("Wait for analytics service to be ready")
         analytics_recovered = self.cbas_util.wait_for_cbas_to_recover()
         self.assertTrue(analytics_recovered, msg="Analytics failed to recover")
