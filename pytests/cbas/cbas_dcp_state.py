@@ -232,7 +232,7 @@ class CBASPendingMutations(CBASBaseTest):
             self.assertTrue(status, msg="Fetch pending mutations failed")
             content = json.loads(content)
             if content:
-                aggregate_remaining_mutations_list.append(content["Default.ds"])
+                aggregate_remaining_mutations_list.append(content["Default"]["ds"])
                 total_count, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
                 if total_count == self.num_items:
                     break
@@ -281,7 +281,7 @@ class CBASPendingMutations(CBASBaseTest):
             self.assertTrue(status, msg="Fetch pending mutations failed")
             content = json.loads(content)
             if content:
-                aggregate_remaining_mutations_list.append(content["Default.ds"])
+                aggregate_remaining_mutations_list.append(content["Default"]["ds"])
                 total_count, _ = self.cbas_util.get_num_items_in_cbas_dataset(self.cbas_dataset_name)
                 if total_count == self.num_items * 4:
                     break
