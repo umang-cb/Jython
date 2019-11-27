@@ -236,7 +236,7 @@ class DateTimeFunctionClass(QueryTests):
                     if not expect_null_result and not lst:
                         error_query.append(query)
                     elif lst:
-                        if len(lst) != count:
+                        if len(lst) == 0:
                             error_query.append(query)
         self.assertFalse(error_query, "Queries Failed are: {0}".format(
             error_query))
