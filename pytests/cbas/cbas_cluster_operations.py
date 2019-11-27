@@ -699,6 +699,10 @@ class CBASClusterOperations(CBASBaseTest):
             shell.restart_couchbase()
             self.sleep(30, message="Waiting for service to be back again...")
 
+            reached = RestHelper(self.rest).rebalance_reached(wait_step=120)
+            self.log.info("Rebalance status : {0}".format(reached))
+            self.sleep(20)
+
             self._check_retry_rebalance_succeeded()
 
             if reinitialize_cbas_util is True:

@@ -369,7 +369,7 @@ class NULLTests(QueryTests):
 
     def test_ifnull(self):
         for bucket in self.buckets:
-            self.query = "SELECT feature_name, IFNAN(story_point[2],story_point[1]) as point" +\
+            self.query = "SELECT feature_name, IFNULL(story_point[2],story_point[1]) as point" +\
                         " FROM %s ORDER BY feature_name"  % bucket.name
             self.run_cbq_query()
             self.sleep(3)

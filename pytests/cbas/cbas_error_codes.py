@@ -384,8 +384,8 @@ class CBASError:
         # Error codes starting with 21xxx
         {
             "id": "invalid_duration",
-            "msg": 'Invalid duration "tos"',
-            "code": 21000,
+            "msg": 'Invalid value for parameter "timeout": tos',
+            "code": 21008,
             "query": "select sleep(count(*), 2000) from ds",
             "time_out":"to",
             "run_in_loop": True

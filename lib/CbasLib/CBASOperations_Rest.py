@@ -78,8 +78,10 @@ class CBASHelper(RestConnection):
             password = self.password
         api = self.cbas_base_url + "/analytics/service"
         headers = self._create_capi_headers(username, password)
-        params = {'statement': statement, 'mode': mode, 'pretty': pretty, 'client_context_id': client_context_id,
+        params = {'statement': statement, 'pretty': pretty, 'client_context_id': client_context_id,
                   'timeout': str(analytics_timeout) + "s"}
+        if mode is not None:
+            params['mode'] = mode
         for i in range(len(parameters)):
             params.update(parameters[i])
         params = json.dumps(params)

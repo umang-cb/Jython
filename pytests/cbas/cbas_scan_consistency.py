@@ -55,8 +55,8 @@ class CBASScanConsistency(CBASBaseTest):
         query = "select 1"
         response, _, error, _, _ = self.cbas_util.execute_statement_on_cbas_util(query, scan_consistency='at_plus')
         self.assertEqual(response, "fatal", "Query must fail as scan consistency parameter is not supported")
-        self.assertEqual(error[0]['msg'], 'Unsupported scan consistency (at_plus)', msg='Error message mismatch')
-        self.assertEqual(error[0]['code'], 21006, msg='Error code mismatch')
+        self.assertTrue("Invalid value for parameter" in error[0]['msg'], msg='Error message mismatch')
+        self.assertEqual(error[0]['code'], 21008, msg='Error code mismatch')
         
         self.log.info('Execute SQL++ query with incorrect scan_wait parameters')
         response, _, error, _, _ = self.cbas_util.execute_statement_on_cbas_util(query, scan_wait='1Y')
@@ -522,7 +522,7 @@ class CBASScanConsistency(CBASBaseTest):
         shell = RemoteMachineShellConnection(self.cbas_node)
         while time.time() < start_time + 120:
             output, error = shell.execute_command("curl -X POST {0} -u {1}:{2} -d 'statement={3}'".format(cbas_url, "Administrator", "password", query))
-            self.log.info(output)
+            #self.log.info(output)
             self.log.info(error)
             if 'Request timed out and will be cancelled' in str(output):
                 self.log.info("Hit Request timed out")
