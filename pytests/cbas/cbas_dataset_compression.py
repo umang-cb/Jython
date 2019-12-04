@@ -36,7 +36,8 @@ class CBASDatasetCompression(CBASBaseTest):
 
         self.assertEqual(self.cbas_util.get_ds_compression_type("ds1"), "snappy",
                          "ds1 dataset not compressed with type snappy")
-        self.assertIsNone(self.cbas_util.get_ds_compression_type("ds2"), "ds2 dataset compression type is not None")
+        self.assertEqual(self.cbas_util.get_ds_compression_type("ds2"), "snappy",
+                         "ds2 dataset compression type is snappy")
 
         # Fetch storage/stats
         _, results, _ = self.cbas_util.fetch_cbas_storage_stats()
@@ -77,7 +78,8 @@ class CBASDatasetCompression(CBASBaseTest):
         self.cbas_util.validate_cbas_dataset_items_count("ds2", 31591)
 
         self.assertIsNone(self.cbas_util.get_ds_compression_type("ds1"), "ds1 dataset compression type is not None")
-        self.assertIsNone(self.cbas_util.get_ds_compression_type("ds2"), "ds2 dataset compression type is not None")
+        self.assertEqual(self.cbas_util.get_ds_compression_type("ds2"), "snappy",
+                         "ds2 dataset compression type is not snappy")
 
         # Fetch storage/stats
         _, results, _ = self.cbas_util.fetch_cbas_storage_stats()

@@ -61,6 +61,10 @@ class CBASErrorValidator(CBASBaseTest):
                 time_unit = error_object["time_unit"] if "time_unit" in error_object else "s"
                 status, _, errors, _, _ = self.cbas_util.execute_statement_on_cbas_util(error_object["query"], analytics_timeout=time_out, time_out_unit=time_unit)
 
+            self.log.info(status)
+            self.log.info(errors)
+
+
             if not self.validate_error_response(status, errors, error_object["msg"], error_object["code"]):
                 error_response_mismatch.append([error_object['id']])
 
@@ -391,14 +395,6 @@ class CBASError:
             "run_in_loop": True
         },
         {
-            "id": "unknown_duration",
-            "msg": 'Unknown duration unit M',
-            "code": 21001,
-            "query": "select sleep(count(*), 2000) from ds",
-            "time_unit": "M",
-            "run_in_loop": True
-        },
-        {
             "id": "request_timeout",
             "msg": "Request timed out and will be cancelled",
             "code": 21002,
@@ -480,13 +476,6 @@ class CBASError:
             "msg": 'Overflow in numeric-multiply',
             "code": 23011,
             "query": 'select 23000000000000000 * 23000000000000000',
-            "run_in_loop": True
-        },
-        {
-            "id": "compare_non_primitive",
-            "msg": 'Cannot compare non-primitive values',
-            "code": 23021,
-            "query": "select ARRAY_INTERSECT([2011,2012], [[2011]])",
             "run_in_loop": True
         },
         {
@@ -575,13 +564,6 @@ class CBASError:
             "msg": "Local link cannot be dropped",
             "code": 24007,
             "query": "drop link Local",
-            "run_in_loop": True
-        },
-        {
-            "id": "type_mismatch",
-            "msg": "Type mismatch: function contains expects its 2nd input parameter to be of type string, but the actual input type is bigint",
-            "code": 24011,
-            "query": 'SELECT CONTAINS("N1QL is awesome", 123) as n1ql',
             "run_in_loop": True
         },
         {

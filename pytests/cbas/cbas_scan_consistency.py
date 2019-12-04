@@ -61,7 +61,7 @@ class CBASScanConsistency(CBASBaseTest):
         self.log.info('Execute SQL++ query with incorrect scan_wait parameters')
         response, _, error, _, _ = self.cbas_util.execute_statement_on_cbas_util(query, scan_wait='1Y')
         self.assertEqual(response, "fatal", "Query must fail as scan consistency parameter is not supported")
-        self.assertEqual(error[0]['msg'], 'Unknown duration unit Y', msg='Error message mismatch')
+        self.assertEqual(error[0]['msg'], 'Invalid value for parameter \"scan_wait\": 1y', msg='Error message mismatch')
         self.assertEqual(error[0]['code'], 21001, msg='Error code mismatch')
         
         self.log.info('Execute SQL++ query with incorrect scan_wait unit parameters')
