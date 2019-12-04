@@ -39,22 +39,6 @@ class CBASDatasetCompression(CBASBaseTest):
         self.assertEqual(self.cbas_util.get_ds_compression_type("ds2"), "snappy",
                          "ds2 dataset compression type is snappy")
 
-        # Fetch storage/stats
-        _, results, _ = self.cbas_util.fetch_cbas_storage_stats()
-
-        ds1_totalSize = 0
-        ds2_totalSize = 0
-        for result in results:
-            if result["dataset"] == "ds1":
-                ds1_totalSize = result["totalSize"]
-            if result["dataset"] == "ds2":
-                ds2_totalSize = result["totalSize"]
-
-        self.log.info("Size of ds1 (compressed dataset) : %s" % str(ds1_totalSize))
-        self.log.info("Size of ds2 (uncompressed dataset) : %s" % str(ds2_totalSize))
-        self.assertTrue(ds1_totalSize < ds2_totalSize,
-                        "Size of compressed dataset is not less than size of uncompressed dataset")
-
     def test_create_dataset_with_none_compression(self):
 
         self.log.info("Disconnect Local link")
@@ -93,10 +77,10 @@ class CBASDatasetCompression(CBASBaseTest):
             if result["dataset"] == "ds2":
                 ds2_totalSize = result["totalSize"]
 
-        self.log.info("Size of ds1 (compressed dataset) : %s" % str(ds1_totalSize))
-        self.log.info("Size of ds2 (uncompressed dataset) : %s" % str(ds2_totalSize))
-        self.assertEqual(ds1_totalSize, ds2_totalSize,
-                         "Size of dataset compressed with scheme=none is not equal to the size of uncompressed dataset")
+        self.log.info("Size of ds1 (uncompressed dataset) : %s" % str(ds1_totalSize))
+        self.log.info("Size of ds2 (compressed dataset) : %s" % str(ds2_totalSize))
+        self.assertTrue(ds1_totalSize > ds2_totalSize,
+                        "Size of compressed dataset is not less than size of uncompressed dataset")
 
     def test_create_dataset_with_invalid_compression_type(self):
 
