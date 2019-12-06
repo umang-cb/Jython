@@ -30,12 +30,14 @@ class CbasLogging(CBASBaseTest):
 
         # Dictionary containing the default logging configuration that we set and verify if they are set
         CbasLogging.DEFAULT_LOGGER_CONFIG_DICT = {"org.apache.asterix": "INFO",
+                                                  "DcpIngestionFailureLogger": "WARN",
                                                   "com.couchbase.client.dcp.conductor.DcpChannel": "WARN",
                                                   "com.couchbase.client.core.node": "WARN",
                                                   "com.couchbase.analytics": "DEBUG",
                                                   "org.apache.hyracks": "DEBUG",
                                                   "org.apache.asterix": "DEBUG",
-                                                  "org.apache.hyracks.http.server.CLFLogger": "ACCESS"} # Empty string corresponds to ROOT logger
+                                                  "org.apache.hyracks.http.server.CLFLogger": "ACCESS"
+                                                  }  # Empty string corresponds to ROOT logger
 
         # Fetch the NC node ID and add trace logger to default logger config dictionary, trace logger has NodeId so this has to be picked at run time
         _, node_id, _ = self.cbas_util.retrieve_nodes_config()

@@ -170,7 +170,10 @@ class LogRedactionTests(CBASBaseTest, LogRedactionBase):
         self.log.info('Execute queries that result in errors displayed on workbench UI')
         for query in user_error_queries:
             status, _, errors, _, _ = self.cbas_util.execute_statement_on_cbas_util(query)
-            self.assertTrue("<ud>" not in errors[0]["msg"], msg='User error msg must not be surrounded by ud tags')
+
+            if errors :
+                self.assertTrue("\<ud\>" not in errors[0]["msg"], msg='User error msg must not be surrounded by ud tags')
+
         
         self.log.info('Check user data is surrounded by ud tags in logs')
         for query in user_error_queries:
