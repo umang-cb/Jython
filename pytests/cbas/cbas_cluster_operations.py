@@ -699,6 +699,8 @@ class CBASClusterOperations(CBASBaseTest):
             shell.restart_couchbase()
             self.sleep(30, message="Waiting for service to be back again...")
 
+            self.sleep(self.retry_time, "Wait for retry time to complete and then check the rebalance results")
+
             reached = RestHelper(self.rest).rebalance_reached(wait_step=120)
             self.log.info("Rebalance status : {0}".format(reached))
             self.sleep(20)
@@ -792,31 +794,33 @@ class CBASClusterOperations(CBASBaseTest):
         rest = RestConnection(self.master)
         result = json.loads(rest.get_pending_rebalance_info())
         self.log.info(result)
-        retry_after_secs = result["retry_after_secs"]
-        attempts_remaining = result["attempts_remaining"]
-        retry_rebalance = result["retry_rebalance"]
-        self.log.info("Attempts remaining : {0}, Retry rebalance : {1}".format(attempts_remaining, retry_rebalance))
-        while attempts_remaining:
+
+        if "retry_rebalance" in result and result["retry_rebalance"] != "not_pending":
+            retry_after_secs = result["retry_after_secs"]
+            attempts_remaining = result["attempts_remaining"]
+            retry_rebalance = result["retry_rebalance"]
+            self.log.info("Attempts remaining : {0}, Retry rebalance : {1}".format(attempts_remaining, retry_rebalance))
+            while attempts_remaining:
             # wait for the afterTimePeriod for the failed rebalance to restart
-            self.sleep(retry_after_secs, message="Waiting for the afterTimePeriod to complete")
-            try:
-                result = self.rest.monitorRebalance()
-                msg = "monitoring rebalance {0}"
-                self.log.info(msg.format(result))
-            except Exception:
-                result = json.loads(self.rest.get_pending_rebalance_info())
-                self.log.info(result)
+                self.sleep(retry_after_secs, message="Waiting for the afterTimePeriod to complete")
                 try:
-                    attempts_remaining = result["attempts_remaining"]
-                    retry_rebalance = result["retry_rebalance"]
-                    retry_after_secs = result["retry_after_secs"]
-                except KeyError:
-                    self.fail("Retrying of rebalance still did not help. All the retries exhausted...")
-                self.log.info("Attempts remaining : {0}, Retry rebalance : {1}".format(attempts_remaining,
+                    result = self.rest.monitorRebalance()
+                    msg = "monitoring rebalance {0}"
+                    self.log.info(msg.format(result))
+                except Exception:
+                    result = json.loads(self.rest.get_pending_rebalance_info())
+                    self.log.info(result)
+                    try:
+                        attempts_remaining = result["attempts_remaining"]
+                        retry_rebalance = result["retry_rebalance"]
+                        retry_after_secs = result["retry_after_secs"]
+                    except KeyError:
+                        self.fail("Retrying of rebalance still did not help. All the retries exhausted...")
+                    self.log.info("Attempts remaining : {0}, Retry rebalance : {1}".format(attempts_remaining,
                                                                                        retry_rebalance))
-            else:
-                self.log.info("Retry rebalanced fixed the rebalance failure")
-                break
+                else:
+                    self.log.info("Retry rebalanced fixed the rebalance failure")
+                    break
 
 
 class MultiNodeFailOver(CBASBaseTest):

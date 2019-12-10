@@ -71,13 +71,16 @@ class CBASAuditLogs(CBASBaseTest):
                 update_configuration_map[key] = CBASAuditLogs.actual_service_parameter_dict[key] - 1
 
         self.log.info("Update service configuration")
-        status, _, _ = self.cbas_util.update_service_parameter_configuration_on_cbas(update_configuration_map)
+
+        status, _, _ = self.cbas_util.update_service_parameter_configuration_on_cbas({'jobHistorySize' : 20})
         self.assertTrue(status, msg="Incorrect status for configuration service PUT request")
 
         self.log.info("Update expected dictionary")
         expected_dict = CBASAuditLogs.expected_service_parameter_dict
-        for key in update_configuration_map:
-            expected_dict["config_after:" + key] = update_configuration_map[key]
+        key = "jobHistorySize"
+        value = 20
+
+        expected_dict["config_after:" + key] = value
 
         self.log.info("Validate audit log for service configuration update")
         self.validate_audit_event(self.audit_id, self.cbas_node, expected_dict)

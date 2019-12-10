@@ -155,7 +155,8 @@ class CBASLimitQueries:
         },
         {
             'id': 'limit+where+greater+than',
-            'query': 'select * from default where name > "f" limit 2'
+            'query': 'select * from default where name > "f" limit 2',
+            'skip_processed_count': True
         },
         {
             'id': 'limit+where+greater+than+equals',
@@ -211,7 +212,8 @@ class CBASLimitQueries:
         },
         {
             'id': 'limit+where+and+different+keys',
-            'query': 'select * from default where age >=20 and gender != "Male" limit 1'
+            'query': 'select * from default where age >=20 and gender != "Male" limit 1',
+            'skip_processed_count':True
         },
         {
             'id': 'limit+where+and+same+keys',
