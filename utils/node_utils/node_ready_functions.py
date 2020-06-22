@@ -116,6 +116,7 @@ class NodeHelper:
                 time.sleep(10)
         
         o, r = shell.execute_command("iptables -F")
+        time.sleep(300)
         # wait till server is ready after warmup
         ClusterOperationHelper.wait_for_ns_servers_or_assert(
             [server],
