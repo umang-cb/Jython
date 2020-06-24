@@ -303,7 +303,13 @@ class CbasUpgrade(NewUpgradeBaseTest):
             self.log.info("Setting custom JRE path on node {0}".format(node.ip))
             jdk_version = self.input.param('jdk_version', 'jre8')
             if info == 'linux':
-                path = testconstants.LINUX_JDK_PATH + jdk_version
+                # Todo: Replace the hard-coded jdk11 path and change in the testconstants file instead
+                if jdk_version == "jdk11":
+                    shell = RemoteMachineShellConnection(node)
+                    output, error = shell.execute_command("sudo yum install -y java-11-openjdk-11.0.7.10-4.el7_8.x86_64")
+                    path = "/usr/lib/jvm/java-11-openjdk-11.0.7.10-4.el7_8.x86_64"
+                else:
+                    path = testconstants.LINUX_JDK_PATH + jdk_version
             elif info == 'windows':
                 path = testconstants.WIN_JDK_PATH + jdk_version
             else:
