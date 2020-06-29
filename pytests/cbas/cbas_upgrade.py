@@ -307,6 +307,7 @@ class CbasUpgrade(NewUpgradeBaseTest):
                 if jdk_version == "jdk11":
                     shell = RemoteMachineShellConnection(node)
                     output, error = shell.execute_command("sudo yum install -y java-11-openjdk-11.0.7.10-4.el7_8.x86_64")
+                    shell.log_command_output(output, error)
                     path = "/usr/lib/jvm/java-11-openjdk-11.0.7.10-4.el7_8.x86_64"
                 else:
                     path = testconstants.LINUX_JDK_PATH + jdk_version
