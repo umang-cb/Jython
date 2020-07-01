@@ -1,4 +1,5 @@
 import json
+import time
 
 from cbas.cbas_base import CBASBaseTest
 from security_utils.audit_ready_functions import audit
@@ -6,12 +7,12 @@ from Rbac_utils.Rbac_ready_functions import rbac_utils
 
 
 class CBASAuditLogs(CBASBaseTest):
-    
+
     actual_service_parameter_dict = {}
     actual_node_parameter_dict = {}
     expected_service_parameter_dict = {}
     expected_node_parameter_dict = {}
-    
+
     def build_expected_service_parameter_dict(self):
         self.log.info("Fetch configuration service parameters")
         status, content, _ = self.cbas_util.fetch_service_parameter_configuration_on_cbas()
@@ -22,7 +23,7 @@ class CBASAuditLogs(CBASBaseTest):
         for key in CBASAuditLogs.actual_service_parameter_dict:
             CBASAuditLogs.expected_service_parameter_dict["config_before:" + key] = CBASAuditLogs.actual_service_parameter_dict[key]
             CBASAuditLogs.expected_service_parameter_dict["config_after:" + key] = CBASAuditLogs.actual_service_parameter_dict[key]
-    
+
     def build_expected_node_parameter_dict(self):
         self.log.info("Fetch configuration node parameters")
         status, content, _ = self.cbas_util.fetch_node_parameter_configuration_on_cbas()
@@ -83,6 +84,7 @@ class CBASAuditLogs(CBASBaseTest):
         expected_dict["config_after:" + key] = value
 
         self.log.info("Validate audit log for service configuration update")
+        time.sleep(30)
         self.validate_audit_event(self.audit_id, self.cbas_node, expected_dict)
 
     """
@@ -109,6 +111,7 @@ class CBASAuditLogs(CBASBaseTest):
             expected_dict["config_after:" + key] = update_configuration_map[key]
 
         self.log.info("Validate audit log for service configuration update")
+        time.sleep(30)
         self.validate_audit_event(self.audit_id, self.cbas_node, expected_dict)
 
     """
@@ -127,7 +130,7 @@ class CBASAuditLogs(CBASBaseTest):
         self.log.info("Verify audit log event is not generated since service configuration update failed")
         audit_obj = audit(eventID=self.audit_id, host=self.cbas_node)
         self.assertFalse(audit_obj.check_if_audit_event_generated(), msg="Audit event must not be generated")
-    
+
     """
     cbas.cbas_audit.CBASAuditLogs.test_unsuccessful_node_configuration_updates_are_not_audited,default_bucket=False,audit_id=36866
     """
@@ -168,6 +171,7 @@ class CBASAuditLogs(CBASBaseTest):
 
         self.log.info("Enable audit logging for service configuration change")
         audit_obj.setAuditFeatureDisabled('')
+        time.sleep(30)
 
         self.log.info("Update configuration service parameters: logLevel")
         status, _, _ = self.cbas_util.update_service_parameter_configuration_on_cbas(service_configuration_map)
@@ -199,6 +203,7 @@ class CBASAuditLogs(CBASBaseTest):
 
         self.log.info("Enable audit logging for node configuration change")
         audit_obj.setAuditFeatureDisabled('')
+        time.sleep(30)
 
         self.log.info("Update configuration node parameters: storageBuffercacheSize")
         status, _, _ = self.cbas_util.update_node_parameter_configuration_on_cbas(node_configuration_map)
@@ -211,7 +216,7 @@ class CBASAuditLogs(CBASBaseTest):
     cbas.cbas_audit.CBASAuditLogs.test_no_audits_events_if_analytics_filter_component_is_disabled,default_bucket=False,service_audit_id=36865,node_audit_id=36866
     """
     def test_no_audits_events_if_analytics_filter_component_is_disabled(self):
-        
+
         self.log.info("Read configuration audit ids")
         self.service_audit_id = self.input.param("service_audit_id")
         self.node_audit_id = self.input.param("node_audit_id")
@@ -237,7 +242,7 @@ class CBASAuditLogs(CBASBaseTest):
         self.log.info("Validate audit logs are not generated for node configuration update")
         node_audit_obj = audit(eventID=self.node_audit_id, host=self.cbas_node)
         self.assertFalse(node_audit_obj.check_if_audit_event_generated(), msg="Audit event must not be generated")
-    
+
     """
     cbas.cbas_audit.CBASAuditLogs.test_audit_logs_with_filtered_user_list,default_bucket=False,audit_id=36865
     """
@@ -268,6 +273,7 @@ class CBASAuditLogs(CBASBaseTest):
 
         self.log.info("Update service configuration service parameter: logLevel")
         service_configuration_map = {"logLevel": "TRACE"}
+        time.sleep(30)
         status, _, _ = self.cbas_util.update_service_parameter_configuration_on_cbas(service_configuration_map, username="cbas_admin")
         self.assertTrue(status, msg="Incorrect status for service configuration PUT request")
 
