@@ -155,6 +155,7 @@ class BaseTestCase(unittest.TestCase, bucket_utils, cluster_utils, failover_util
             if self.bucket_type == 'ephemeral' and self.eviction_policy == 'valueOnly':
                 # use the ephemeral bucket default
                 self.eviction_policy = 'noEviction'
+            self.bucket_storage = self.input.param("bucket_storage", "couchstore")
 
             # for ephemeral buckets it
             self.sasl_password = self.input.param("sasl_password", 'password')

@@ -275,7 +275,8 @@ class BucketHelper(RestConnection):
                       evictionPolicy='valueOnly',
                       lww=False,
                       maxTTL=None,
-                      compressionMode='passive'):
+                      compressionMode='passive',
+                      storageBackend="couchstore"):
 
 
         api = '{0}{1}'.format(self.baseUrl, 'pools/default/buckets')
@@ -330,6 +331,8 @@ class BucketHelper(RestConnection):
             
         if bucketType == 'ephemeral':
             del init_params['replicaIndex']     # does not apply to ephemeral buckets, and is even rejected
+
+        init_params['storageBackend'] = storageBackend
 
 #         versions = self.get_nodes_versions()
 #         pre_spock = False

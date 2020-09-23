@@ -3604,7 +3604,8 @@ class NodeDiskStorage(object):
 
 class Bucket(object):
     def __init__(self, bucket_size='', name="", authType="sasl", saslPassword="", num_replicas=0, port=11211, master_id=None,
-                 type='', eviction_policy="valueOnly", bucket_priority=None, uuid="", lww=False, maxttl=None, compression_mode = "passive"):
+                 type='', eviction_policy="valueOnly", bucket_priority=None, uuid="", lww=False, maxttl=None,
+                 compression_mode = "passive", storageBackend="couchstore"):
         self.name = name
         self.port = port
         self.type = type
@@ -3626,6 +3627,7 @@ class Bucket(object):
         self.lww = lww
         self.maxttl = maxttl
         self.compression_mode = compression_mode
+        self.storageBackend = storageBackend
 
     def __str__(self):
         return self.name

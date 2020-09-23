@@ -296,6 +296,7 @@ class BucketCreateTask(Task):
         self.enable_replica_index = bucket_params['enable_replica_index']
         self.eviction_policy = bucket_params['eviction_policy']
         self.lww = bucket_params['lww']
+        self.storageBackend = bucket_params["storageBackend"]
         
         if 'maxTTL' in bucket_params:
             self.maxttl = bucket_params['maxTTL']
@@ -340,34 +341,30 @@ class BucketCreateTask(Task):
         version = rest.get_nodes_self().version
         try:
             if float(version[:2]) >= 3.0 and self.bucket_priority is not None:
-                BucketHelper(self.server).create_bucket(bucket=self.bucket,
-                               ramQuotaMB=self.size,
-                               replicaNumber=self.replicas,
-                               proxyPort=self.port,
-                               authType=authType,
-                               saslPassword=self.password,
-                               bucketType=self.bucket_type,
-                               replica_index=self.enable_replica_index,
-                               flushEnabled=self.flush_enabled,
-                               evictionPolicy=self.eviction_policy,
-                               threadsNumber=self.bucket_priority,
-                               lww=self.lww,
-                               maxTTL=self.maxttl,
-                               compressionMode=self.compressionMode)
+                BucketHelper(self.server).create_bucket(
+                    bucket=self.bucket, ramQuotaMB=self.size,
+                    replicaNumber=self.replicas, proxyPort=self.port,
+                    authType=authType, saslPassword=self.password,
+                    bucketType=self.bucket_type,
+                    replica_index=self.enable_replica_index,
+                    flushEnabled=self.flush_enabled,
+                    evictionPolicy=self.eviction_policy,
+                    threadsNumber=self.bucket_priority,
+                    lww=self.lww, maxTTL=self.maxttl,
+                    compressionMode=self.compressionMode,
+                    storageBackend=self.storageBackend)
             else:
-                BucketHelper(self.server).create_bucket(bucket=self.bucket,
-                               ramQuotaMB=self.size,
-                               replicaNumber=self.replicas,
-                               proxyPort=self.port,
-                               authType=authType,
-                               saslPassword=self.password,
-                               bucketType=self.bucket_type,
-                               replica_index=self.enable_replica_index,
-                               flushEnabled=self.flush_enabled,
-                               evictionPolicy=self.eviction_policy,
-                               lww=self.lww,
-                               maxTTL=self.maxttl,
-                               compressionMode=self.compressionMode)
+                BucketHelper(self.server).create_bucket(
+                    bucket=self.bucket, ramQuotaMB=self.size,
+                    replicaNumber=self.replicas, proxyPort=self.port,
+                    authType=authType, saslPassword=self.password,
+                    bucketType=self.bucket_type,
+                    replica_index=self.enable_replica_index,
+                    flushEnabled=self.flush_enabled,
+                    evictionPolicy=self.eviction_policy,
+                    lww=self.lww, maxTTL=self.maxttl,
+                    compressionMode=self.compressionMode,
+                    storageBackend=self.storageBackend)
             self.state = CHECKING
             self.call()
 

@@ -47,7 +47,7 @@ class bucket_utils():
     def _create_bucket_params(self, server, replicas=1, size=0, port=11211, password=None,
                               bucket_type='membase', enable_replica_index=1, eviction_policy='valueOnly',
                               bucket_priority=None, flush_enabled=1, lww=False, maxttl=None,
-                              compression_mode='passive'):
+                              compression_mode='passive', storageBackend="couchstore"):
         """Create a set of bucket_parameters to be sent to all of the bucket_creation methods
         Parameters:
             server - The server to create the bucket on. (TestInputServer)
@@ -82,6 +82,7 @@ class bucket_utils():
         bucket_params['lww'] = lww
         bucket_params['maxTTL'] = maxttl
         bucket_params['compressionMode'] = compression_mode
+        bucket_params['storageBackend'] = storageBackend
 
         return bucket_params
 
@@ -183,16 +184,19 @@ class bucket_utils():
             ram_available = node_info.memoryQuota
             
         self.bucket_size = ram_available - 1
-        default_params=self._create_bucket_params(server=self.master, size=self.bucket_size,
-                                                         replicas=self.num_replicas, bucket_type=self.bucket_type,
-                                                         enable_replica_index=self.enable_replica_index,
-                                                         eviction_policy=self.eviction_policy, lww=self.lww, 
-                                                         maxttl=self.maxttl, compression_mode=self.compression_mode)
+        default_params = self._create_bucket_params(server=self.master, size=self.bucket_size,
+                                                    replicas=self.num_replicas, bucket_type=self.bucket_type,
+                                                    enable_replica_index=self.enable_replica_index,
+                                                    eviction_policy=self.eviction_policy, lww=self.lww,
+                                                    maxttl=self.maxttl, compression_mode=self.compression_mode,
+                                                    storageBackend=self.bucket_storage)
         self.cluster.create_default_bucket(default_params)
         self.buckets.append(Bucket(name="default", authType="sasl", saslPassword="",
                                    num_replicas=self.num_replicas, bucket_size=self.bucket_size,
                                    eviction_policy=self.eviction_policy, lww=self.lww,
-                                   type=self.bucket_type,maxttl=self.maxttl, compression_mode=self.compression_mode))
+                                   type=self.bucket_type,maxttl=self.maxttl,
+                                   compression_mode=self.compression_mode,
+                                   storageBackend=self.bucket_storage))
         if self.enable_time_sync:
             self._set_time_sync_on_buckets( ['default'] )
 

@@ -81,7 +81,8 @@ class BucketHelper(bucket_helper_rest, SDKClient):
                       evictionPolicy='valueOnly',
                       lww=False,
                       maxTTL=None,
-                      compressionMode=None):
+                      compressionMode=None,
+                      storageBackend="couchstore"):
         log.info("Connecting Cluster")
         self.connectCluster()        
         try:

@@ -7,7 +7,8 @@ from memcached.helper.kvstore import KVStore
 
 class Bucket():
     def __init__(self, bucket_size='', name="", authType="sasl", saslPassword="", num_replicas=0, port=11211, master_id=None,
-                 type='', eviction_policy="valueOnly", bucket_priority=None, uuid="", lww=False):
+                 type='', eviction_policy="valueOnly", bucket_priority=None, uuid="", lww=False,
+                 storageBackend="couchstore"):
         self.name = name
         self.port = port
         self.type = type
@@ -27,6 +28,7 @@ class Bucket():
         self.bucket_priority = bucket_priority
         self.uuid = uuid
         self.lww = lww
+        self.storageBackend = storageBackend
 
     def __str__(self):
         return self.name

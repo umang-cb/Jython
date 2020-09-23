@@ -27,7 +27,7 @@ class BucketHelper(bucket_helper_rest):
 
     def bucket_create(self, name, bucket_type, quota,
                       eviction_policy, replica_count, enable_replica_indexes,
-                      priority, enable_flush, wait):
+                      priority, enable_flush, wait, storageBackend):
         options = self._get_default_options()
         if name is not None:
             options += " --bucket " + name
@@ -45,6 +45,8 @@ class BucketHelper(bucket_helper_rest):
             options += " --bucket-priority " + priority
         if enable_flush is not None:
             options += " --enable-flush " + str(enable_flush)
+        if storageBackend is not None:
+            options += "--storage-backend " + storageBackend
         if wait:
             options += " --wait"
 
